@@ -48,6 +48,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/balloon/BL______.TTF"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${baloo.variable}`}>
         {children}
       </body>
