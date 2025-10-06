@@ -36,6 +36,24 @@
     radial-gradient(1200px 600px at 20% -20%, rgba(52, 211, 255, 0.16), transparent),
     radial-gradient(900px 500px at 85% -30%, rgba(255, 46, 166, 0.18), transparent),
     linear-gradient(180deg, rgba(13, 15, 20, 0) 0%, rgba(13, 15, 20, 0.6) 60%, rgba(13, 15, 20, 1) 100%);
+  overflow: hidden;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.02) 0px,
+      rgba(255, 255, 255, 0.02) 2px,
+      transparent 2px,
+      transparent 4px
+    );
+  mix-blend-mode: overlay;
+  opacity: 0.22;
 }
 
 .badge {
@@ -56,9 +74,11 @@
   font-size: 66px;
   letter-spacing: 0.005em;
   margin-top: 16px;
-  text-shadow:
-    0 0 12px rgba(125, 255, 179, 0.25),
-    0 0 24px rgba(255, 46, 166, 0.18);
+  background-image: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 22px rgba(255, 46, 166, 0.16);
 }
 
 .balloon {
@@ -101,6 +121,7 @@ a.primary {
   box-shadow:
     0 0 0 1px rgba(125, 255, 179, 0.2) inset,
     0 0 24px rgba(125, 255, 179, 0.16);
+  position: relative;
 }
 
 a.secondary {
@@ -118,11 +139,32 @@ a.secondary {
   background: linear-gradient(180deg, rgba(255, 46, 166, 0.06), transparent 60%);
 }
 
+.section::before,
+.sectionAlt::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(52,211,255,0.35), rgba(255,46,166,0.35), transparent);
+}
+
 .sectionTitle {
   font-size: 28px;
   letter-spacing: -0.01em;
   margin-bottom: 24px;
   text-shadow: 0 0 12px rgba(52, 211, 255, 0.16);
+}
+
+.sectionTitle::after {
+  content: "";
+  display: block;
+  width: 72px;
+  height: 2px;
+  margin-top: 10px;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
+  box-shadow: 0 0 18px rgba(255, 46, 166, 0.25);
 }
 
 .grid {
@@ -137,7 +179,20 @@ a.secondary {
   padding: 20px;
   background: var(--surface);
   box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.02) inset;
+  position: relative;
 }
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(52, 211, 255, 0.25), rgba(255, 46, 166, 0.2));
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.card:hover::before { opacity: 0.35; }
 .card h3 {
   color: var(--accent-magenta);
 }
@@ -169,6 +224,25 @@ a.secondary {
   padding: 6px 10px;
   font-size: 13px;
   background: rgba(255,255,255,0.02);
+}
+.chips .chip:hover {
+  box-shadow:
+    0 0 0 1px rgba(52, 211, 255, 0.35) inset,
+    0 0 14px rgba(52, 211, 255, 0.25);
+  animation: flicker 2.2s infinite steps(12);
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  10% { opacity: 0.85; }
+  20% { opacity: 0.95; }
+  30% { opacity: 0.8; }
+  40% { opacity: 0.92; }
+  50% { opacity: 0.88; }
+  60% { opacity: 0.98; }
+  70% { opacity: 0.83; }
+  80% { opacity: 0.9; }
+  90% { opacity: 0.96; }
 }
 
 .steps {
@@ -223,6 +297,7 @@ a.secondary {
       0 0 42px rgba(125, 255, 179, 0.28),
       0 0 8px rgba(255, 46, 166, 0.28);
     background: linear-gradient(180deg, rgba(125, 255, 179, 0.28), rgba(125, 255, 179, 0.14));
+    animation: pulseGlow 1.8s ease-in-out infinite alternate;
   }
   a.secondary:hover {
     border-color: rgba(52, 211, 255, 0.45);
@@ -235,4 +310,108 @@ a.secondary {
     transition: transform 0.2s ease;
     box-shadow: 0 14px 36px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.03) inset;
   }
+}
+
+@keyframes pulseGlow {
+  0% { filter: drop-shadow(0 0 0 rgba(125, 255, 179, 0)); }
+  100% { filter: drop-shadow(0 0 12px rgba(125, 255, 179, 0.35)); }
+}
+
+/* Terminal-style subtitle and glitch title */
+.terminalLine {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  position: relative;
+}
+.terminalLine::before {
+  content: "$";
+  color: var(--accent-cyan);
+  margin-right: 8px;
+}
+.terminalLine::after {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 1em;
+  background: var(--foreground);
+  margin-left: 6px;
+  transform: translateY(2px);
+  animation: caretBlink 1s steps(1) infinite;
+}
+@keyframes caretBlink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
+.glitchTitle {
+  position: relative;
+}
+.glitchTitle::before,
+.glitchTitle::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  opacity: 0;
+}
+.glitchTitle::before {
+  left: 2.5px;
+  top: 2.5px;
+  color: #ff2ea6;
+  animation: glitchClip 2s linear infinite alternate-reverse, glitchVisibility 3.5s infinite alternate;
+}
+.glitchTitle::after {
+  left: -2.5px;
+  top: -2.5px;
+  color: #34d3ff;
+  animation: glitchClip 2s 1s linear infinite alternate-reverse, glitchVisibility 3.5s infinite alternate;
+}
+
+@keyframes glitchClip {
+  0% { clip: rect(129px, 9999px, 124px, 0); }
+  5% { clip: rect(133px, 9999px, 83px, 0); }
+  10% { clip: rect(51px, 9999px, 94px, 0); }
+  15% { clip: rect(131px, 9999px, 141px, 0); }
+  20% { clip: rect(18px, 9999px, 38px, 0); }
+  25% { clip: rect(27px, 9999px, 54px, 0); }
+  30% { clip: rect(37px, 9999px, 92px, 0); }
+  35% { clip: rect(144px, 9999px, 42px, 0); }
+  40% { clip: rect(44px, 9999px, 84px, 0); }
+  45% { clip: rect(147px, 9999px, 167px, 0); }
+  50% { clip: rect(103px, 9999px, 96px, 0); }
+  55% { clip: rect(38px, 9999px, 35px, 0); }
+  60% { clip: rect(122px, 9999px, 112px, 0); }
+  65% { clip: rect(2px, 9999px, 105px, 0); }
+  70% { clip: rect(30px, 9999px, 150px, 0); }
+  75% { clip: rect(152px, 9999px, 44px, 0); }
+  80% { clip: rect(78px, 9999px, 77px, 0); }
+  85% { clip: rect(41px, 9999px, 8px, 0); }
+  90% { clip: rect(59px, 9999px, 98px, 0); }
+  95% { clip: rect(81px, 9999px, 75px, 0); }
+  100% { clip: rect(46px, 9999px, 58px, 0); }
+}
+
+@keyframes glitchVisibility {
+  0% { opacity: 0; }
+  3% { opacity: 0; }
+  3.1% { opacity: 1; }
+  4% { opacity: 1; }
+  4.1% { opacity: 0; }
+  10% { opacity: 0; }
+  10.1% { opacity: 1; }
+  40% { opacity: 1; }
+  40.1% { opacity: 0; }
+  70% { opacity: 0; }
+  70.1% { opacity: 1; }
+  71% { opacity: 1; }
+  71.1% { opacity: 0; }
+  74% { opacity: 0; }
+  74.1% { opacity: 1; }
+  77% { opacity: 1; }
+  77.1% { opacity: 0; }
+  80% { opacity: 0; }
+  80.1% { opacity: 1; }
+  100% { opacity: 1; }
 }

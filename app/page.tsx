@@ -9,8 +9,8 @@ export default function Home() {
       <header className={styles.hero}>
         <div className={styles.container}>
           <span className={styles.badge}>Ingénierie • France</span>
-          <h1 className={`${styles.heroTitle} ${styles.balloon}`}>PUNK HAZARD</h1>
-          <p className={styles.subtitle}>
+          <h1 className={`${styles.heroTitle} ${styles.balloon} ${styles.glitchTitle}`} data-text="PUNK HAZARD">PUNK HAZARD</h1>
+          <p className={`${styles.subtitle} ${styles.terminalLine}`}>
             Conception de PCB, programmation embarquée, électronique et robots. Du prototype à
             l’industrialisation.
           </p>
