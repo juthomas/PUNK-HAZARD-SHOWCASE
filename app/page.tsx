@@ -2,7 +2,7 @@ import Link from "next/link";
 import styles from "./page.module.css";
 
 export default function Home() {
-  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "contact@votre-domaine.fr";
+  const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "contact@punkhazard.org";
 
   return (
     <div className={styles.page}>
