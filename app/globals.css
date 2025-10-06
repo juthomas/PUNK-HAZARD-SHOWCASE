@@ -34,10 +34,11 @@ p {
   line-height: 1.7;
 }
 
-/* Self-hosted Balloon font (prod) */
+/* Self-hosted Balloon font (prod/dev) */
 @font-face {
   font-family: 'Balloon';
-  src: url('/fonts/balloon/BL______.TTF') format('truetype');
+  src: url('/fonts/balloon/Balloon.woff2') format('woff2'),
+       url('/fonts/balloon/balloon.TTF') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

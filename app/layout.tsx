@@ -18,6 +18,7 @@ const baloo = Baloo_2({
   weight: ["700", "800"],
 });
 
+
 export const metadata: Metadata = {
   title: "PUNKHAZARD — Ingénierie électronique, PCB, embarqué & robots",
   description:
@@ -51,9 +52,9 @@ export default function RootLayout({
       <head>
         <link
           rel="preload"
-          href="/fonts/balloon/BL______.TTF"
+          href="/fonts/balloon/Balloon.woff2"
           as="font"
-          type="font/ttf"
+          type="font/woff2"
           crossOrigin="anonymous"
         />
       </head>
