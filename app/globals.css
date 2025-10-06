@@ -1,14 +1,15 @@
 :root {
-  --background: #ffffff;
-  --foreground: #0d0f14;
+  --background: #0a0b0f;
+  --foreground: #e6e7ee;
+  --surface: #0f1117;
+  --surface-alt: #0c0e13;
+  --border: rgba(230, 231, 238, 0.08);
+  --accent-neon: #7dffb3; /* neon green */
+  --accent-magenta: #ff2ea6; /* electric magenta */
+  --accent-cyan: #34d3ff; /* cyan */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* The site is dark by default now */
 
 html,
 body {
