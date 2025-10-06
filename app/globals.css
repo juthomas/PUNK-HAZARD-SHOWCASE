@@ -44,6 +44,16 @@ p {
   font-display: swap;
 }
 
+/* Map bold weight to same file so iOS/Safari matches h1=700 */
+@font-face {
+  font-family: 'Balloon';
+  src: url('/fonts/balloon/Balloon.woff2') format('woff2'),
+       url('/fonts/balloon/balloon.TTF') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

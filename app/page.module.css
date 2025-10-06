@@ -173,6 +173,12 @@ a.secondary {
   gap: 16px;
 }
 
+.workGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
 .card {
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -274,6 +280,9 @@ a.secondary {
   .grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .workGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 600px) {
@@ -283,10 +292,28 @@ a.secondary {
   .grid {
     grid-template-columns: 1fr;
   }
+  .workGrid {
+    grid-template-columns: 1fr;
+  }
   .ctas {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.workMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 8px 0;
+}
+
+.tag {
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  opacity: 0.9;
 }
 
 /* Hover effects for non-touch */

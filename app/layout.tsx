@@ -57,6 +57,13 @@ export default function RootLayout({
           type="font/woff2"
           crossOrigin="anonymous"
         />
+        <link
+          rel="preload"
+          href="/fonts/balloon/balloon.TTF"
+          as="font"
+          type="font/ttf"
+          crossOrigin="anonymous"
+        />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${baloo.variable}`}>
         {children}

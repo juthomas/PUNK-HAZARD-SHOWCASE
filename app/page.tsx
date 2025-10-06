@@ -97,6 +97,46 @@ export default function Home() {
           </div>
         </section>
 
+        {/* <section id="realisations" className={styles.section}>
+          <div className={styles.container}>
+            <h2 className={styles.sectionTitle}>Réalisations</h2>
+            <div className={styles.workGrid}>
+              <div className={styles.card}>
+                <h3>Installation lumineuse interactive</h3>
+                <div className={styles.workMeta}>
+                  <span className={styles.tag}>Lumières</span>
+                  <span className={styles.tag}>DMX/Art‑Net</span>
+                  <span className={styles.tag}>Capteurs</span>
+                  <span className={styles.tag}>Conception 3D</span>
+                </div>
+                <p>Dispositif scénique piloté en temps réel, synchronisé audio‑lumière avec retours capteurs.</p>
+              </div>
+
+              <div className={styles.card}>
+                <h3>Sculpture sonore réactive</h3>
+                <div className={styles.workMeta}>
+                  <span className={styles.tag}>Audio</span>
+                  <span className={styles.tag}>Capteurs</span>
+                  <span className={styles.tag}>PCB custom</span>
+                  <span className={styles.tag}>ESP32</span>
+                </div>
+                <p>Électronique et firmware dédiés pour modulations et effets synchronisés aux interactions.</p>
+              </div>
+
+              <div className={styles.card}>
+                <h3>Performance robotique Go2 (Unitree)</h3>
+                <div className={styles.workMeta}>
+                  <span className={styles.tag}>Unitree Go2</span>
+                  <span className={styles.tag}>SDK</span>
+                  <span className={styles.tag}>ROS2</span>
+                  <span className={styles.tag}>Chorégraphie</span>
+                </div>
+                <p>Mouvements scénographiés, synchronisation avec lumière et audio, intégrations sur mesure.</p>
+              </div>
+            </div>
+          </div>
+        </section> */}
+
         <section id="expertise" className={styles.sectionAlt}>
           <div className={styles.container}>
             <h2 className={styles.sectionTitle}>Expertise & Stack</h2>
