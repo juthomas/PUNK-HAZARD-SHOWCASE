@@ -1,6 +1,6 @@
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0d0f14;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +22,25 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base typography */
+h1, h2, h3, h4 {
+  font-weight: 700;
+}
+
+p {
+  line-height: 1.7;
+}
+
+/* Self-hosted Balloon font (drop files in public/fonts/balloon) */
+@font-face {
+  font-family: 'Balloon';
+  src: url('/fonts/balloon/Balloon-Regular.woff2') format('woff2'),
+       url('/fonts/balloon/Balloon-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 * {
