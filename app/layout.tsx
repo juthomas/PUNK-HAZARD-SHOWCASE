@@ -52,14 +52,14 @@ export default function RootLayout({
       <head>
         <link
           rel="preload"
-          href="/fonts/balloon/Balloon.woff2"
+          href="/fonts/balloon/balloon.woff2"
           as="font"
           type="font/woff2"
           crossOrigin="anonymous"
         />
         <link
           rel="preload"
-          href="/fonts/balloon/balloon.TTF"
+          href="/fonts/balloon/balloon.ttf"
           as="font"
           type="font/ttf"
           crossOrigin="anonymous"
