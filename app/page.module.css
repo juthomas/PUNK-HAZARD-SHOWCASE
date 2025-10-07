@@ -32,10 +32,10 @@
 .hero {
   padding: 120px 0 72px;
   position: relative;
-  background:
+  /* background:
     radial-gradient(1200px 600px at 20% -20%, rgba(52, 211, 255, 0.16), transparent),
     radial-gradient(900px 500px at 85% -30%, rgba(255, 46, 166, 0.18), transparent),
-    linear-gradient(180deg, rgba(13, 15, 20, 0) 0%, rgba(13, 15, 20, 0.6) 60%, rgba(13, 15, 20, 1) 100%);
+    linear-gradient(180deg, rgba(13, 15, 20, 0) 0%, rgba(13, 15, 20, 0.6) 60%, rgba(13, 15, 20, 1) 100%); */
   overflow: hidden;
 }
 
@@ -74,10 +74,10 @@
   font-size: 66px;
   letter-spacing: 0.005em;
   margin-top: 16px;
-  background-image: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  /* background-image: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta)); */
+  /* -webkit-background-clip: text; */
+  /* background-clip: text; */
+  color: white;
   text-shadow: 0 0 22px rgba(255, 46, 166, 0.16);
 }
 
@@ -116,11 +116,11 @@
 }
 
 a.primary {
-  background: linear-gradient(180deg, rgba(125, 255, 179, 0.2), rgba(125, 255, 179, 0.1));
+  background: rgba(255, 255, 255, 0.097);
   color: var(--foreground);
   box-shadow:
-    0 0 0 1px rgba(125, 255, 179, 0.2) inset,
-    0 0 24px rgba(125, 255, 179, 0.16);
+    0 0 0 1px rgba(255, 255, 255, 0.2) inset,
+    0 0 24px rgba(255, 255, 255, 0.16);
   position: relative;
 }
 
@@ -136,10 +136,10 @@ a.secondary {
 
 .sectionAlt {
   padding: 72px 0;
-  background: linear-gradient(180deg, rgba(255, 46, 166, 0.06), transparent 60%);
+  /* background: linear-gradient(180deg, rgba(255, 46, 166, 0.06), transparent 60%); */
 }
 
-.section::before,
+/* .section::before,
 .sectionAlt::before {
   content: "";
   position: absolute;
@@ -148,7 +148,7 @@ a.secondary {
   top: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(52,211,255,0.35), rgba(255,46,166,0.35), transparent);
-}
+} */
 
 .sectionTitle {
   font-size: 28px;
@@ -157,15 +157,6 @@ a.secondary {
   text-shadow: 0 0 12px rgba(52, 211, 255, 0.16);
 }
 
-.sectionTitle::after {
-  content: "";
-  display: block;
-  width: 72px;
-  height: 2px;
-  margin-top: 10px;
-  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
-  box-shadow: 0 0 18px rgba(255, 46, 166, 0.25);
-}
 
 .grid {
   display: grid;
@@ -320,17 +311,17 @@ a.secondary {
 @media (hover: hover) and (pointer: fine) {
   a.primary:hover {
     box-shadow:
-      0 0 0 1px rgba(125, 255, 179, 0.35) inset,
-      0 0 42px rgba(125, 255, 179, 0.28),
-      0 0 8px rgba(255, 46, 166, 0.28);
-    background: linear-gradient(180deg, rgba(125, 255, 179, 0.28), rgba(125, 255, 179, 0.14));
+      0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+      0 0 42px rgba(255, 255, 255, 0.28),
+      0 0 8px rgba(255, 255, 255, 0.28);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.14));
     animation: pulseGlow 1.8s ease-in-out infinite alternate;
   }
   a.secondary:hover {
-    border-color: rgba(52, 211, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.45);
     box-shadow:
-      0 0 0 1px rgba(52, 211, 255, 0.35) inset,
-      0 0 22px rgba(52, 211, 255, 0.22);
+      0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+      0 0 22px rgba(255, 255, 255, 0.22);
   }
   .card:hover {
     transform: translateY(-2px);
@@ -386,13 +377,13 @@ a.secondary {
 .glitchTitle::before {
   left: 2.5px;
   top: 2.5px;
-  color: #ff2ea6;
+  color: #ff0000ff;
   animation: glitchClip 2s linear infinite alternate-reverse, glitchVisibility 3.5s infinite alternate;
 }
 .glitchTitle::after {
   left: -2.5px;
   top: -2.5px;
-  color: #34d3ff;
+  color: #00ffffff;
   animation: glitchClip 2s 1s linear infinite alternate-reverse, glitchVisibility 3.5s infinite alternate;
 }
 
