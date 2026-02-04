@@ -1,0 +1,266 @@
+{
+  "common": {
+    "nav": {
+      "home": "Home",
+      "shop": "Shop",
+      "services": "Services",
+      "projects": "Projects",
+      "contact": "Contact"
+    },
+    "cta": {
+      "requestQuote": "Request a quote",
+      "contact": "Get in touch",
+      "sendMessage": "Send message",
+      "sending": "Sending...",
+      "viewServices": "View services"
+    },
+    "footer": {
+      "description": "Electronic engineering, PCB, embedded systems & robots.\nAudio and artistic equipment.",
+      "navigation": "Navigation",
+      "information": "Information",
+      "rights": "All rights reserved."
+    },
+    "about": "About",
+    "cgv": "Terms",
+    "legal": "Legal Notice"
+  },
+  "home": {
+    "badge": "Engineering • France",
+    "title": "PUNK HAZARD",
+    "subtitle": "PCB design, embedded programming, electronics and robots. From prototype to industrialization.",
+    "sections": {
+      "services": {
+        "title": "Services",
+        "items": {
+          "pcb": {
+            "title": "PCB Design",
+            "description": "Schematics, routing and manufacturing preparation.",
+            "features": ["KiCad", "DFM, BOM", "Prototyping and assembly"]
+          },
+          "electronics": {
+            "title": "Electronics & Programming",
+            "description": "Firmware and electronics adapted to interactive projects.",
+            "features": [
+              "Microcontrollers (STM32, ESP32, AVR)",
+              "Sensors, interfaces, audio",
+              "Lights (DMX/Art‑Net), synchronization"
+            ]
+          },
+          "integration": {
+            "title": "Complete Integration",
+            "description": "Electronics, 3D and software, coordinated for the stage.",
+            "features": [
+              "Architecture and multi-disciplinary integration",
+              "Demonstrations/performances, audio-light sync",
+              "Support from idea to stage"
+            ]
+          },
+          "go2": {
+            "title": "Go2 (Unitree) — custom creation",
+            "description": "Quadruped robot adapted for artistic performances, installations and R&D.",
+            "features": [
+              "Custom software and hardware (SDK/ROS, sensors, interfaces)",
+              "Choreography/stage design, audio-light synchronization",
+              "Stage modules and performative installations",
+              "Artistic projects and research-creation"
+            ]
+          }
+        }
+      },
+      "shop": {
+        "title": "Shop",
+        "subtitle": "Audio and artistic equipment",
+        "products": {
+          "as-simt": {
+            "name": "AS-SIMT Sensor",
+            "description": "Haptic-sonic motion sensor"
+          },
+          "audio": {
+            "name": "I2S Audio Module",
+            "description": "Multi-channel embedded audio module"
+          },
+          "pcb": {
+            "name": "Custom PCB",
+            "description": "Custom design"
+          }
+        },
+        "price": {
+          "coming": "Coming soon",
+          "quote": "On quote"
+        }
+      },
+      "projects": {
+        "title": "Projects & Achievements",
+        "items": {
+          "as-simt": {
+            "title": "AS-SIMT / EightOS Motion Sensors",
+            "description": "Portable sensors transforming movement into real-time visual, haptic and sonic feedback. Used by artist NSDOS in performances. Presented at Gwangju Biennale, IMPACT (Théâtre de Liège) and HOT‑SHOP 14 (ECCO Leather)."
+          },
+          "go2": {
+            "title": "Go2 (Unitree) Robotic Performance",
+            "description": "Choreographed movements, synchronization with light and audio, custom integrations. Performative projects including stage modules and interactive installations."
+          },
+          "installations": {
+            "title": "Interactive Installations",
+            "description": "Real-time controlled stage devices, audio-light synchronization with sensor feedback. Dedicated electronics and firmware for modulations and effects."
+          }
+        }
+      },
+      "expertise": {
+        "title": "Expertise & Stack"
+      },
+      "process": {
+        "title": "Approach",
+        "steps": {
+          "discovery": "Discovery — needs, constraints, objectives.",
+          "design": "Design — architecture, schematics, routing.",
+          "prototype": "Prototype — manufacturing, assembly, testing.",
+          "industrialization": "Industrialization — validation, documentation, transfer."
+        }
+      },
+      "collaborations": {
+        "title": "Collaborations",
+        "nsdos": {
+          "title": "NSDOS",
+          "description": "Artistic collaboration on AS-SIMT / EightOS motion sensors, used in most of the artist's performances."
+        },
+        "festivals": {
+          "title": "Festivals & Institutions",
+          "description": "Presentations at Gwangju Biennale, IMPACT (Théâtre de Liège), HOT‑SHOP 14 (ECCO Leather) and other international events."
+        }
+      },
+      "contact": {
+        "title": "Contact",
+        "description": "Discuss your project. Quick response, free quote.",
+        "email": "Email"
+      }
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "subtitle": "Discuss your project. Quick response, free quote.",
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "subject": "Subject",
+      "message": "Message",
+      "namePlaceholder": "Your name",
+      "emailPlaceholder": "your@email.com",
+      "subjectPlaceholder": "Subject of your message",
+      "messagePlaceholder": "Describe your project...",
+      "required": "*",
+      "submit": "Send message",
+      "sending": "Sending...",
+      "success": "Message sent successfully! You will receive a confirmation email. We will respond as soon as possible.",
+      "error": "Error sending message. Please try again."
+    },
+    "other": {
+      "title": "Other ways to contact",
+      "email": "Email:",
+      "response": "Response:",
+      "responseTime": "Usually within 24-48h"
+    }
+  },
+  "shop": {
+    "title": "Shop",
+    "subtitle": "Audio and artistic equipment"
+  },
+  "services": {
+    "title": "Services",
+    "subtitle": "From prototype to industrialization",
+    "cta": {
+      "title": "Have a project in mind?",
+      "description": "Let's discuss your needs and constraints to find the best solution."
+    }
+  },
+  "projects": {
+    "title": "Projects & Achievements",
+    "subtitle": "Our artistic and technical projects",
+    "presentations": "Presentations:"
+  },
+  "about": {
+    "title": "About",
+    "subtitle": "PUNKHAZARD — Electronic engineering, PCB, embedded systems & robots",
+    "sections": {
+      "mission": {
+        "title": "Our mission",
+        "content": "PUNKHAZARD designs and develops custom electronic solutions for artistic, interactive and stage projects. From prototype to industrialization, we accompany your ideas from conception to realization."
+      },
+      "expertise": {
+        "title": "Expertise",
+        "content": "Specialized in PCB design, embedded programming and robotic integration, we work with modern technologies (STM32, ESP32, ROS/ROS2) to create innovative devices adapted to performing arts and interactive installations."
+      },
+      "collaborations": {
+        "title": "Collaborations",
+        "content": "We collaborate with artists, institutions and international festivals. Our AS-SIMT / EightOS motion sensors are used by artist NSDOS in performances and have been presented at major events such as Gwangju Biennale, IMPACT (Théâtre de Liège) and HOT‑SHOP 14 (ECCO Leather)."
+      },
+      "approach": {
+        "title": "Approach",
+        "content": "Our methodology combines research, development and artistic creation. We favor open source solutions, complete documentation and personalized support for each project."
+      }
+    }
+  },
+  "cgv": {
+    "title": "Terms and Conditions of Sale",
+    "lastUpdate": "Last updated:",
+    "sections": {
+      "object": {
+        "title": "1. Object",
+        "content": "These Terms and Conditions of Sale (TCS) govern the relationship between PUNKHAZARD and its customers for the sale of audio and artistic equipment, as well as for electronic engineering services."
+      },
+      "orders": {
+        "title": "2. Orders",
+        "content": "Any order implies unreserved acceptance of these TCS. Prices are indicated in euros including tax. PUNKHAZARD reserves the right to modify its prices at any time, it being understood that the applicable price is that in force on the day of the order."
+      },
+      "delivery": {
+        "title": "3. Delivery",
+        "content": "Delivery times are given for information only. In case of delivery delay, the customer will be informed as soon as possible. The risks of loss or damage to products are transferred to the customer at the time of delivery."
+      },
+      "payment": {
+        "title": "4. Payment",
+        "content": "Payment is made according to the terms agreed at the time of order. For custom services, a deposit may be required."
+      },
+      "withdrawal": {
+        "title": "5. Right of withdrawal",
+        "content": "In accordance with current legislation, the customer has a period of 14 days to exercise their right of withdrawal, except for personalized or custom products."
+      },
+      "warranty": {
+        "title": "6. Warranty",
+        "content": "Products benefit from the legal warranty of conformity and the warranty against hidden defects. For service provision, the warranty covers design and execution defects."
+      },
+      "contact": {
+        "title": "7. Contact",
+        "content": "For any questions regarding these TCS, you can contact us at: contact@punkhazard.org"
+      }
+    }
+  },
+  "legal": {
+    "title": "Legal Notice",
+    "sections": {
+      "publisher": {
+        "title": "Site publisher",
+        "content": "PUNKHAZARD\nElectronic engineering, PCB, embedded systems & robots\nEmail: contact@punkhazard.org"
+      },
+      "hosting": {
+        "title": "Hosting",
+        "content": "This site is hosted by Vercel Inc.\n340 S Lemon Ave #4133\nWalnut, CA 91789\nUnited States"
+      },
+      "intellectual": {
+        "title": "Intellectual property",
+        "content": "All content on this site (texts, images, logos, etc.) is the property of PUNKHAZARD and is protected by intellectual property laws. Any reproduction, even partial, is prohibited without prior authorization."
+      },
+      "data": {
+        "title": "Data protection",
+        "content": "Personal data collected via the contact form is used only to respond to your requests. It is not transmitted to third parties and is kept in accordance with current regulations (GDPR)."
+      },
+      "cookies": {
+        "title": "Cookies",
+        "content": "This site does not use tracking cookies. Only technical cookies necessary for the site's operation may be used."
+      },
+      "contact": {
+        "title": "Contact",
+        "content": "For any questions regarding the legal notice, you can contact us at: contact@punkhazard.org"
+      }
+    }
+  }
+}

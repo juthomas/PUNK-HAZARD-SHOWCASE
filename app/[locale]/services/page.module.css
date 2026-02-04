@@ -1,0 +1,155 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.main {
+  flex: 1;
+  padding: 96px 0;
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.title {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px 0;
+  color: var(--foreground);
+}
+
+.subtitle {
+  font-size: 18px;
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 96px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  background: var(--surface);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.cardTitle {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--foreground);
+}
+
+.cardDescription {
+  font-size: 14px;
+  opacity: 0.8;
+  margin: 0 0 16px 0;
+  line-height: 1.6;
+}
+
+.cardList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardList li {
+  font-size: 14px;
+  opacity: 0.7;
+  padding-left: 20px;
+  position: relative;
+}
+
+.cardList li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  opacity: 0.5;
+}
+
+.cta {
+  text-align: center;
+  padding: 64px 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.ctaTitle {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  color: var(--foreground);
+}
+
+.ctaText {
+  font-size: 16px;
+  opacity: 0.8;
+  margin: 0 0 32px 0;
+  line-height: 1.6;
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 32px;
+  background: var(--foreground);
+  color: var(--background);
+  border: 1px solid var(--foreground);
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.ctaButton:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 64px 0;
+  }
+
+  .title {
+    font-size: 36px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    margin-bottom: 64px;
+  }
+
+  .cta {
+    padding: 48px 24px;
+  }
+}

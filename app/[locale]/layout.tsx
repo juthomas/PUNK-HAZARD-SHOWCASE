@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { routing } from '@/i18n/routing';
 import { Geist, Geist_Mono, Baloo_2 } from "next/font/google";
-import "./globals.css";
+import "../globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,37 +21,30 @@ const baloo = Baloo_2({
   weight: ["700", "800"],
 });
 
+export function generateStaticParams() {
+  return routing.locales.map((locale) => ({ locale }));
+}
 
-export const metadata: Metadata = {
-  title: "PUNKHAZARD — Ingénierie électronique, PCB, embarqué & robots",
-  description:
-    "Conception de PCB, programmation embarquée, électronique et robots. Du prototype à l’industrialisation.",
-  keywords: [
-    "PUNKHAZARD",
-    "PCB",
-    "électronique",
-    "programmation embarquée",
-    "robots",
-    "ingénierie",
-  ],
-  openGraph: {
-    title: "PUNKHAZARD",
-    description:
-      "Conception de PCB, programmation embarquée, électronique et robots.",
-    url: "https://punkhazard.fr",
-    siteName: "PUNKHAZARD",
-    locale: "fr_FR",
-  },
-  metadataBase: new URL("https://punkhazard.fr"),
-};
-
-export default function RootLayout({
+export default async function LocaleLayout({
   children,
-}: Readonly<{
+  params,
+}: {
   children: React.ReactNode;
-}>) {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  
+  // Ensure that the incoming `locale` is valid
+  if (!routing.locales.includes(locale as any)) {
+    notFound();
+  }
+
+  // Providing all messages to the client
+  // side is the easiest way to get started
+  const messages = await getMessages();
+
   return (
-    <html lang="fr">
+    <html lang={locale}>
       <head>
         <link
           rel="preload"
@@ -66,7 +62,9 @@ export default function RootLayout({
         />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${baloo.variable}`}>
-        {children}
+        <NextIntlClientProvider messages={messages}>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

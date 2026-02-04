@@ -1,0 +1,77 @@
+.header {
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+  background: rgba(10, 11, 15, 0.8);
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.logo {
+  font-family: 'Balloon', var(--font-baloo), system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--foreground);
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.logo:hover {
+  opacity: 0.8;
+}
+
+.nav {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.navLink {
+  font-size: 14px;
+  color: var(--foreground);
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  font-weight: 500;
+}
+
+.navLink:hover {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .nav {
+    gap: 20px;
+  }
+  
+  .navLink {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 600px) {
+  .container {
+    padding: 0 16px;
+  }
+  
+  .nav {
+    gap: 16px;
+  }
+  
+  .navLink {
+    font-size: 12px;
+  }
+}

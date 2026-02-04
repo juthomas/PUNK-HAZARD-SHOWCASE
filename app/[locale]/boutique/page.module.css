@@ -1,0 +1,129 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.main {
+  flex: 1;
+  padding: 96px 0;
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.title {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px 0;
+  color: var(--foreground);
+}
+
+.subtitle {
+  font-size: 18px;
+  opacity: 0.8;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.productCard {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.productCard:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+}
+
+.productImagePlaceholder {
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+  opacity: 0.3;
+  font-size: 14px;
+}
+
+.productContent {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.productName {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--foreground);
+}
+
+.productDescription {
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
+  line-height: 1.6;
+  flex: 1;
+}
+
+.productTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tag {
+  padding: 4px 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.productPrice {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 8px 0 0 0;
+  color: var(--foreground);
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 64px 0;
+  }
+
+  .title {
+    font-size: 36px;
+  }
+
+  .productGrid {
+    grid-template-columns: 1fr;
+  }
+}
