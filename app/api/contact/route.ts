@@ -39,49 +39,27 @@ export async function POST(request: NextRequest) {
       replyTo: email, // Permet de répondre directement au client depuis votre boîte mail
       subject: contactSubject,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px 8px 0 0; border-bottom: 2px solid #e9ecef;">
-            <h2 style="margin: 0; color: #212529;">📧 Nouveau message de contact</h2>
-          </div>
-          <div style="background: #ffffff; padding: 20px; border-radius: 0 0 8px 8px;">
-            <div style="margin-bottom: 20px;">
-              <p style="margin: 8px 0; color: #495057;">
-                <strong style="color: #212529; display: inline-block; min-width: 80px;">Nom:</strong> 
-                <span>${name}</span>
-              </p>
-              <p style="margin: 8px 0; color: #495057;">
-                <strong style="color: #212529; display: inline-block; min-width: 80px;">Email:</strong> 
-                <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a>
-              </p>
-              ${subject ? `
-              <p style="margin: 8px 0; color: #495057;">
-                <strong style="color: #212529; display: inline-block; min-width: 80px;">Sujet:</strong> 
-                <span>${subject}</span>
-              </p>
-              ` : ''}
-            </div>
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #0066cc; margin: 20px 0;">
-              <p style="margin: 0 0 10px 0; color: #212529; font-weight: 600;">Message:</p>
-              <p style="margin: 0; color: #495057; white-space: pre-wrap;">${message.replace(/\n/g, '<br>')}</p>
-            </div>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <p style="margin: 0 0 15px 0; color: #495057; font-size: 14px;">
+            <strong>Nom:</strong> ${name}<br>
+            <strong>Email:</strong> <a href="mailto:${email}" style="color: #0066cc; text-decoration: none;">${email}</a><br>
+            ${subject ? `<strong>Sujet:</strong> ${subject}<br>` : ''}
+          </p>
+          <div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-left: 3px solid #0066cc;">
+            <p style="margin: 0 0 8px 0; color: #212529; font-weight: 600; font-size: 14px;">Message:</p>
+            <p style="margin: 0; color: #495057; white-space: pre-wrap; font-size: 14px; line-height: 1.5;">${message.replace(/\n/g, '<br>')}</p>
           </div>
         </div>
       `,
       text: `
-═══════════════════════════════════════════════════════════
-  NOUVEAU MESSAGE DE CONTACT
-═══════════════════════════════════════════════════════════
+Nouveau message de contact
 
 Nom: ${name}
 Email: ${email}
 ${subject ? `Sujet: ${subject}\n` : ''}
 
-───────────────────────────────────────────────────────────
-MESSAGE:
-───────────────────────────────────────────────────────────
+Message:
 ${message}
-
-═══════════════════════════════════════════════════════════
       `,
     });
 
