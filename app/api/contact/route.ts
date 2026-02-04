@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const contactSubject = subject || `Contact depuis le site - ${name}`;
 
     // Envoi de l'email à l'administrateur
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: fromEmail,
       to: toEmail,
       replyTo: email,
