@@ -2,6 +2,9 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import ProductCarousel from '@/app/components/ProductCarousel';
+import { Product } from '@/app/components/ProductCard';
+import productsData from '@/data/products.json';
 import styles from './page.module.css';
 
 export default function Home() {
@@ -12,6 +15,13 @@ export default function Home() {
   const subject = t('badge').includes('Ingénierie') 
     ? 'Demande de devis — PUNKHAZARD' 
     : 'Quote request — PUNKHAZARD';
+
+  // Convert JSON data to Product type
+  const products: Product[] = productsData.map((product) => ({
+    ...product,
+    name: product.name as { fr: string; en: string },
+    description: product.description as { fr: string; en: string },
+  }));
 
   return (
     <div className={styles.page}>
@@ -26,15 +36,15 @@ export default function Home() {
             {t('subtitle')}
           </p>
           <div className={styles.ctas}>
-            <a
+            <Link
               className={styles.primary}
-              href={`mailto:${contactEmail}?subject=${encodeURIComponent(subject)}`}
+              href="/contact?subject=devis"
             >
               <span>{tCommon('requestQuote')}</span>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -88,32 +98,7 @@ export default function Home() {
           <div className={styles.container}>
             <h2 className={styles.sectionTitle}>{t('sections.shop.title')}</h2>
             <p className={styles.sectionSubtitle}>{t('sections.shop.subtitle')}</p>
-            <div className={styles.productGrid}>
-              <div className={styles.productCard}>
-                <div className={styles.productImagePlaceholder}>
-                  <span>Image produit</span>
-                </div>
-                <h3 className={styles.productName}>{t('sections.shop.products.as-simt.name')}</h3>
-                <p className={styles.productDescription}>{t('sections.shop.products.as-simt.description')}</p>
-                <p className={styles.productPrice}>{t('sections.shop.price.coming')}</p>
-              </div>
-              <div className={styles.productCard}>
-                <div className={styles.productImagePlaceholder}>
-                  <span>Image produit</span>
-                </div>
-                <h3 className={styles.productName}>{t('sections.shop.products.audio.name')}</h3>
-                <p className={styles.productDescription}>{t('sections.shop.products.audio.description')}</p>
-                <p className={styles.productPrice}>{t('sections.shop.price.coming')}</p>
-              </div>
-              <div className={styles.productCard}>
-                <div className={styles.productImagePlaceholder}>
-                  <span>Image produit</span>
-                </div>
-                <h3 className={styles.productName}>{t('sections.shop.products.pcb.name')}</h3>
-                <p className={styles.productDescription}>{t('sections.shop.products.pcb.description')}</p>
-                <p className={styles.productPrice}>{t('sections.shop.price.quote')}</p>
-              </div>
-            </div>
+            <ProductCarousel products={products} />
           </div>
         </section>
 

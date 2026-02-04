@@ -1,0 +1,155 @@
+.carouselContainer {
+  position: relative;
+  width: 100%;
+  margin-top: 40px;
+}
+
+.carouselWrapper {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.carousel {
+  display: flex;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 24px;
+}
+
+.carouselItem {
+  flex: 0 0 calc(100% / 3 - 16px);
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .carouselItem {
+    flex: 0 0 calc(100% / 2 - 12px);
+  }
+}
+
+@media (max-width: 768px) {
+  .carouselItem {
+    flex: 0 0 100%;
+  }
+}
+
+.navButton {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  opacity: 0.9;
+}
+
+.navButton:hover:not(:disabled) {
+  background: var(--surface-alt);
+  border-color: rgba(255, 255, 255, 0.3);
+  opacity: 1;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.navButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.navButtonPrev {
+  left: -24px;
+}
+
+.navButtonNext {
+  right: -24px;
+}
+
+@media (max-width: 768px) {
+  .navButtonPrev {
+    left: 4px;
+  }
+  .navButtonNext {
+    right: 4px;
+  }
+  .navButton {
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+  }
+  .carousel {
+    gap: 16px;
+  }
+}
+
+.carouselFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.viewAllLink {
+  color: var(--foreground);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 16px;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.viewAllLink:hover {
+  opacity: 0.8;
+}
+
+.dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(1.2);
+}
+
+.dotActive {
+  background: var(--foreground);
+  width: 10px;
+  height: 10px;
+}
+
+@media (max-width: 768px) {
+  .carouselFooter {
+    justify-content: center;
+    text-align: center;
+  }
+  
+  .viewAllLink {
+    width: 100%;
+    justify-content: center;
+  }
+}

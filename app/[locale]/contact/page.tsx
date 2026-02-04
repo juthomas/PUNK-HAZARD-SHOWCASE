@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import styles from './page.module.css';
 
 export default function ContactPage() {
   const t = useTranslations('contact');
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,6 +18,21 @@ export default function ContactPage() {
   });
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Préremplir le sujet si présent dans l'URL
+  useEffect(() => {
+    const subjectParam = searchParams.get('subject');
+    if (subjectParam) {
+      // Traduire "devis" selon la langue
+      const translatedSubject = subjectParam === 'devis' 
+        ? t('form.defaultSubject')
+        : subjectParam;
+      setFormData(prev => ({
+        ...prev,
+        subject: translatedSubject,
+      }));
+    }
+  }, [searchParams, t]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

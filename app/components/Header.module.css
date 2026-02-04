@@ -44,12 +44,55 @@
   color: var(--foreground);
   text-decoration: none;
   opacity: 0.7;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
   font-weight: 500;
+  position: relative;
+  padding-bottom: 4px;
 }
 
+.navLink::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--foreground);
+  transition: width 0.2s ease;
+}
+
+/* Le lien actif a un soulignement permanent */
+.navLink.active::after {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Forcer explicitement que les liens actifs n'aient pas de surbrillance de texte par défaut */
+.navLink.active,
+.navLink.active:visited,
+.navLink.active:link {
+  opacity: 0.7 !important;
+  color: var(--foreground) !important;
+}
+
+/* Au survol sur les liens normaux */
 .navLink:hover {
   opacity: 1;
+}
+
+.navLink:hover::after {
+  width: 100%;
+}
+
+/* Au survol sur les liens actifs : surbrillance du texte et du soulignement */
+.navLink.active:hover {
+  opacity: 1 !important;
+}
+
+.navLink.active:hover::after {
+  width: 100%;
+  background: var(--foreground);
+  height: 2px;
 }
 
 @media (max-width: 768px) {
