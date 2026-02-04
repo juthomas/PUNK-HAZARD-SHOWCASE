@@ -64,9 +64,6 @@ export async function POST(request: NextRequest) {
               <p style="margin: 0 0 10px 0; color: #212529; font-weight: 600;">Message:</p>
               <p style="margin: 0; color: #495057; white-space: pre-wrap;">${message.replace(/\n/g, '<br>')}</p>
             </div>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; color: #6c757d; font-size: 12px;">
-              <p style="margin: 0;">💡 <strong>Astuce:</strong> Cliquez sur "Répondre" dans votre client email pour répondre directement à ${name} (${email})</p>
-            </div>
           </div>
         </div>
       `,
@@ -84,8 +81,6 @@ MESSAGE:
 ───────────────────────────────────────────────────────────
 ${message}
 
-───────────────────────────────────────────────────────────
-💡 Astuce: Répondez à cet email pour répondre directement à ${name} (${email})
 ═══════════════════════════════════════════════════════════
       `,
     });
