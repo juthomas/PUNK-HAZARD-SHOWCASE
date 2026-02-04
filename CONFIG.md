@@ -22,6 +22,14 @@ NEXT_PUBLIC_CONTACT_EMAIL=contact@punkhazard.org
 4. Configurez votre domaine d'envoi dans Resend
 5. Mettez à jour `RESEND_FROM_EMAIL` avec votre email vérifié
 
+### Répondre aux emails de contact
+
+Le formulaire de contact est configuré pour faciliter les réponses :
+
+- **Répondre directement** : Quand vous recevez un email de contact, cliquez simplement sur "Répondre" dans votre client email (Gmail, Outlook, etc.). L'email sera automatiquement envoyé au client qui a rempli le formulaire.
+- **Format des emails** : Les emails reçus contiennent toutes les informations du formulaire (nom, email, sujet, message) dans un format clair et structuré.
+- **Sujet des emails** : Les emails sont préfixés avec `[Contact]` pour faciliter le tri dans votre boîte de réception.
+
 ## Internationalisation (i18n)
 
 Le site supporte le français (fr) et l'anglais (en) via `next-intl`.
