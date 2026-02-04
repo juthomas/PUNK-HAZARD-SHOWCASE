@@ -13,6 +13,7 @@ type ProductCarouselProps = {
 export default function ProductCarousel({ products }: ProductCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerView, setItemsPerView] = useState(3);
+  const [isPaused, setIsPaused] = useState(false);
   const t = useTranslations('shop');
 
   useEffect(() => {
@@ -32,18 +33,54 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
     return () => window.removeEventListener('resize', updateItemsPerView);
   }, []);
 
-  const maxIndex = Math.max(0, products.length - itemsPerView);
-
+  // Carrousel infini : on peut aller au-delà des limites
   const goToPrevious = () => {
-    setCurrentIndex((prev) => Math.max(0, prev - 1));
+    setCurrentIndex((prev) => {
+      if (prev <= 0) {
+        // Si on est au début, on va à la fin (effet infini)
+        return products.length - itemsPerView;
+      }
+      return prev - 1;
+    });
+    setIsPaused(true);
+    // Reprendre l'auto-play après 5 secondes d'inactivité
+    setTimeout(() => setIsPaused(false), 5000);
   };
 
   const goToNext = () => {
-    setCurrentIndex((prev) => Math.min(maxIndex, prev + 1));
+    setCurrentIndex((prev) => {
+      const maxIndex = Math.max(0, products.length - itemsPerView);
+      if (prev >= maxIndex) {
+        // Si on est à la fin, on revient au début (effet infini)
+        return 0;
+      }
+      return prev + 1;
+    });
+    setIsPaused(true);
+    // Reprendre l'auto-play après 5 secondes d'inactivité
+    setTimeout(() => setIsPaused(false), 5000);
   };
 
-  const canGoPrevious = currentIndex > 0;
-  const canGoNext = currentIndex < maxIndex;
+  // Auto-play : changement automatique toutes les 15 secondes
+  useEffect(() => {
+    if (isPaused || products.length <= itemsPerView) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => {
+        const maxIndex = Math.max(0, products.length - itemsPerView);
+        if (prev >= maxIndex) {
+          return 0; // Retour au début (infini)
+        }
+        return prev + 1;
+      });
+    }, 5000); // 15 secondes
+
+    return () => clearInterval(interval);
+  }, [isPaused, products.length, itemsPerView]);
+
+  const maxIndex = Math.max(0, products.length - itemsPerView);
+  const canGoPrevious = true; // Toujours possible avec l'effet infini
+  const canGoNext = true; // Toujours possible avec l'effet infini
 
   // Calcul du gap selon la taille d'écran
   const gap = itemsPerView >= 3 ? 24 : itemsPerView === 2 ? 24 : 16;
