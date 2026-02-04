@@ -45,25 +45,13 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
   const canGoPrevious = currentIndex > 0;
   const canGoNext = currentIndex < maxIndex;
 
+  // Calcul du gap selon la taille d'écran
+  const gap = itemsPerView >= 3 ? 24 : itemsPerView === 2 ? 24 : 16;
+
   return (
     <div className={styles.carouselContainer}>
-      <div className={styles.carouselWrapper}>
-        <div 
-          className={styles.carousel}
-          style={{
-            transform: `translateX(-${currentIndex * (100 / itemsPerView)}%)`,
-          }}
-        >
-          {products.map((product) => (
-            <div key={product.id} className={styles.carouselItem}>
-              <ProductCard product={product} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {products.length > itemsPerView && (
-        <>
+      <div className={styles.carouselWithControls}>
+        {products.length > itemsPerView && (
           <button
             className={`${styles.navButton} ${styles.navButtonPrev}`}
             onClick={goToPrevious}
@@ -74,6 +62,24 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
               <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
+        )}
+
+        <div className={styles.carouselWrapper}>
+          <div 
+            className={styles.carousel}
+            style={{
+              transform: `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px))`,
+            }}
+          >
+            {products.map((product) => (
+              <div key={product.id} className={styles.carouselItem}>
+                <ProductCard product={product} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {products.length > itemsPerView && (
           <button
             className={`${styles.navButton} ${styles.navButtonNext}`}
             onClick={goToNext}
@@ -84,8 +90,8 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
               <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-        </>
-      )}
+        )}
+      </div>
 
       <div className={styles.carouselFooter}>
         <Link href="/boutique" className={styles.viewAllLink}>

@@ -4,10 +4,19 @@
   margin-top: 40px;
 }
 
+.carouselWithControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
 .carouselWrapper {
   overflow: hidden;
   position: relative;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 16px;
 }
 
 .carousel {
@@ -17,26 +26,31 @@
 }
 
 .carouselItem {
-  flex: 0 0 calc(100% / 3 - 16px);
+  flex: 0 0 calc((100% - 48px) / 3);
   min-width: 0;
+  padding: 4px;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1200px) {
   .carouselItem {
-    flex: 0 0 calc(100% / 2 - 12px);
+    flex: 0 0 calc((100% - 24px) / 2);
   }
 }
 
 @media (max-width: 768px) {
   .carouselItem {
-    flex: 0 0 100%;
+    flex: 0 0 calc(100% - 8px);
+  }
+  .carousel {
+    gap: 16px;
+  }
+  .carouselWrapper {
+    padding: 8px 16px;
   }
 }
 
 .navButton {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -48,15 +62,15 @@
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  z-index: 10;
   opacity: 0.9;
+  flex-shrink: 0;
 }
 
 .navButton:hover:not(:disabled) {
   background: var(--surface-alt);
   border-color: rgba(255, 255, 255, 0.3);
   opacity: 1;
-  transform: translateY(-50%) scale(1.05);
+  transform: scale(1.05);
 }
 
 .navButton:disabled {
@@ -64,26 +78,13 @@
   cursor: not-allowed;
 }
 
-.navButtonPrev {
-  left: -24px;
-}
-
-.navButtonNext {
-  right: -24px;
-}
-
 @media (max-width: 768px) {
-  .navButtonPrev {
-    left: 4px;
-  }
-  .navButtonNext {
-    right: 4px;
+  .carouselWithControls {
+    gap: 8px;
   }
   .navButton {
-    width: 36px;
-    height: 36px;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(8px);
+    width: 40px;
+    height: 40px;
   }
   .carousel {
     gap: 16px;
