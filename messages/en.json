@@ -152,7 +152,8 @@
       "submit": "Send message",
       "sending": "Sending...",
       "success": "Message sent successfully! You will receive a confirmation email. We will respond as soon as possible.",
-      "error": "Error sending message. Please try again."
+      "error": "Error sending message. Please try again.",
+      "defaultSubject": "Quote"
     },
     "other": {
       "title": "Other ways to contact",
@@ -163,7 +164,13 @@
   },
   "shop": {
     "title": "Shop",
-    "subtitle": "Audio and artistic equipment"
+    "subtitle": "Audio and artistic equipment",
+    "price": {
+      "coming": "Coming soon",
+      "quote": "On quote"
+    },
+    "noImage": "Image coming soon",
+    "viewAll": "View all products"
   },
   "services": {
     "title": "Services",

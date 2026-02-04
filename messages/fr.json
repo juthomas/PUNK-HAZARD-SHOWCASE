@@ -152,7 +152,8 @@
       "submit": "Envoyer le message",
       "sending": "Envoi en cours...",
       "success": "Message envoyé avec succès ! Vous allez recevoir un email de confirmation. Nous vous répondrons dans les plus brefs délais.",
-      "error": "Erreur lors de l'envoi du message. Veuillez réessayer."
+      "error": "Erreur lors de l'envoi du message. Veuillez réessayer.",
+      "defaultSubject": "Devis"
     },
     "other": {
       "title": "Autres moyens de contact",
@@ -163,7 +164,13 @@
   },
   "shop": {
     "title": "Boutique",
-    "subtitle": "Matériel audio et artistique"
+    "subtitle": "Matériel audio et artistique",
+    "price": {
+      "coming": "À venir",
+      "quote": "Sur devis"
+    },
+    "noImage": "Image à venir",
+    "viewAll": "Voir tous les produits"
   },
   "services": {
     "title": "Services",

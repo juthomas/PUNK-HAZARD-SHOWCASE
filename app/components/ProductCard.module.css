@@ -1,0 +1,89 @@
+.card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.imageContainer {
+  width: 100%;
+  aspect-ratio: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-alt);
+}
+
+.image {
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.image[src*="placeholder"] {
+  object-fit: contain;
+  opacity: 0.6;
+}
+
+.card:hover .image {
+  transform: scale(1.05);
+}
+
+
+.content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.name {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--foreground);
+  line-height: 1.3;
+}
+
+.description {
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 0;
+  line-height: 1.6;
+  flex: 1;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tag {
+  padding: 4px 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  opacity: 0.8;
+  color: var(--foreground);
+}
+
+.price {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 8px 0 0 0;
+  color: var(--foreground);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}

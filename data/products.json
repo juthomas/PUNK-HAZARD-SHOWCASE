@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "name": {
+      "fr": "Capteurs AS-SIMT",
+      "en": "AS-SIMT Sensors"
+    },
+    "description": {
+      "fr": "Capteurs portables esthétiques transformant le mouvement en retours visuels, haptiques et sonores en temps réel.",
+      "en": "Aesthetic wearable sensors transforming movement into visual, haptic and sonic feedback in real time."
+    },
+    "image": "/products/as-simt.jpg",
+    "price": "coming",
+    "tags": ["Capteurs haptiques", "PCB custom", "ESP32", "OSC"]
+  },
+  {
+    "id": 2,
+    "name": {
+      "fr": "Système Audio Multi-canal",
+      "en": "Multi-channel Audio System"
+    },
+    "description": {
+      "fr": "Système audio embarqué avec 3 amplificateurs I2S pour un rendu sonore multi-canal riche.",
+      "en": "Embedded audio system with 3 I2S amplifiers for rich multi-channel sound rendering."
+    },
+    "image": "/products/audio.jpg",
+    "price": "coming",
+    "tags": ["Audio", "I2S", "Multi-canal"]
+  },
+  {
+    "id": 3,
+    "name": {
+      "fr": "PCB Sur-mesure",
+      "en": "Custom PCB"
+    },
+    "description": {
+      "fr": "Conception et industrialisation de PCB sur-mesure pour vos projets électroniques.",
+      "en": "Design and industrialization of custom PCBs for your electronic projects."
+    },
+    "image": "/products/pcb.jpg",
+    "price": "quote",
+    "tags": ["PCB", "KiCad", "DFM"]
+  },
+  {
+    "id": 4,
+    "name": {
+      "fr": "Base XXL",
+      "en": "XXL Base"
+    },
+    "description": {
+      "fr": "Plateforme scénographique avec 3 enceintes, écran tactile, transducteurs et dock de recharge pour capteurs.",
+      "en": "Scenographic platform with 3 speakers, touch screen, transducers and charging dock for sensors."
+    },
+    "image": "/products/base-xxl.jpg",
+    "price": "quote",
+    "tags": ["Installation", "Audio", "Scénographie"]
+  }
+]
