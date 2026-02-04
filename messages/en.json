@@ -269,5 +269,30 @@
         "content": "For any questions regarding the legal notice, you can contact us at: contact@punkhazard.org"
       }
     }
+  },
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty",
+    "clear": "Clear",
+    "remove": "Remove",
+    "total": "Total",
+    "checkout": "Checkout",
+    "checkoutComing": "Payment functionality coming soon",
+    "addToCart": "Add to cart",
+    "price": {
+      "coming": "Coming soon",
+      "quote": "On quote"
+    }
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signInWithGoogle": "Sign in with Google",
+    "signingIn": "Signing in...",
+    "error": "Login error",
+    "invalidCredentials": "Invalid email or password"
   }
 }

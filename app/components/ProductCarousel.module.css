@@ -2,13 +2,17 @@
   position: relative;
   width: 100%;
   margin-top: 40px;
+  margin-left: -24px;
+  margin-right: -24px;
+  padding: 0 32px 0 24px;
 }
 
 .carouselWithControls {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
+  position: relative;
 }
 
 .carouselWrapper {
@@ -16,7 +20,8 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  padding: 8px 16px;
+  padding: 8px 0;
+  margin-right: 0;
 }
 
 .carousel {
@@ -32,21 +37,34 @@
   box-sizing: border-box;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1200px) and (min-width: 701px) {
   .carouselItem {
     flex: 0 0 calc((100% - 24px) / 2);
   }
+  .carouselWrapper {
+    padding: 8px 0;
+    margin-right: 0;
+  }
+  .carouselContainer {
+    padding: 0 32px 0 24px;
+  }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 700px) {
+  .carouselContainer {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 24px;
+  }
   .carouselItem {
-    flex: 0 0 calc(100% - 8px);
+    flex: 0 0 calc(100% - 16px);
   }
   .carousel {
     gap: 16px;
   }
   .carouselWrapper {
-    padding: 8px 16px;
+    padding: 8px 0;
+    margin-right: 0;
   }
 }
 
@@ -64,6 +82,8 @@
   transition: all 0.2s ease;
   opacity: 0.9;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .navButton:hover:not(:disabled) {
@@ -78,16 +98,13 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 700px) {
   .carouselWithControls {
     gap: 8px;
   }
   .navButton {
     width: 40px;
     height: 40px;
-  }
-  .carousel {
-    gap: 16px;
   }
 }
 
@@ -143,7 +160,7 @@
   height: 10px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 700px) {
   .carouselFooter {
     justify-content: center;
     text-align: center;

@@ -12,6 +12,18 @@ RESEND_TO_EMAIL=contact@punkhazard.org
 
 # Contact Email (fallback)
 NEXT_PUBLIC_CONTACT_EMAIL=contact@punkhazard.org
+
+# NextAuth.js Configuration
+NEXTAUTH_SECRET=your-secret-key-here-generate-with-openssl-rand-base64-32
+NEXTAUTH_URL=http://localhost:3000
+
+# Admin Credentials (pour l'authentification par email/password)
+ADMIN_EMAIL=admin@punkhazard.org
+ADMIN_PASSWORD=your-secure-password
+
+# Google OAuth (optionnel)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 ```
 
 ## Configuration Resend
@@ -52,6 +64,43 @@ Les pages sont accessibles avec le préfixe de langue :
 1. Ajoutez la clé dans `messages/fr.json`
 2. Ajoutez la même clé dans `messages/en.json`
 3. Utilisez `useTranslations('namespace')` dans vos composants
+
+## Authentification (NextAuth.js)
+
+Le site utilise NextAuth.js pour l'authentification. Deux méthodes sont disponibles :
+
+1. **Email/Password** : Utilise les variables `ADMIN_EMAIL` et `ADMIN_PASSWORD`
+2. **Google OAuth** : Nécessite la configuration de Google OAuth (optionnel)
+
+### Configuration NextAuth
+
+1. Générez un secret pour `NEXTAUTH_SECRET` :
+   ```bash
+   openssl rand -base64 32
+   ```
+
+2. Pour Google OAuth :
+   - Créez un projet sur [Google Cloud Console](https://console.cloud.google.com/)
+   - Activez l'API Google+
+   - Créez des identifiants OAuth 2.0
+   - Ajoutez `http://localhost:3000/api/auth/callback/google` comme URI de redirection
+
+### Base de données (optionnel)
+
+Pour un vrai système de gestion d'utilisateurs, vous pouvez :
+- Utiliser **Supabase** (PostgreSQL serverless)
+- Utiliser **MongoDB Atlas** (MongoDB serverless)
+- Utiliser **Vercel KV** (Redis serverless)
+
+Modifiez `app/api/auth/[...nextauth]/route.ts` pour intégrer votre base de données.
+
+## Panier (Cart)
+
+Le panier utilise **Zustand** avec persistance dans `localStorage`. Les données sont stockées localement dans le navigateur.
+
+Pour synchroniser le panier avec un backend :
+1. Créez une API route `/api/cart` pour sauvegarder le panier
+2. Modifiez `app/store/cartStore.ts` pour synchroniser avec l'API
 
 ### Exemple
 

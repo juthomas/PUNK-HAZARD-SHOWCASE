@@ -79,11 +79,117 @@
   color: var(--foreground);
 }
 
-.price {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 8px 0 0 0;
-  color: var(--foreground);
-  padding-top: 12px;
+.footer {
+  padding-top: 16px;
   border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
+
+@media (max-width: 768px) {
+  .footer {
+    gap: 8px;
+  }
+  
+  .quoteButton,
+  .addToCartButton {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  
+  .price {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .quoteButton,
+  .addToCartButton {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+}
+
+.price {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--foreground);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+  .price {
+    font-size: 17px;
+  }
+}
+
+.addToCartButton {
+  padding: 8px 10px;
+  background: var(--foreground);
+  color: var(--background);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: fit-content;
+}
+
+@media (min-width: 769px) {
+  .addToCartButton {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+}
+
+.addToCartButton:hover {
+  opacity: 0.9;
+}
+
+.addToCartButtonDisabled {
+  background: var(--surface-alt);
+  color: var(--foreground);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addToCartButtonDisabled:hover {
+  opacity: 0.5;
+}
+
+.quoteButton {
+  padding: 8px 10px;
+  background: var(--foreground);
+  color: var(--background);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  flex-shrink: 0;
+  min-width: fit-content;
+}
+
+@media (min-width: 769px) {
+  .quoteButton {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+}
+
+.quoteButton:hover {
+  opacity: 0.9;
 }

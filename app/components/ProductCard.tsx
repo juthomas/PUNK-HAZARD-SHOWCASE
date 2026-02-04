@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
+import { Link } from '@/i18n/routing';
+import { useCartStore } from '@/app/store/cartStore';
 import styles from './ProductCard.module.css';
 
 export type Product = {
@@ -26,8 +28,11 @@ type ProductCardProps = {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const t = useTranslations('shop');
+  const tCart = useTranslations('cart');
+  const tCommon = useTranslations('common.cta');
   const locale = useLocale() as 'fr' | 'en';
   const [imageError, setImageError] = useState(false);
+  const addItem = useCartStore((state) => state.addItem);
 
   const name = product.name[locale] || product.name.fr;
   const description = product.description[locale] || product.description.fr;
@@ -71,7 +76,39 @@ export default function ProductCard({ product }: ProductCardProps) {
             ))}
           </div>
         )}
-        <p className={styles.price}>{getPriceDisplay()}</p>
+        <div className={styles.footer}>
+          <p className={styles.price}>{getPriceDisplay()}</p>
+          {product.price === 'quote' ? (
+            <Link
+              href={{
+                pathname: '/contact',
+                query: { subject: 'Devis' },
+              }}
+              className={styles.quoteButton}
+            >
+              {tCommon('requestQuote')}
+            </Link>
+          ) : product.price === 'coming' ? (
+            <button
+              disabled
+              className={`${styles.addToCartButton} ${styles.addToCartButtonDisabled}`}
+            >
+              {tCart('addToCart')}
+            </button>
+          ) : (
+            <button
+              onClick={() => addItem({
+                productId: product.id,
+                name: product.name,
+                price: product.price,
+                image: product.image,
+              })}
+              className={styles.addToCartButton}
+            >
+              {tCart('addToCart')}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

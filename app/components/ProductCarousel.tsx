@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import ProductCard, { Product } from './ProductCard';
 import styles from './ProductCarousel.module.css';
@@ -21,7 +21,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
       const width = window.innerWidth;
       if (width >= 1200) {
         setItemsPerView(3);
-      } else if (width >= 768) {
+      } else if (width >= 700) {
         setItemsPerView(2);
       } else {
         setItemsPerView(1);
@@ -85,6 +85,16 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
   // Calcul du gap selon la taille d'écran
   const gap = itemsPerView >= 3 ? 24 : itemsPerView === 2 ? 24 : 16;
 
+  // Calcul du transform selon le nombre d'éléments par vue
+  const getTransform = () => {
+    if (itemsPerView === 1) {
+      // Pour 1 élément, on utilise le pourcentage avec le gap pour un espacement correct
+      return `translateX(calc(-${currentIndex * 100}% - ${currentIndex * gap}px))`;
+    }
+    // Pour 2 ou 3 éléments, on utilise le calcul avec gap
+    return `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px))`;
+  };
+
   return (
     <div className={styles.carouselContainer}>
       <div className={styles.carouselWithControls}>
@@ -105,7 +115,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
           <div 
             className={styles.carousel}
             style={{
-              transform: `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px))`,
+              transform: getTransform(),
             }}
           >
             {products.map((product) => (

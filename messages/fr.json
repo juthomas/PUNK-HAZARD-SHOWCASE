@@ -269,5 +269,30 @@
         "content": "Pour toute question concernant les mentions légales, vous pouvez nous contacter à l'adresse: contact@punkhazard.org"
       }
     }
+  },
+  "cart": {
+    "title": "Panier",
+    "empty": "Votre panier est vide",
+    "clear": "Vider",
+    "remove": "Retirer",
+    "total": "Total",
+    "checkout": "Passer la commande",
+    "checkoutComing": "La fonctionnalité de paiement sera bientôt disponible",
+    "addToCart": "Ajouter au panier",
+    "price": {
+      "coming": "À venir",
+      "quote": "Sur devis"
+    }
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "email": "Email",
+    "password": "Mot de passe",
+    "signIn": "Se connecter",
+    "signInWithGoogle": "Se connecter avec Google",
+    "signingIn": "Connexion en cours...",
+    "error": "Erreur de connexion",
+    "invalidCredentials": "Email ou mot de passe incorrect"
   }
 }

@@ -1,0 +1,28 @@
+.userMenu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.userEmail {
+  font-size: 14px;
+  opacity: 0.7;
+  color: var(--foreground);
+}
+
+.logoutButton {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.logoutButton:hover {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.3);
+}
