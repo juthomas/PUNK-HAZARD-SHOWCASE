@@ -106,43 +106,70 @@ ${message}
     const { error: confirmationError } = await resend.emails.send({
       from: fromEmail,
       to: email,
+      replyTo: toEmail, // Permet au client de répondre directement à votre boîte mail
       subject: confirmationSubject,
       html: `
-        <h2>Confirmation de réception</h2>
-        <p>Bonjour ${name},</p>
-        <p>Nous avons bien reçu votre message et nous vous répondrons dans les plus brefs délais.</p>
-        ${subject ? `<p><strong>Sujet:</strong> ${subject}</p>` : ''}
-        <p><strong>Votre message:</strong></p>
-        <p style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
-          ${message.replace(/\n/g, '<br>')}
-        </p>
-        <p>Merci de votre intérêt pour PUNKHAZARD.</p>
-        <p>Cordialement,<br>L'équipe PUNKHAZARD</p>
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
-        <p style="color: #666; font-size: 12px;">
-          Ceci est un email automatique, merci de ne pas y répondre directement.<br>
-          Pour nous contacter, utilisez le formulaire sur notre site ou écrivez à ${toEmail}
-        </p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px 8px 0 0; border-bottom: 2px solid #e9ecef;">
+            <h2 style="margin: 0; color: #212529;">✓ Confirmation de réception</h2>
+          </div>
+          <div style="background: #ffffff; padding: 20px; border-radius: 0 0 8px 8px;">
+            <p style="margin: 0 0 15px 0; color: #495057; font-size: 16px;">Bonjour ${name},</p>
+            <p style="margin: 0 0 20px 0; color: #495057; line-height: 1.6;">
+              Nous avons bien reçu votre message et nous vous répondrons dans les plus brefs délais.
+            </p>
+            ${subject ? `
+            <div style="margin-bottom: 20px;">
+              <p style="margin: 0; color: #495057;">
+                <strong style="color: #212529; display: inline-block; min-width: 60px;">Sujet:</strong> 
+                <span>${subject}</span>
+              </p>
+            </div>
+            ` : ''}
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #0066cc; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0; color: #212529; font-weight: 600; font-size: 14px;">Votre message:</p>
+              <p style="margin: 0; color: #495057; white-space: pre-wrap; line-height: 1.6;">${message.replace(/\n/g, '<br>')}</p>
+            </div>
+            <p style="margin: 20px 0 0 0; color: #495057; line-height: 1.6;">
+              Merci de votre intérêt pour <strong>PUNKHAZARD</strong>.
+            </p>
+            <p style="margin: 20px 0 0 0; color: #495057;">
+              Cordialement,<br>
+              <strong style="color: #212529;">L'équipe PUNKHAZARD</strong>
+            </p>
+            <hr style="margin: 30px 0 20px 0; border: none; border-top: 1px solid #e9ecef;">
+            <p style="margin: 0; color: #6c757d; font-size: 12px; line-height: 1.5;">
+              Ceci est un email automatique de confirmation. Pour toute question, vous pouvez répondre directement à cet email ou nous contacter à 
+              <a href="mailto:${toEmail}" style="color: #0066cc; text-decoration: none;">${toEmail}</a>
+            </p>
+          </div>
+        </div>
       `,
       text: `
-Confirmation de réception
+═══════════════════════════════════════════════════════════
+  CONFIRMATION DE RÉCEPTION
+═══════════════════════════════════════════════════════════
 
 Bonjour ${name},
 
 Nous avons bien reçu votre message et nous vous répondrons dans les plus brefs délais.
 
-${subject ? `Sujet: ${subject}\n` : ''}
-Votre message:
+${subject ? `Sujet: ${subject}\n\n` : ''}
+───────────────────────────────────────────────────────────
+VOTRE MESSAGE:
+───────────────────────────────────────────────────────────
 ${message}
+
+───────────────────────────────────────────────────────────
 
 Merci de votre intérêt pour PUNKHAZARD.
 
 Cordialement,
 L'équipe PUNKHAZARD
 
----
-Ceci est un email automatique, merci de ne pas y répondre directement.
-Pour nous contacter, utilisez le formulaire sur notre site ou écrivez à ${toEmail}
+───────────────────────────────────────────────────────────
+Ceci est un email automatique de confirmation. Pour toute question, vous pouvez répondre directement à cet email ou nous contacter à ${toEmail}
+═══════════════════════════════════════════════════════════
       `,
     });
 
