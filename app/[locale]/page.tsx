@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import Header from '@/app/components/Header';
@@ -11,6 +14,10 @@ export default function Home() {
   const t = useTranslations('home');
   const tCommon = useTranslations('common.cta');
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@punkhazard.org';
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const [glitchIntensity, setGlitchIntensity] = useState('normal');
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const subject = t('badge').includes('Ingénierie') 
     ? 'Demande de devis — PUNKHAZARD' 
@@ -23,13 +30,66 @@ export default function Home() {
     description: product.description as { fr: string; en: string },
   }));
 
+  const handleLongPressStart = () => {
+    setIsLongPressing(true);
+    setGlitchIntensity('intense');
+    
+    // Déclencher l'action après 5 secondes
+    longPressTimerRef.current = setTimeout(() => {
+      // Action à déclencher après 5 secondes
+      // Exemple : redirection vers une page secrète, animation spéciale, etc.
+      console.log('Long press action triggered!');
+      
+      // Option 1: Redirection vers une page secrète
+      // window.location.href = '/secret';
+      
+      // Option 2: Animation spéciale ou effet visuel
+      // Vous pouvez ajouter ici l'action souhaitée
+      
+      // Option 3: Afficher un message (temporaire pour démo)
+      alert('Action Triggered');
+      
+      // Réinitialiser après l'action
+      setIsLongPressing(false);
+      setGlitchIntensity('normal');
+    }, 5000);
+  };
+
+  const handleLongPressEnd = () => {
+    setIsLongPressing(false);
+    setGlitchIntensity('normal');
+    
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className={styles.page}>
       <Header />
       <header className={styles.hero}>
         <div className={styles.container}>
           <span className={styles.badge}>{t('badge')}</span>
-          <h1 className={`${styles.heroTitle} ${styles.balloon} ${styles.glitchTitle}`} data-text="PUNK HAZARD">
+          <h1 
+            ref={titleRef}
+            className={`${styles.heroTitle} ${styles.balloon} ${styles.glitchTitle} ${glitchIntensity === 'intense' ? styles.glitchIntense : ''}`}
+            data-text="PUNK HAZARD"
+            onMouseDown={handleLongPressStart}
+            onMouseUp={handleLongPressEnd}
+            onMouseLeave={handleLongPressEnd}
+            onTouchStart={handleLongPressStart}
+            onTouchEnd={handleLongPressEnd}
+            style={{ cursor: 'pointer', userSelect: 'none' }}
+          >
             {t('title')}
           </h1>
           <p className={`${styles.subtitle} ${styles.terminalLine}`}>
