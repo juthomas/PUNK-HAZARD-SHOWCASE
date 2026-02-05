@@ -301,6 +301,14 @@ export default function Home() {
             <h2 className={styles.sectionTitle}>{t('sections.projects.title')}</h2>
             <div className={styles.workGrid}>
               <div className={styles.card}>
+                <div className={styles.cardImage}>
+                  <Image
+                    src="/products/placeholder.svg"
+                    alt={t('sections.projects.items.as-simt.title')}
+                    fill
+                    sizes="(max-width: 960px) 100vw, 33vw"
+                  />
+                </div>
                 <h3>{t('sections.projects.items.as-simt.title')}</h3>
                 <div className={styles.workMeta}>
                   <span className={styles.tag}>Capteurs haptiques</span>
@@ -312,6 +320,14 @@ export default function Home() {
               </div>
 
               <div className={styles.card}>
+                <div className={styles.cardImage}>
+                  <Image
+                    src="/products/placeholder.svg"
+                    alt={t('sections.projects.items.go2.title')}
+                    fill
+                    sizes="(max-width: 960px) 100vw, 33vw"
+                  />
+                </div>
                 <h3>{t('sections.projects.items.go2.title')}</h3>
                 <div className={styles.workMeta}>
                   <span className={styles.tag}>Unitree Go2</span>
@@ -323,6 +339,14 @@ export default function Home() {
               </div>
 
               <div className={styles.card}>
+                <div className={styles.cardImage}>
+                  <Image
+                    src="/products/placeholder.svg"
+                    alt={t('sections.projects.items.installations.title')}
+                    fill
+                    sizes="(max-width: 960px) 100vw, 33vw"
+                  />
+                </div>
                 <h3>{t('sections.projects.items.installations.title')}</h3>
                 <div className={styles.workMeta}>
                   <span className={styles.tag}>Audio I2S</span>
@@ -344,16 +368,21 @@ export default function Home() {
               <span className={styles.chip}>STM32</span>
               <span className={styles.chip}>ESP32</span>
               <span className={styles.chip}>C/C++</span>
-              <span className={styles.chip}>Rust</span>
+              <span className={styles.chip}>TypeScript</span>
+              <span className={styles.chip}>React</span>
+              <span className={styles.chip}>Shaders</span>
+              <span className={styles.chip}>Three.js</span>
+              <span className={styles.chip}>Native Apps</span>
               <span className={styles.chip}>Python</span>
-              <span className={styles.chip}>ROS/ROS2</span>
+              <span className={styles.chip}>Rust</span>
               <span className={styles.chip}>BLE</span>
               <span className={styles.chip}>Wi‑Fi</span>
               <span className={styles.chip}>LoRa</span>
               <span className={styles.chip}>OSC</span>
+              <span className={styles.chip}>UDP</span>
               <span className={styles.chip}>I2S</span>
-              <span className={styles.chip}>IMU 9 axes</span>
-              <span className={styles.chip}>MQTT</span>
+              <span className={styles.chip}>DMX/Art‑Net</span>
+              <span className={styles.chip}>ROS/ROS2</span>
               <span className={styles.chip}>Unitree Go2</span>
               <span className={styles.chip}>Unitree SDK</span>
             </div>
