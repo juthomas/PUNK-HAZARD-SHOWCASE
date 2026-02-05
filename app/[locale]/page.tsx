@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import Header from '@/app/components/Header';
@@ -137,15 +138,40 @@ export default function Home() {
           <p className={`${styles.subtitle} ${styles.terminalLine}`}>
             {t('subtitle')}
           </p>
-          <div className={styles.ctas}>
-            <Link
-              className={styles.primary}
-              href="/contact?subject=devis"
-            >
-              <span>{tCommon('requestQuote')}</span>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+          <div className={styles.heroSplit}>
+            <Link href="/services" className={styles.splitCard}>
+              <div className={styles.splitImage}>
+                <Image
+                  src="/products/placeholder.svg"
+                  alt={t('sections.services.title')}
+                  fill
+                  sizes="(max-width: 820px) 100vw, 50vw"
+                />
+              </div>
+              <div className={styles.splitContent}>
+                <span className={styles.splitTitle}>{t('sections.services.title')}</span>
+                <div className={styles.splitMeta}>
+                  <span className={styles.splitSubtitle}>{t('heroSplit.services')}</span>
+                  <span className={styles.splitButton}>{tCommon('viewServices')}</span>
+                </div>
+              </div>
+            </Link>
+            <Link href="/boutique" className={styles.splitCard}>
+              <div className={styles.splitImage}>
+                <Image
+                  src="/products/placeholder.svg"
+                  alt={t('sections.shop.title')}
+                  fill
+                  sizes="(max-width: 820px) 100vw, 50vw"
+                />
+              </div>
+              <div className={styles.splitContent}>
+                <span className={styles.splitTitle}>{t('sections.shop.title')}</span>
+                <div className={styles.splitMeta}>
+                  <span className={styles.splitSubtitle}>{t('heroSplit.shop')}</span>
+                  <span className={styles.splitButton}>{tCommon('viewShop')}</span>
+                </div>
+              </div>
             </Link>
           </div>
         </div>
@@ -157,6 +183,14 @@ export default function Home() {
             <h2 className={styles.sectionTitle}>{t('sections.services.title')}</h2>
             <div className={styles.grid}>
               <div className={styles.card}>
+                      <div className={styles.cardImage}>
+                        <Image
+                          src="/products/placeholder.svg"
+                          alt={t('sections.services.items.pcb.title')}
+                          fill
+                          sizes="(max-width: 960px) 100vw, 33vw"
+                        />
+                      </div>
                 <h3>{t('sections.services.items.pcb.title')}</h3>
                 <p>{t('sections.services.items.pcb.description')}</p>
                 <ul>
@@ -166,6 +200,14 @@ export default function Home() {
                 </ul>
               </div>
               <div className={styles.card}>
+                      <div className={styles.cardImage}>
+                        <Image
+                          src="/products/placeholder.svg"
+                          alt={t('sections.services.items.electronics.title')}
+                          fill
+                          sizes="(max-width: 960px) 100vw, 33vw"
+                        />
+                      </div>
                 <h3>{t('sections.services.items.electronics.title')}</h3>
                 <p>{t('sections.services.items.electronics.description')}</p>
                 <ul>
@@ -175,6 +217,14 @@ export default function Home() {
                 </ul>
               </div>
               <div className={styles.card}>
+                      <div className={styles.cardImage}>
+                        <Image
+                          src="/products/placeholder.svg"
+                          alt={t('sections.services.items.integration.title')}
+                          fill
+                          sizes="(max-width: 960px) 100vw, 33vw"
+                        />
+                      </div>
                 <h3>{t('sections.services.items.integration.title')}</h3>
                 <p>{t('sections.services.items.integration.description')}</p>
                 <ul>
@@ -183,7 +233,49 @@ export default function Home() {
                   ))}
                 </ul>
               </div>
+                    <div className={styles.card}>
+                      <div className={styles.cardImage}>
+                        <Image
+                          src="/products/placeholder.svg"
+                          alt={t('sections.services.items.design.title')}
+                          fill
+                          sizes="(max-width: 960px) 100vw, 33vw"
+                        />
+                      </div>
+                      <h3>{t('sections.services.items.design.title')}</h3>
+                      <p>{t('sections.services.items.design.description')}</p>
+                      <ul>
+                        {t.raw('sections.services.items.design.features').map((feature: string, i: number) => (
+                          <li key={i}>{feature}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className={styles.card}>
+                      <div className={styles.cardImage}>
+                        <Image
+                          src="/products/placeholder.svg"
+                          alt={t('sections.services.items.scenography.title')}
+                          fill
+                          sizes="(max-width: 960px) 100vw, 33vw"
+                        />
+                      </div>
+                      <h3>{t('sections.services.items.scenography.title')}</h3>
+                      <p>{t('sections.services.items.scenography.description')}</p>
+                      <ul>
+                        {t.raw('sections.services.items.scenography.features').map((feature: string, i: number) => (
+                          <li key={i}>{feature}</li>
+                        ))}
+                      </ul>
+                    </div>
               <div className={styles.card}>
+                      <div className={styles.cardImage}>
+                        <Image
+                          src="/products/placeholder.svg"
+                          alt={t('sections.services.items.go2.title')}
+                          fill
+                          sizes="(max-width: 960px) 100vw, 33vw"
+                        />
+                      </div>
                 <h3>{t('sections.services.items.go2.title')}</h3>
                 <p>{t('sections.services.items.go2.description')}</p>
                 <ul>

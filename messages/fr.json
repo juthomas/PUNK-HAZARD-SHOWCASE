@@ -12,7 +12,8 @@
       "contact": "Prendre contact",
       "sendMessage": "Envoyer le message",
       "sending": "Envoi en cours...",
-      "viewServices": "Voir les services"
+      "viewServices": "Voir les services",
+      "viewShop": "Voir la boutique"
     },
     "footer": {
       "description": "Ingénierie électronique, PCB, embarqué & robots.\nMatériel audio et artistique.",
@@ -28,41 +29,62 @@
     "badge": "Ingénierie • France",
     "title": "PUNK HAZARD",
     "subtitle": "Conception de PCB, programmation embarquée, électronique et robots. Du prototype à l'industrialisation.",
+    "heroSplit": {
+      "services": "Création d’objets audio, capteurs et éléments de design pour la scène.",
+      "shop": "Matériel audio & artistique — modules, capteurs, objets."
+    },
     "sections": {
       "services": {
         "title": "Services",
         "items": {
           "pcb": {
-            "title": "Conception PCB",
-            "description": "Schémas, routage et préparation à la fabrication.",
-            "features": ["KiCad", "DFM, BOM", "Prototypage et assemblage"]
+            "title": "Création d’objets audio",
+            "description": "Objets et modules sur mesure pour la scène et l’installation.",
+            "features": ["Synthés/contrôleurs", "Modules sonores", "Pièces uniques"]
           },
           "electronics": {
-            "title": "Électronique & programmation",
-            "description": "Firmware et électronique adaptés aux projets interactifs.",
+            "title": "Capteurs & interaction",
+            "description": "Capteurs et interfaces pour gestes, mouvement, lumière.",
             "features": [
-              "Microcontrôleurs (STM32, ESP32, AVR)",
-              "Capteurs, interfaces, audio",
-              "Lumières (DMX/Art‑Net), synchronisation"
+              "Gestes & mouvement",
+              "Interaction scénique",
+              "Synchronisation audio‑lumière"
             ]
           },
           "integration": {
-            "title": "Intégration complète",
-            "description": "Électronique, 3D et logiciel, coordonnés pour la scène.",
+            "title": "Objets & installation",
+            "description": "Intégration d’objets et dispositifs pour la performance.",
             "features": [
-              "Architecture et intégration multi‑disciplines",
-              "Démonstrations/performances, synchro audio‑lumière",
-              "Accompagnement de l'idée à la scène"
+              "Prototype → scène",
+              "Systèmes sur mesure",
+              "Accompagnement créatif"
+            ]
+          },
+          "design": {
+            "title": "Conception 3D",
+            "description": "Forme, matière et usage pour des objets expressifs.",
+            "features": [
+              "Design d’objets",
+              "Prototypage rapide",
+              "Finitions & intégration"
+            ]
+          },
+          "scenography": {
+            "title": "Scénographie & lumière",
+            "description": "Dispositifs lumineux et interactions pour l’espace scénique.",
+            "features": [
+              "Lumière réactive",
+              "Mapping & DMX",
+              "Installations immersives"
             ]
           },
           "go2": {
             "title": "Go2 (Unitree) — création sur mesure",
-            "description": "Robot quadrupède adapté aux performances artistiques, installations et R&D.",
+            "description": "Robot quadrupède pour performances, installations et créations.",
             "features": [
-              "Logiciel et hardware sur mesure (SDK/ROS, capteurs, interfaces)",
-              "Chorégraphies/scénographie, synchronisation audio‑lumière",
-              "Modules scéniques et installations performatives",
-              "Projets artistiques et recherche‑création"
+              "Chorégraphies & scénographie",
+              "Modules scéniques",
+              "Performances & installations"
             ]
           }
         }

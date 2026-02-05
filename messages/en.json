@@ -12,7 +12,8 @@
       "contact": "Get in touch",
       "sendMessage": "Send message",
       "sending": "Sending...",
-      "viewServices": "View services"
+      "viewServices": "View services",
+      "viewShop": "View shop"
     },
     "footer": {
       "description": "Electronic engineering, PCB, embedded systems & robots.\nAudio and artistic equipment.",
@@ -28,41 +29,62 @@
     "badge": "Engineering • France",
     "title": "PUNK HAZARD",
     "subtitle": "PCB design, embedded programming, electronics and robots. From prototype to industrialization.",
+    "heroSplit": {
+      "services": "Audio objects, sensors and design elements for the stage.",
+      "shop": "Audio & art gear — modules, sensors, objects."
+    },
     "sections": {
       "services": {
         "title": "Services",
         "items": {
           "pcb": {
-            "title": "PCB Design",
-            "description": "Schematics, routing and manufacturing preparation.",
-            "features": ["KiCad", "DFM, BOM", "Prototyping and assembly"]
+            "title": "Audio Object Creation",
+            "description": "Custom objects and modules for stage and installation.",
+            "features": ["Synths/controllers", "Sound modules", "Unique pieces"]
           },
           "electronics": {
-            "title": "Electronics & Programming",
-            "description": "Firmware and electronics adapted to interactive projects.",
+            "title": "Sensors & Interaction",
+            "description": "Sensors and interfaces for gesture, motion and light.",
             "features": [
-              "Microcontrollers (STM32, ESP32, AVR)",
-              "Sensors, interfaces, audio",
-              "Lights (DMX/Art‑Net), synchronization"
+              "Gesture & motion",
+              "Stage interaction",
+              "Audio‑light sync"
             ]
           },
           "integration": {
-            "title": "Complete Integration",
-            "description": "Electronics, 3D and software, coordinated for the stage.",
+            "title": "Objects & Installation",
+            "description": "Integrated devices for performance and installation.",
             "features": [
-              "Architecture and multi-disciplinary integration",
-              "Demonstrations/performances, audio-light sync",
-              "Support from idea to stage"
+              "Prototype → stage",
+              "Custom systems",
+              "Creative support"
+            ]
+          },
+          "design": {
+            "title": "3D Design",
+            "description": "Form, material and usage for expressive objects.",
+            "features": [
+              "Object design",
+              "Rapid prototyping",
+              "Finishes & integration"
+            ]
+          },
+          "scenography": {
+            "title": "Scenography & Light",
+            "description": "Light-based devices and interactions for the stage.",
+            "features": [
+              "Reactive lighting",
+              "Mapping & DMX",
+              "Immersive installations"
             ]
           },
           "go2": {
             "title": "Go2 (Unitree) — custom creation",
-            "description": "Quadruped robot adapted for artistic performances, installations and R&D.",
+            "description": "Quadruped robot for performances, installations and creations.",
             "features": [
-              "Custom software and hardware (SDK/ROS, sensors, interfaces)",
-              "Choreography/stage design, audio-light synchronization",
-              "Stage modules and performative installations",
-              "Artistic projects and research-creation"
+              "Choreography & scenography",
+              "Stage modules",
+              "Performances & installations"
             ]
           }
         }
