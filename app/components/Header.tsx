@@ -31,11 +31,14 @@ export default function Header() {
     if (isCartOpen || isLoginOpen || isMobileMenuOpen) {
       // Sauvegarder la position actuelle du scroll
       const scrollY = window.scrollY;
-      // Bloquer le scroll
+      // Calculer la largeur de la scrollbar pour compenser
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      // Bloquer le scroll et compenser la scrollbar
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
       document.body.style.width = '100%';
       document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
       
       return () => {
         // Restaurer le scroll quand la modale se ferme
@@ -43,6 +46,7 @@ export default function Header() {
         document.body.style.top = '';
         document.body.style.width = '';
         document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
         window.scrollTo(0, scrollY);
       };
     }
