@@ -14,14 +14,11 @@ export default function Home() {
   const t = useTranslations('home');
   const tCommon = useTranslations('common.cta');
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@punkhazard.org';
-  const [isLongPressing, setIsLongPressing] = useState(false);
-  const [glitchIntensity, setGlitchIntensity] = useState('normal');
+  const [glitchIntensity, setGlitchIntensity] = useState<'normal' | 'moderate' | 'intense' | 'extreme'>('normal');
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const intensityIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
-
-  const subject = t('badge').includes('Ingénierie') 
-    ? 'Demande de devis — PUNKHAZARD' 
-    : 'Quote request — PUNKHAZARD';
 
   // Convert JSON data to Product type
   const products: Product[] = productsData.map((product) => ({
@@ -31,44 +28,65 @@ export default function Home() {
   }));
 
   const handleLongPressStart = () => {
-    setIsLongPressing(true);
-    setGlitchIntensity('intense');
+    startTimeRef.current = Date.now();
+    setGlitchIntensity('moderate');
+    
+    // Augmenter progressivement l'intensité
+    intensityIntervalRef.current = setInterval(() => {
+      if (!startTimeRef.current) return;
+      
+      const elapsed = Date.now() - startTimeRef.current;
+      
+      if (elapsed < 1000) {
+        setGlitchIntensity('moderate');
+      } else if (elapsed < 2500) {
+        setGlitchIntensity('intense');
+      } else if (elapsed < 5000) {
+        setGlitchIntensity('extreme');
+      }
+    }, 100);
     
     // Déclencher l'action après 5 secondes
     longPressTimerRef.current = setTimeout(() => {
-      // Action à déclencher après 5 secondes
-      // Exemple : redirection vers une page secrète, animation spéciale, etc.
       console.log('Long press action triggered!');
-      
-      // Option 1: Redirection vers une page secrète
-      // window.location.href = '/secret';
-      
-      // Option 2: Animation spéciale ou effet visuel
-      // Vous pouvez ajouter ici l'action souhaitée
-      
-      // Option 3: Afficher un message (temporaire pour démo)
-      alert('Action Triggered');
+      alert('Easter egg activé ! 🎉');
       
       // Réinitialiser après l'action
-      setIsLongPressing(false);
       setGlitchIntensity('normal');
+      if (intensityIntervalRef.current) {
+        clearInterval(intensityIntervalRef.current);
+        intensityIntervalRef.current = null;
+      }
+      startTimeRef.current = null;
     }, 5000);
   };
 
   const handleLongPressEnd = () => {
-    setIsLongPressing(false);
     setGlitchIntensity('normal');
     
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+    
+    if (intensityIntervalRef.current) {
+      clearInterval(intensityIntervalRef.current);
+      intensityIntervalRef.current = null;
+    }
+    
+    startTimeRef.current = null;
   };
 
   useEffect(() => {
+    const timer = longPressTimerRef.current;
+    const interval = intensityIntervalRef.current;
+    
     return () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
+      if (timer) {
+        clearTimeout(timer);
+      }
+      if (interval) {
+        clearInterval(interval);
       }
     };
   }, []);
@@ -81,7 +99,11 @@ export default function Home() {
           <span className={styles.badge}>{t('badge')}</span>
           <h1 
             ref={titleRef}
-            className={`${styles.heroTitle} ${styles.balloon} ${styles.glitchTitle} ${glitchIntensity === 'intense' ? styles.glitchIntense : ''}`}
+            className={`${styles.heroTitle} ${styles.balloon} ${styles.glitchTitle} ${
+              glitchIntensity === 'moderate' ? styles.glitchModerate :
+              glitchIntensity === 'intense' ? styles.glitchIntense :
+              glitchIntensity === 'extreme' ? styles.glitchExtreme : ''
+            }`}
             data-text="PUNK HAZARD"
             onMouseDown={handleLongPressStart}
             onMouseUp={handleLongPressEnd}

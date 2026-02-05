@@ -447,13 +447,57 @@ a.secondary {
   animation: glitchClip 2s 1s linear infinite alternate-reverse, glitchVisibility 3.5s infinite alternate;
 }
 
-/* Glitch intense lors de l'appui long */
+/* Glitch modéré - début de l'appui long */
+.glitchModerate {
+  animation: glitchShakeModerate 0.15s linear infinite;
+  will-change: transform;
+}
+
+.glitchModerate::before {
+  left: 4px;
+  top: 4px;
+  animation: glitchClipModerate 0.3s linear infinite, glitchVisibilityModerate 0.2s infinite;
+  filter: brightness(1.3) saturate(1.3);
+  z-index: 1;
+}
+
+.glitchModerate::after {
+  left: -4px;
+  top: -4px;
+  animation: glitchClipModerate 0.3s 0.15s linear infinite, glitchVisibilityModerate 0.2s infinite;
+  filter: brightness(1.3) saturate(1.3);
+  z-index: 1;
+}
+
+/* Glitch intense - milieu de l'appui long */
 .glitchIntense {
-  animation: glitchShakeIntense 0.08s linear infinite;
+  animation: glitchShakeIntense 0.1s linear infinite;
   will-change: transform;
 }
 
 .glitchIntense::before {
+  left: 7px;
+  top: 7px;
+  animation: glitchClipIntense 0.2s linear infinite, glitchVisibilityIntense 0.12s infinite, glitchColorShift 0.2s infinite;
+  filter: brightness(1.7) saturate(1.7) contrast(1.1);
+  z-index: 1;
+}
+
+.glitchIntense::after {
+  left: -7px;
+  top: -7px;
+  animation: glitchClipIntense 0.2s 0.1s linear infinite, glitchVisibilityIntense 0.12s infinite, glitchColorShift 0.2s 0.1s infinite;
+  filter: brightness(1.7) saturate(1.7) contrast(1.1);
+  z-index: 1;
+}
+
+/* Glitch extrême - fin de l'appui long */
+.glitchExtreme {
+  animation: glitchShakeExtreme 0.08s linear infinite;
+  will-change: transform;
+}
+
+.glitchExtreme::before {
   left: 10px;
   top: 10px;
   animation: glitchClipIntense 0.12s linear infinite, glitchVisibilityIntense 0.08s infinite, glitchColorShift 0.15s infinite;
@@ -461,7 +505,7 @@ a.secondary {
   z-index: 1;
 }
 
-.glitchIntense::after {
+.glitchExtreme::after {
   left: -10px;
   top: -10px;
   animation: glitchClipIntense 0.12s 0.06s linear infinite, glitchVisibilityIntense 0.08s infinite, glitchColorShift 0.15s 0.075s infinite;
@@ -469,7 +513,37 @@ a.secondary {
   z-index: 1;
 }
 
+@keyframes glitchShakeModerate {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, 1px); }
+  50% { transform: translate(1px, -1px); }
+  75% { transform: translate(-1px, -1px); }
+}
+
 @keyframes glitchShakeIntense {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  5% { transform: translate(-2px, 1px) rotate(-0.3deg); }
+  10% { transform: translate(2px, -1px) rotate(0.3deg); }
+  15% { transform: translate(-1px, 2px) rotate(-0.2deg); }
+  20% { transform: translate(1px, -2px) rotate(0.2deg); }
+  25% { transform: translate(-3px, -1px) rotate(-0.5deg); }
+  30% { transform: translate(3px, 1px) rotate(0.5deg); }
+  35% { transform: translate(-1px, -3px) rotate(-0.3deg); }
+  40% { transform: translate(1px, 3px) rotate(0.3deg); }
+  45% { transform: translate(-2px, 0) rotate(-0.4deg); }
+  50% { transform: translate(2px, 0) rotate(0.4deg); }
+  55% { transform: translate(0, -2px) rotate(-0.2deg); }
+  60% { transform: translate(0, 2px) rotate(0.2deg); }
+  65% { transform: translate(-2px, -2px) rotate(-0.5deg); }
+  70% { transform: translate(2px, 2px) rotate(0.5deg); }
+  75% { transform: translate(-1px, 1px) rotate(-0.2deg); }
+  80% { transform: translate(1px, -1px) rotate(0.2deg); }
+  85% { transform: translate(-3px, 1px) rotate(-0.4deg); }
+  90% { transform: translate(3px, -1px) rotate(0.4deg); }
+  95% { transform: translate(-1px, -3px) rotate(-0.3deg); }
+}
+
+@keyframes glitchShakeExtreme {
   0%, 100% { transform: translate(0, 0) rotate(0deg); }
   5% { transform: translate(-3px, 2px) rotate(-0.5deg); }
   10% { transform: translate(3px, -2px) rotate(0.5deg); }
@@ -534,6 +608,23 @@ a.secondary {
   95% { clip: rect(405px, 9999px, 325px, 0); }
   97.5% { clip: rect(335px, 9999px, 415px, 0); }
   100% { clip: rect(425px, 9999px, 345px, 0); }
+}
+
+@keyframes glitchClipModerate {
+  0% { clip: rect(50px, 9999px, 60px, 0); }
+  20% { clip: rect(30px, 9999px, 80px, 0); }
+  40% { clip: rect(70px, 9999px, 40px, 0); }
+  60% { clip: rect(20px, 9999px, 90px, 0); }
+  80% { clip: rect(100px, 9999px, 30px, 0); }
+  100% { clip: rect(60px, 9999px, 70px, 0); }
+}
+
+@keyframes glitchVisibilityModerate {
+  0% { opacity: 0.7; }
+  25% { opacity: 0.9; }
+  50% { opacity: 0.8; }
+  75% { opacity: 0.95; }
+  100% { opacity: 0.75; }
 }
 
 @keyframes glitchVisibilityIntense {
