@@ -32,12 +32,13 @@ export default function Header() {
     if (isCartOpen || isLoginOpen) {
       const scrollY = window.scrollY;
       const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      const supportsStableGutter = typeof CSS !== 'undefined' && CSS.supports('scrollbar-gutter: stable');
       
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
       document.body.style.width = '100%';
       document.body.style.overflow = 'hidden';
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
+      document.body.style.paddingRight = supportsStableGutter ? '0px' : `${scrollbarWidth}px`;
       
       return () => {
         document.body.style.position = '';
