@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useCartStore } from '@/app/store/cartStore';
 import { useTranslations } from 'next-intl';
 import styles from './CartIcon.module.css';
@@ -11,6 +12,11 @@ type CartIconProps = {
 export default function CartIcon({ onClick }: CartIconProps) {
   const totalItems = useCartStore((state) => state.getTotalItems());
   const t = useTranslations('cart');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <button onClick={onClick} className={styles.cartIcon} aria-label={t('title')}>
@@ -20,7 +26,7 @@ export default function CartIcon({ onClick }: CartIconProps) {
         <circle cx="17" cy="19" r="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
       </svg>
       <span className={styles.cartLabel}>{t('title')}</span>
-      {totalItems > 0 && (
+      {mounted && totalItems > 0 && (
         <span className={styles.badge}>{totalItems}</span>
       )}
     </button>
