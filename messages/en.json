@@ -293,6 +293,46 @@
     "signInWithGoogle": "Sign in with Google",
     "signingIn": "Signing in...",
     "error": "Login error",
-    "invalidCredentials": "Invalid email or password"
+    "invalidCredentials": "Invalid email or password",
+    "profile": "My profile"
+  },
+  "profile": {
+    "title": "My profile",
+    "subtitle": "Manage your information and view your orders",
+    "sections": {
+      "info": {
+        "title": "Personal information",
+        "email": "Email",
+        "name": "Name",
+        "edit": "Edit",
+        "deleteAccount": "Delete account",
+        "deleteAccountWarning": "This action is irreversible",
+        "dangerZone": "Danger zone"
+      },
+      "orders": {
+        "title": "My orders",
+        "empty": "No orders yet",
+        "orderNumber": "Order",
+        "date": "Date",
+        "status": "Status",
+        "total": "Total",
+        "view": "View details",
+        "statuses": {
+          "pending": "Pending",
+          "processing": "Processing",
+          "shipped": "Shipped",
+          "delivered": "Delivered",
+          "cancelled": "Cancelled"
+        }
+      }
+    },
+    "deleteAccount": {
+      "title": "Delete account",
+      "message": "Are you sure you want to delete your account? This action is irreversible and will delete all your data (orders, cart, etc.).",
+      "confirm": "Yes, delete my account",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "success": "Your account has been successfully deleted"
+    }
   }
 }

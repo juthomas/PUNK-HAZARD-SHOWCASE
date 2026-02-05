@@ -1,0 +1,359 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  padding: 64px 0;
+  min-height: calc(100vh - 64px); /* 64px = hauteur du header, pour cacher le footer par défaut */
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.loading {
+  text-align: center;
+  padding: 64px 0;
+  opacity: 0.7;
+}
+
+.header {
+  margin-bottom: 48px;
+}
+
+.title {
+  font-size: 36px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--foreground);
+}
+
+.subtitle {
+  font-size: 16px;
+  opacity: 0.7;
+  margin: 0;
+  color: var(--foreground);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--foreground);
+}
+
+.infoCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  font-size: 14px;
+  opacity: 0.7;
+  color: var(--foreground);
+}
+
+.infoValue {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 64px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  opacity: 0.7;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--foreground);
+}
+
+.ordersList {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.orderCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  transition: border-color 0.2s ease;
+}
+
+.orderCard:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.orderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orderNumber {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.orderDate {
+  font-size: 14px;
+  opacity: 0.7;
+  color: var(--foreground);
+}
+
+.orderMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.orderStatus {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statusPending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.statusProcessing {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+}
+
+.statusShipped {
+  background: rgba(156, 39, 176, 0.2);
+  color: #9c27b0;
+}
+
+.statusDelivered {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.statusCancelled {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.orderTotal {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.orderItems {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.orderItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.orderItemImage {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orderItemImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.orderItemPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--foreground);
+  opacity: 0.5;
+}
+
+.orderItemInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orderItemName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.orderItemQuantity {
+  font-size: 12px;
+  opacity: 0.7;
+  color: var(--foreground);
+}
+
+.orderItemPrice {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  text-align: right;
+}
+
+.orderItemPriceSpecial {
+  font-size: 12px;
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.dangerZone {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.dangerZoneHeader {
+  margin-bottom: 16px;
+}
+
+.dangerZoneTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+  color: #f44336;
+}
+
+.dangerZoneWarning {
+  font-size: 12px;
+  opacity: 0.7;
+  margin: 0;
+  color: var(--foreground);
+}
+
+.deleteAccountButton {
+  width: 100%;
+  padding: 12px 24px;
+  background: transparent;
+  border: 1px solid #f44336;
+  color: #f44336;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deleteAccountButton:hover {
+  background: rgba(244, 67, 54, 0.1);
+  border-color: #d32f2f;
+  color: #d32f2f;
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 48px 0;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .orderHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .orderMeta {
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .orderItem {
+    flex-wrap: wrap;
+  }
+
+  .orderItemPrice {
+    width: 100%;
+    text-align: left;
+    margin-top: 8px;
+  }
+}

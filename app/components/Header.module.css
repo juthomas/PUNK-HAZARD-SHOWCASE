@@ -56,13 +56,22 @@
   flex-wrap: wrap;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px) and (min-width: 821px) {
   .nav {
-    gap: 20px;
+    gap: 16px;
   }
   
   .navLink {
-    font-size: 13px;
+    font-size: 12px;
+  }
+  
+  .navActions {
+    gap: 12px;
+  }
+  
+  .loginButton {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 }
 
@@ -70,6 +79,7 @@
   display: flex;
   gap: 16px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .navLink {

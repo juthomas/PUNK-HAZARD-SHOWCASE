@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/routing';
 import styles from './UserMenu.module.css';
 
 export default function UserMenu() {
@@ -18,7 +19,9 @@ export default function UserMenu() {
 
   return (
     <div className={styles.userMenu}>
-      <span className={styles.userEmail}>{session.user?.email}</span>
+      <Link href="/profil" className={styles.profileLink}>
+        {t('profile')}
+      </Link>
       <button onClick={() => signOut()} className={styles.logoutButton}>
         {t('logout')}
       </button>

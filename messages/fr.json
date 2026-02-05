@@ -293,6 +293,46 @@
     "signInWithGoogle": "Se connecter avec Google",
     "signingIn": "Connexion en cours...",
     "error": "Erreur de connexion",
-    "invalidCredentials": "Email ou mot de passe incorrect"
+    "invalidCredentials": "Email ou mot de passe incorrect",
+    "profile": "Mon profil"
+  },
+  "profile": {
+    "title": "Mon profil",
+    "subtitle": "Gérez vos informations et consultez vos commandes",
+    "sections": {
+      "info": {
+        "title": "Informations personnelles",
+        "email": "Email",
+        "name": "Nom",
+        "edit": "Modifier",
+        "deleteAccount": "Supprimer le compte",
+        "deleteAccountWarning": "Cette action est irréversible",
+        "dangerZone": "Zone de danger"
+      },
+      "orders": {
+        "title": "Mes commandes",
+        "empty": "Aucune commande pour le moment",
+        "orderNumber": "Commande",
+        "date": "Date",
+        "status": "Statut",
+        "total": "Total",
+        "view": "Voir les détails",
+        "statuses": {
+          "pending": "En attente",
+          "processing": "En cours de traitement",
+          "shipped": "Expédiée",
+          "delivered": "Livrée",
+          "cancelled": "Annulée"
+        }
+      }
+    },
+    "deleteAccount": {
+      "title": "Supprimer le compte",
+      "message": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible et supprimera toutes vos données (commandes, panier, etc.).",
+      "confirm": "Oui, supprimer mon compte",
+      "cancel": "Annuler",
+      "deleting": "Suppression en cours...",
+      "success": "Votre compte a été supprimé avec succès"
+    }
   }
 }

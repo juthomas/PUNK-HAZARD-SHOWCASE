@@ -33,7 +33,24 @@ html {
 
 /* Tous les contenus principaux ont un z-index supérieur au footer */
 main,
-section {
+section,
+header:not([class*="Header"]) {
+  position: relative;
+  z-index: 10; /* Z-index supérieur au footer */
+  background: var(--background); /* Fond opaque pour cacher le footer */
+}
+
+/* S'assurer que le contenu principal prend au moins 100vh pour cacher le footer par défaut */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* S'assurer que le main prend au moins la hauteur de l'écran moins le header */
+.page > main {
+  flex: 1;
+  min-height: calc(100vh - 64px); /* 64px = hauteur du header */
   position: relative;
   z-index: 10; /* Z-index supérieur au footer */
   background: var(--background); /* Fond opaque pour cacher le footer */

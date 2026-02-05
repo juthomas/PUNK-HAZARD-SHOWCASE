@@ -72,7 +72,11 @@ Le site utilise NextAuth.js pour l'authentification. Deux méthodes sont disponi
 1. **Email/Password** : Utilise les variables `ADMIN_EMAIL` et `ADMIN_PASSWORD`
 2. **Google OAuth** : Nécessite la configuration de Google OAuth (optionnel)
 
-### Configuration NextAuth
+### 📖 Guide complet de configuration
+
+Pour un guide détaillé étape par étape avec Google Workspace, consultez **[SETUP_AUTH.md](./SETUP_AUTH.md)**.
+
+### Configuration rapide
 
 1. Générez un secret pour `NEXTAUTH_SECRET` :
    ```bash
@@ -81,7 +85,7 @@ Le site utilise NextAuth.js pour l'authentification. Deux méthodes sont disponi
 
 2. Pour Google OAuth :
    - Créez un projet sur [Google Cloud Console](https://console.cloud.google.com/)
-   - Activez l'API Google+
+   - Activez l'API Google+ / Google Identity
    - Créez des identifiants OAuth 2.0
    - Ajoutez `http://localhost:3000/api/auth/callback/google` comme URI de redirection
 

@@ -28,23 +28,69 @@ const handler = NextAuth({
           return null;
         }
 
-        const email = credentials.email as string;
-        const password = credentials.password as string;
+        // Trim pour éviter les espaces
+        const email = (credentials.email as string).trim();
+        const password = (credentials.password as string).trim();
 
         // TODO: Remplacer par une vraie vérification en base de données
         // Pour l'instant, on vérifie contre les variables d'environnement
-        const adminEmail = process.env.ADMIN_EMAIL;
-        const adminPassword = process.env.ADMIN_PASSWORD;
+        let adminEmail = process.env.ADMIN_EMAIL;
+        let adminPassword = process.env.ADMIN_PASSWORD;
 
-        if (
-          email === adminEmail &&
-          password === adminPassword
-        ) {
+        // Vérifier que les variables d'environnement sont définies
+        if (!adminEmail || !adminPassword) {
+          console.error('ADMIN_EMAIL ou ADMIN_PASSWORD non définis dans les variables d\'environnement');
+          if (process.env.NODE_ENV === 'development') {
+            console.error('ADMIN_EMAIL défini:', !!process.env.ADMIN_EMAIL);
+            console.error('ADMIN_PASSWORD défini:', !!process.env.ADMIN_PASSWORD);
+          }
+          return null;
+        }
+
+        // Nettoyer les valeurs : supprimer les guillemets et espaces
+        adminEmail = adminEmail.trim().replace(/^["']|["']$/g, '');
+        adminPassword = adminPassword.trim().replace(/^["']|["']$/g, '');
+        
+        // Log en développement pour voir les valeurs brutes
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔐 Debug auth - Variables d\'environnement:', {
+            adminEmailRaw: process.env.ADMIN_EMAIL,
+            adminPasswordRaw: process.env.ADMIN_PASSWORD ? `${process.env.ADMIN_PASSWORD.substring(0, 3)}...` : 'undefined',
+            adminEmailCleaned: adminEmail,
+            adminPasswordCleaned: `${adminPassword.substring(0, 3)}...`,
+            adminPasswordLength: adminPassword.length,
+          });
+        }
+
+        // Comparaison stricte (sensible à la casse pour l'email, mais pas pour le mot de passe par défaut)
+        // Note: En production, vous devriez utiliser bcrypt pour comparer les mots de passe
+        const emailMatch = email.toLowerCase() === adminEmail.toLowerCase();
+        const passwordMatch = password === adminPassword;
+
+        if (emailMatch && passwordMatch) {
           return {
             id: '1',
-            email: email,
+            email: adminEmail, // Utiliser l'email de l'env pour éviter les problèmes de casse
             name: 'Admin',
           };
+        }
+
+        // Log en développement pour déboguer (ne pas faire ça en production)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Tentative de connexion échouée:', {
+            emailProvided: email,
+            emailExpected: adminEmail,
+            emailMatch,
+            passwordMatch: passwordMatch ? '✓' : '✗',
+            passwordProvidedLength: password.length,
+            passwordExpectedLength: adminPassword.length,
+            passwordProvidedHasSpaces: password.includes(' '),
+            passwordExpectedHasSpaces: adminPassword.includes(' '),
+            passwordProvidedFirstChar: password.charAt(0),
+            passwordExpectedFirstChar: adminPassword.charAt(0),
+            passwordProvidedLastChar: password.charAt(password.length - 1),
+            passwordExpectedLastChar: adminPassword.charAt(adminPassword.length - 1),
+          });
         }
 
         // Ici, vous pouvez ajouter une vérification en base de données
