@@ -14,7 +14,7 @@ export default function Home() {
   const t = useTranslations('home');
   const tCommon = useTranslations('common.cta');
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@punkhazard.org';
-  const [glitchIntensity, setGlitchIntensity] = useState<'normal' | 'moderate' | 'intense' | 'extreme'>('normal');
+  const [glitchIntensity, setGlitchIntensity] = useState<'normal' | 'moderate' | 'intense' | 'extreme' | 'crazy'>('normal');
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const intensityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -31,22 +31,24 @@ export default function Home() {
     startTimeRef.current = Date.now();
     setGlitchIntensity('moderate');
     
-    // Augmenter progressivement l'intensité
+    // Augmenter progressivement l'intensité sur 10 secondes
     intensityIntervalRef.current = setInterval(() => {
       if (!startTimeRef.current) return;
       
       const elapsed = Date.now() - startTimeRef.current;
       
-      if (elapsed < 1000) {
+      if (elapsed < 2000) {
         setGlitchIntensity('moderate');
-      } else if (elapsed < 2500) {
+      } else if (elapsed < 4500) {
         setGlitchIntensity('intense');
-      } else if (elapsed < 5000) {
+      } else if (elapsed < 7500) {
         setGlitchIntensity('extreme');
+      } else {
+        setGlitchIntensity('crazy');
       }
     }, 100);
     
-    // Déclencher l'action après 5 secondes
+    // Déclencher l'action après 10 secondes
     longPressTimerRef.current = setTimeout(() => {
       console.log('Long press action triggered!');
       alert('Easter egg activé ! 🎉');
@@ -58,7 +60,7 @@ export default function Home() {
         intensityIntervalRef.current = null;
       }
       startTimeRef.current = null;
-    }, 5000);
+    }, 10000);
   };
 
   const handleLongPressEnd = () => {
@@ -102,7 +104,8 @@ export default function Home() {
             className={`${styles.heroTitle} ${styles.balloon} ${styles.glitchTitle} ${
               glitchIntensity === 'moderate' ? styles.glitchModerate :
               glitchIntensity === 'intense' ? styles.glitchIntense :
-              glitchIntensity === 'extreme' ? styles.glitchExtreme : ''
+              glitchIntensity === 'extreme' ? styles.glitchExtreme :
+              glitchIntensity === 'crazy' ? styles.glitchCrazy : ''
             }`}
             data-text="PUNK HAZARD"
             onMouseDown={handleLongPressStart}
