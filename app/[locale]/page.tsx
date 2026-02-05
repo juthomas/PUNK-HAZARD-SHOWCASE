@@ -53,7 +53,7 @@ export default function Home() {
     // Déclencher l'action après 10 secondes
     longPressTimerRef.current = setTimeout(() => {
       console.log('Long press action triggered!');
-      alert('Easter egg activé ! 🎉');
+      // alert('Easter egg activé ! 🎉');
 
       // Réinitialiser l'effet après l'action
       setGlitchIntensity('normal');
