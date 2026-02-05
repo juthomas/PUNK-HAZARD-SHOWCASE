@@ -513,25 +513,25 @@ a.secondary {
   z-index: 1;
 }
 
-/* Glitch CRAZY - niveau maximum (7.5-10s) */
+/* Glitch CRAZY - niveau maximum (7.5-10s+) */
 .glitchCrazy {
-  animation: glitchShakeCrazy 0.05s linear infinite;
+  animation: glitchShakeCrazy 0.04s linear infinite;
   will-change: transform;
 }
 
 .glitchCrazy::before {
-  left: 15px;
-  top: 15px;
-  animation: glitchClipCrazy 0.08s linear infinite, glitchVisibilityCrazy 0.05s infinite, glitchColorShiftCrazy 0.1s infinite;
-  filter: brightness(2.5) saturate(3) contrast(1.5) blur(0.5px);
+  left: 20px;
+  top: 20px;
+  animation: glitchClipCrazy 0.06s linear infinite, glitchVisibilityCrazy 0.04s infinite, glitchColorShiftCrazy 0.08s infinite;
+  filter: brightness(3) saturate(4) contrast(1.8) blur(1px);
   z-index: 1;
 }
 
 .glitchCrazy::after {
-  left: -15px;
-  top: -15px;
-  animation: glitchClipCrazy 0.08s 0.04s linear infinite, glitchVisibilityCrazy 0.05s infinite, glitchColorShiftCrazy 0.1s 0.05s infinite;
-  filter: brightness(2.5) saturate(3) contrast(1.5) blur(0.5px);
+  left: -20px;
+  top: -20px;
+  animation: glitchClipCrazy 0.06s 0.03s linear infinite, glitchVisibilityCrazy 0.04s infinite, glitchColorShiftCrazy 0.08s 0.04s infinite;
+  filter: brightness(3) saturate(4) contrast(1.8) blur(1px);
   z-index: 1;
 }
 
@@ -590,44 +590,85 @@ a.secondary {
 
 @keyframes glitchShakeCrazy {
   0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
-  2.5% { transform: translate(-5px, 3px) rotate(-1deg) scale(1.02); }
-  5% { transform: translate(5px, -3px) rotate(1deg) scale(0.98); }
-  7.5% { transform: translate(-3px, 5px) rotate(-0.8deg) scale(1.01); }
-  10% { transform: translate(3px, -5px) rotate(0.8deg) scale(0.99); }
-  12.5% { transform: translate(-6px, -3px) rotate(-1.2deg) scale(1.03); }
-  15% { transform: translate(6px, 3px) rotate(1.2deg) scale(0.97); }
-  17.5% { transform: translate(-3px, -6px) rotate(-0.9deg) scale(1.01); }
-  20% { transform: translate(3px, 6px) rotate(0.9deg) scale(0.99); }
-  22.5% { transform: translate(-5px, 0) rotate(-1.1deg) scale(1.02); }
-  25% { transform: translate(5px, 0) rotate(1.1deg) scale(0.98); }
-  27.5% { transform: translate(0, -5px) rotate(-0.7deg) scale(1.01); }
-  30% { transform: translate(0, 5px) rotate(0.7deg) scale(0.99); }
-  32.5% { transform: translate(-5px, -5px) rotate(-1.3deg) scale(1.04); }
-  35% { transform: translate(5px, 5px) rotate(1.3deg) scale(0.96); }
-  40% { transform: translate(-4px, 4px) rotate(-0.6deg) scale(1.02); }
-  42.5% { transform: translate(4px, -4px) rotate(0.6deg) scale(0.98); }
-  45% { transform: translate(-6px, 2px) rotate(-1deg) scale(1.03); }
-  47.5% { transform: translate(6px, -2px) rotate(1deg) scale(0.97); }
-  50% { transform: translate(-2px, -6px) rotate(-0.8deg) scale(1.01); }
-  52.5% { transform: translate(2px, 6px) rotate(0.8deg) scale(0.99); }
-  55% { transform: translate(-7px, 1px) rotate(-1.4deg) scale(1.05); }
-  57.5% { transform: translate(7px, -1px) rotate(1.4deg) scale(0.95); }
-  60% { transform: translate(-1px, -7px) rotate(-1deg) scale(1.02); }
-  62.5% { transform: translate(1px, 7px) rotate(1deg) scale(0.98); }
-  65% { transform: translate(-6px, -4px) rotate(-1.2deg) scale(1.04); }
-  67.5% { transform: translate(6px, 4px) rotate(1.2deg) scale(0.96); }
-  70% { transform: translate(-4px, 6px) rotate(-0.9deg) scale(1.01); }
-  72.5% { transform: translate(4px, -6px) rotate(0.9deg) scale(0.99); }
-  75% { transform: translate(-7px, -2px) rotate(-1.3deg) scale(1.03); }
-  77.5% { transform: translate(7px, 2px) rotate(1.3deg) scale(0.97); }
-  80% { transform: translate(-2px, 7px) rotate(-1.1deg) scale(1.02); }
-  82.5% { transform: translate(2px, -7px) rotate(1.1deg) scale(0.98); }
-  85% { transform: translate(-8px, 0) rotate(-1.5deg) scale(1.06); }
-  87.5% { transform: translate(8px, 0) rotate(1.5deg) scale(0.94); }
-  90% { transform: translate(0, -8px) rotate(-1.2deg) scale(1.03); }
-  92.5% { transform: translate(0, 8px) rotate(1.2deg) scale(0.97); }
-  95% { transform: translate(-8px, -8px) rotate(-1.6deg) scale(1.07); }
-  97.5% { transform: translate(8px, 8px) rotate(1.6deg) scale(0.93); }
+  1.25% { transform: translate(-8px, 5px) rotate(-1.5deg) scale(1.04); }
+  2.5% { transform: translate(8px, -5px) rotate(1.5deg) scale(0.96); }
+  3.75% { transform: translate(-5px, 8px) rotate(-1.2deg) scale(1.03); }
+  5% { transform: translate(5px, -8px) rotate(1.2deg) scale(0.97); }
+  6.25% { transform: translate(-10px, -5px) rotate(-1.8deg) scale(1.06); }
+  7.5% { transform: translate(10px, 5px) rotate(1.8deg) scale(0.94); }
+  8.75% { transform: translate(-5px, -10px) rotate(-1.4deg) scale(1.02); }
+  10% { transform: translate(5px, 10px) rotate(1.4deg) scale(0.98); }
+  11.25% { transform: translate(-8px, 0) rotate(-1.6deg) scale(1.05); }
+  12.5% { transform: translate(8px, 0) rotate(1.6deg) scale(0.95); }
+  13.75% { transform: translate(0, -8px) rotate(-1deg) scale(1.03); }
+  15% { transform: translate(0, 8px) rotate(1deg) scale(0.97); }
+  16.25% { transform: translate(-10px, -8px) rotate(-2deg) scale(1.08); }
+  17.5% { transform: translate(10px, 8px) rotate(2deg) scale(0.92); }
+  18.75% { transform: translate(-6px, 10px) rotate(-1.3deg) scale(1.04); }
+  20% { transform: translate(6px, -10px) rotate(1.3deg) scale(0.96); }
+  21.25% { transform: translate(-12px, 3px) rotate(-1.9deg) scale(1.07); }
+  22.5% { transform: translate(12px, -3px) rotate(1.9deg) scale(0.93); }
+  23.75% { transform: translate(-3px, -12px) rotate(-1.5deg) scale(1.05); }
+  25% { transform: translate(3px, 12px) rotate(1.5deg) scale(0.95); }
+  26.25% { transform: translate(-10px, -10px) rotate(-2.2deg) scale(1.1); }
+  27.5% { transform: translate(10px, 10px) rotate(2.2deg) scale(0.9); }
+  28.75% { transform: translate(-8px, 12px) rotate(-1.7deg) scale(1.06); }
+  30% { transform: translate(8px, -12px) rotate(1.7deg) scale(0.94); }
+  31.25% { transform: translate(-12px, -8px) rotate(-2.1deg) scale(1.09); }
+  32.5% { transform: translate(12px, 8px) rotate(2.1deg) scale(0.91); }
+  33.75% { transform: translate(-6px, 12px) rotate(-1.4deg) scale(1.04); }
+  35% { transform: translate(6px, -12px) rotate(1.4deg) scale(0.96); }
+  36.25% { transform: translate(-14px, 2px) rotate(-2.3deg) scale(1.11); }
+  37.5% { transform: translate(14px, -2px) rotate(2.3deg) scale(0.89); }
+  38.75% { transform: translate(-2px, -14px) rotate(-1.8deg) scale(1.07); }
+  40% { transform: translate(2px, 14px) rotate(1.8deg) scale(0.93); }
+  41.25% { transform: translate(-12px, -12px) rotate(-2.4deg) scale(1.12); }
+  42.5% { transform: translate(12px, 12px) rotate(2.4deg) scale(0.88); }
+  43.75% { transform: translate(-10px, 14px) rotate(-2deg) scale(1.08); }
+  45% { transform: translate(10px, -14px) rotate(2deg) scale(0.92); }
+  46.25% { transform: translate(-14px, -10px) rotate(-2.5deg) scale(1.13); }
+  47.5% { transform: translate(14px, 10px) rotate(2.5deg) scale(0.87); }
+  48.75% { transform: translate(-8px, 14px) rotate(-1.9deg) scale(1.06); }
+  50% { transform: translate(8px, -14px) rotate(1.9deg) scale(0.94); }
+  51.25% { transform: translate(-16px, 0) rotate(-2.6deg) scale(1.14); }
+  52.5% { transform: translate(16px, 0) rotate(2.6deg) scale(0.86); }
+  53.75% { transform: translate(0, -16px) rotate(-2.2deg) scale(1.1); }
+  55% { transform: translate(0, 16px) rotate(2.2deg) scale(0.9); }
+  56.25% { transform: translate(-16px, -16px) rotate(-2.8deg) scale(1.15); }
+  57.5% { transform: translate(16px, 16px) rotate(2.8deg) scale(0.85); }
+  58.75% { transform: translate(-12px, 16px) rotate(-2.3deg) scale(1.12); }
+  60% { transform: translate(12px, -16px) rotate(2.3deg) scale(0.88); }
+  61.25% { transform: translate(-16px, -12px) rotate(-2.7deg) scale(1.13); }
+  62.5% { transform: translate(16px, 12px) rotate(2.7deg) scale(0.87); }
+  63.75% { transform: translate(-10px, 16px) rotate(-2.1deg) scale(1.09); }
+  65% { transform: translate(10px, -16px) rotate(2.1deg) scale(0.91); }
+  66.25% { transform: translate(-18px, 4px) rotate(-2.9deg) scale(1.16); }
+  67.5% { transform: translate(18px, -4px) rotate(2.9deg) scale(0.84); }
+  68.75% { transform: translate(-4px, -18px) rotate(-2.4deg) scale(1.11); }
+  70% { transform: translate(4px, 18px) rotate(2.4deg) scale(0.89); }
+  71.25% { transform: translate(-18px, -18px) rotate(-3deg) scale(1.17); }
+  72.5% { transform: translate(18px, 18px) rotate(3deg) scale(0.83); }
+  73.75% { transform: translate(-14px, 18px) rotate(-2.6deg) scale(1.14); }
+  75% { transform: translate(14px, -18px) rotate(2.6deg) scale(0.86); }
+  76.25% { transform: translate(-18px, -14px) rotate(-2.8deg) scale(1.15); }
+  77.5% { transform: translate(18px, 14px) rotate(2.8deg) scale(0.85); }
+  78.75% { transform: translate(-12px, 18px) rotate(-2.5deg) scale(1.12); }
+  80% { transform: translate(12px, -18px) rotate(2.5deg) scale(0.88); }
+  81.25% { transform: translate(-20px, 6px) rotate(-3.1deg) scale(1.18); }
+  82.5% { transform: translate(20px, -6px) rotate(3.1deg) scale(0.82); }
+  83.75% { transform: translate(-6px, -20px) rotate(-2.7deg) scale(1.13); }
+  85% { transform: translate(6px, 20px) rotate(2.7deg) scale(0.87); }
+  86.25% { transform: translate(-20px, -20px) rotate(-3.2deg) scale(1.19); }
+  87.5% { transform: translate(20px, 20px) rotate(3.2deg) scale(0.81); }
+  88.75% { transform: translate(-16px, 20px) rotate(-2.9deg) scale(1.16); }
+  90% { transform: translate(16px, -20px) rotate(2.9deg) scale(0.84); }
+  91.25% { transform: translate(-20px, -16px) rotate(-3deg) scale(1.17); }
+  92.5% { transform: translate(20px, 16px) rotate(3deg) scale(0.83); }
+  93.75% { transform: translate(-14px, 20px) rotate(-2.8deg) scale(1.15); }
+  95% { transform: translate(14px, -20px) rotate(2.8deg) scale(0.85); }
+  96.25% { transform: translate(-20px, 0) rotate(-3.3deg) scale(1.2); }
+  97.5% { transform: translate(20px, 0) rotate(3.3deg) scale(0.8); }
+  98.75% { transform: translate(0, -20px) rotate(-3.1deg) scale(1.18); }
 }
 
 @keyframes glitchClipIntense {
@@ -849,55 +890,103 @@ a.secondary {
 @keyframes glitchColorShiftCrazy {
   0% { 
     color: #ff0000;
-    filter: hue-rotate(0deg) brightness(2.5) saturate(3) contrast(1.5);
+    filter: hue-rotate(0deg) brightness(3) saturate(4) contrast(1.8);
+  }
+  4.16% { 
+    color: #ff0020;
+    filter: hue-rotate(15deg) brightness(3.2) saturate(4.5) contrast(2);
   }
   8.33% { 
     color: #ff0040;
-    filter: hue-rotate(30deg) brightness(2.8) saturate(3.5) contrast(1.6);
+    filter: hue-rotate(30deg) brightness(3.5) saturate(5) contrast(2.2);
+  }
+  12.5% { 
+    color: #ff0060;
+    filter: hue-rotate(45deg) brightness(3.2) saturate(4.5) contrast(2);
   }
   16.66% { 
     color: #ff00ff;
-    filter: hue-rotate(60deg) brightness(2.5) saturate(3) contrast(1.5);
+    filter: hue-rotate(60deg) brightness(3) saturate(4) contrast(1.8);
+  }
+  20.83% { 
+    color: #c000ff;
+    filter: hue-rotate(75deg) brightness(3.5) saturate(5) contrast(2.2);
   }
   25% { 
     color: #8000ff;
-    filter: hue-rotate(90deg) brightness(2.8) saturate(3.5) contrast(1.6);
+    filter: hue-rotate(90deg) brightness(3.2) saturate(4.5) contrast(2);
+  }
+  29.16% { 
+    color: #4000ff;
+    filter: hue-rotate(105deg) brightness(3) saturate(4) contrast(1.8);
   }
   33.33% { 
     color: #0040ff;
-    filter: hue-rotate(120deg) brightness(2.5) saturate(3) contrast(1.5);
+    filter: hue-rotate(120deg) brightness(3.5) saturate(5) contrast(2.2);
+  }
+  37.5% { 
+    color: #0060ff;
+    filter: hue-rotate(135deg) brightness(3.2) saturate(4.5) contrast(2);
   }
   41.66% { 
     color: #00ffff;
-    filter: hue-rotate(150deg) brightness(2.8) saturate(3.5) contrast(1.6);
+    filter: hue-rotate(150deg) brightness(3) saturate(4) contrast(1.8);
+  }
+  45.83% { 
+    color: #00ffc0;
+    filter: hue-rotate(165deg) brightness(3.5) saturate(5) contrast(2.2);
   }
   50% { 
     color: #00ff40;
-    filter: hue-rotate(180deg) brightness(2.5) saturate(3) contrast(1.5);
+    filter: hue-rotate(180deg) brightness(3.2) saturate(4.5) contrast(2);
+  }
+  54.16% { 
+    color: #20ff00;
+    filter: hue-rotate(195deg) brightness(3) saturate(4) contrast(1.8);
   }
   58.33% { 
     color: #00ff00;
-    filter: hue-rotate(210deg) brightness(2.8) saturate(3.5) contrast(1.6);
+    filter: hue-rotate(210deg) brightness(3.5) saturate(5) contrast(2.2);
+  }
+  62.5% { 
+    color: #40ff00;
+    filter: hue-rotate(225deg) brightness(3.2) saturate(4.5) contrast(2);
   }
   66.66% { 
-    color: #40ff00;
-    filter: hue-rotate(240deg) brightness(2.5) saturate(3) contrast(1.5);
+    color: #80ff00;
+    filter: hue-rotate(240deg) brightness(3) saturate(4) contrast(1.8);
+  }
+  70.83% { 
+    color: #c0ff00;
+    filter: hue-rotate(255deg) brightness(3.5) saturate(5) contrast(2.2);
   }
   75% { 
     color: #ffff00;
-    filter: hue-rotate(270deg) brightness(2.8) saturate(3.5) contrast(1.6);
+    filter: hue-rotate(270deg) brightness(3.2) saturate(4.5) contrast(2);
+  }
+  79.16% { 
+    color: #ffc000;
+    filter: hue-rotate(285deg) brightness(3) saturate(4) contrast(1.8);
   }
   83.33% { 
     color: #ff8000;
-    filter: hue-rotate(300deg) brightness(2.5) saturate(3) contrast(1.5);
+    filter: hue-rotate(300deg) brightness(3.5) saturate(5) contrast(2.2);
+  }
+  87.5% { 
+    color: #ff6000;
+    filter: hue-rotate(315deg) brightness(3.2) saturate(4.5) contrast(2);
   }
   91.66% { 
     color: #ff4000;
-    filter: hue-rotate(330deg) brightness(2.8) saturate(3.5) contrast(1.6);
+    filter: hue-rotate(330deg) brightness(3) saturate(4) contrast(1.8);
+  }
+  95.83% { 
+    color: #ff2000;
+    filter: hue-rotate(345deg) brightness(3.5) saturate(5) contrast(2.2);
   }
   100% { 
     color: #ff0000;
-    filter: hue-rotate(360deg) brightness(2.5) saturate(3) contrast(1.5);
+    filter: hue-rotate(360deg) brightness(3) saturate(4) contrast(1.8);
   }
 }
 

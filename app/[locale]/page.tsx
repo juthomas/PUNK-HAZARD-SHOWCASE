@@ -53,13 +53,8 @@ export default function Home() {
       console.log('Long press action triggered!');
       alert('Easter egg activé ! 🎉');
       
-      // Réinitialiser après l'action
-      setGlitchIntensity('normal');
-      if (intensityIntervalRef.current) {
-        clearInterval(intensityIntervalRef.current);
-        intensityIntervalRef.current = null;
-      }
-      startTimeRef.current = null;
+      // Continuer l'effet de glitch en mode crazy
+      // Ne pas réinitialiser, laisser l'utilisateur relâcher pour arrêter
     }, 10000);
   };
 
