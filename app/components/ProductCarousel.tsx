@@ -92,7 +92,9 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
       return `translateX(-${currentIndex * 100}%)`;
     }
     // Pour 2 ou 3 éléments, on utilise le calcul avec gap
-    return `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px))`;
+    // On ajoute le padding du wrapper (12px de chaque côté) dans le calcul
+    const wrapperPadding = 12;
+    return `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px + ${wrapperPadding}px))`;
   };
 
   return (
