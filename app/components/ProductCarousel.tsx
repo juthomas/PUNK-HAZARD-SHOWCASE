@@ -83,7 +83,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
   const canGoNext = true; // Toujours possible avec l'effet infini
 
   // Calcul du gap selon la taille d'écran
-  const gap = itemsPerView >= 3 ? 24 : itemsPerView === 2 ? 24 : 16;
+  const gap = itemsPerView >= 3 ? 8 : itemsPerView === 2 ? 12 : 16;
 
   // Calcul du transform selon le nombre d'éléments par vue
   const getTransform = () => {
@@ -92,14 +92,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
       return `translateX(-${currentIndex * 100}%)`;
     }
     // Pour 2 ou 3 éléments, on utilise le calcul avec gap
-    // On compense le padding gauche du wrapper (16px) pour éviter le crop
-    const wrapperPaddingLeft = 16;
-    if (currentIndex === 0) {
-      // Position initiale : on compense juste le padding gauche
-      return `translateX(${wrapperPaddingLeft}px)`;
-    }
-    // Positions suivantes : on translate et on garde le padding gauche
-    return `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px + ${wrapperPaddingLeft}px))`;
+    return `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px))`;
   };
 
   return (
