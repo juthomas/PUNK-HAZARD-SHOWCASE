@@ -15,6 +15,10 @@
   position: relative;
 }
 
+.desktopNavButton {
+  display: flex;
+}
+
 .carouselWrapper {
   overflow: hidden;
   position: relative;
@@ -37,7 +41,7 @@
   box-sizing: border-box;
 }
 
-@media (max-width: 1200px) and (min-width: 701px) {
+@media (max-width: 1200px) and (min-width: 821px) {
   .carouselItem {
     flex: 0 0 calc((100% - 24px) / 2);
   }
@@ -50,21 +54,44 @@
   }
 }
 
-@media (max-width: 700px) {
+.mobileNavButtons {
+  display: none;
+}
+
+.desktopNavButton {
+  display: flex;
+}
+
+@media (max-width: 820px) {
+  .mobileNavButtons {
+    display: flex;
+    justify-content: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .carouselWithControls .desktopNavButton,
+  .desktopNavButton {
+    display: none !important;
+  }
+
   .carouselContainer {
     margin-left: -16px;
     margin-right: -16px;
-    padding: 0 24px;
+    padding: 0 16px;
   }
   .carouselItem {
-    flex: 0 0 calc(100% - 16px);
+    flex: 0 0 100%;
   }
   .carousel {
-    gap: 16px;
+    gap: 0;
   }
   .carouselWrapper {
     padding: 8px 0;
     margin-right: 0;
+  }
+  .carouselWithControls {
+    gap: 0;
   }
 }
 
@@ -98,7 +125,7 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 820px) {
   .carouselWithControls {
     gap: 8px;
   }
@@ -160,7 +187,7 @@
   height: 10px;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 820px) {
   .carouselFooter {
     justify-content: center;
     text-align: center;

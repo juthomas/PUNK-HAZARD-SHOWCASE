@@ -21,7 +21,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
       const width = window.innerWidth;
       if (width >= 1200) {
         setItemsPerView(3);
-      } else if (width >= 700) {
+      } else if (width >= 820) {
         setItemsPerView(2);
       } else {
         setItemsPerView(1);
@@ -88,8 +88,8 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
   // Calcul du transform selon le nombre d'éléments par vue
   const getTransform = () => {
     if (itemsPerView === 1) {
-      // Pour 1 élément, on utilise le pourcentage avec le gap pour un espacement correct
-      return `translateX(calc(-${currentIndex * 100}% - ${currentIndex * gap}px))`;
+      // Pour 1 élément sur mobile, pas de gap
+      return `translateX(-${currentIndex * 100}%)`;
     }
     // Pour 2 ou 3 éléments, on utilise le calcul avec gap
     return `translateX(calc(-${currentIndex * (100 / itemsPerView)}% - ${currentIndex * gap}px))`;
@@ -97,10 +97,34 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
 
   return (
     <div className={styles.carouselContainer}>
+      {products.length > itemsPerView && (
+        <div className={styles.mobileNavButtons}>
+          <button
+            className={`${styles.navButton} ${styles.navButtonPrev}`}
+            onClick={goToPrevious}
+            disabled={!canGoPrevious}
+            aria-label="Produit précédent"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button
+            className={`${styles.navButton} ${styles.navButtonNext}`}
+            onClick={goToNext}
+            disabled={!canGoNext}
+            aria-label="Produit suivant"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      )}
       <div className={styles.carouselWithControls}>
         {products.length > itemsPerView && (
           <button
-            className={`${styles.navButton} ${styles.navButtonPrev}`}
+            className={`${styles.navButton} ${styles.navButtonPrev} ${styles.desktopNavButton}`}
             onClick={goToPrevious}
             disabled={!canGoPrevious}
             aria-label="Produit précédent"
@@ -128,7 +152,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
 
         {products.length > itemsPerView && (
           <button
-            className={`${styles.navButton} ${styles.navButtonNext}`}
+            className={`${styles.navButton} ${styles.navButtonNext} ${styles.desktopNavButton}`}
             onClick={goToNext}
             disabled={!canGoNext}
             aria-label="Produit suivant"

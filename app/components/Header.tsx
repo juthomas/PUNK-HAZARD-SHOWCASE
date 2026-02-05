@@ -19,6 +19,7 @@ export default function Header() {
   const { data: session } = useSession();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function Header() {
 
   // Bloquer le scroll du body quand une modale est ouverte
   useEffect(() => {
-    if (isCartOpen || isLoginOpen) {
+    if (isCartOpen || isLoginOpen || isMobileMenuOpen) {
       // Sauvegarder la position actuelle du scroll
       const scrollY = window.scrollY;
       // Bloquer le scroll
@@ -45,7 +46,22 @@ export default function Header() {
         window.scrollTo(0, scrollY);
       };
     }
-  }, [isCartOpen, isLoginOpen]);
+  }, [isCartOpen, isLoginOpen, isMobileMenuOpen]);
+
+  // Fermer le menu mobile quand on clique en dehors
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.nav}`) && !target.closest(`.${styles.mobileMenuButton}`)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobileMenuOpen]);
 
   const isActive = (href: string) => {
     if (href === '/') {
@@ -60,31 +76,72 @@ export default function Header() {
         <Link href="/" className={styles.logo}>
           PUNK HAZARD
         </Link>
-        <nav className={styles.nav}>
-          <Link href="/" className={`${styles.navLink} ${isActive('/') ? styles.active : ''}`}>
+        <button 
+          className={styles.mobileMenuButton}
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {isMobileMenuOpen ? (
+              <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            ) : (
+              <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            )}
+          </svg>
+        </button>
+        <nav className={`${styles.nav} ${isMobileMenuOpen ? styles.navOpen : ''}`}>
+          <Link 
+            href="/" 
+            className={`${styles.navLink} ${isActive('/') ? styles.active : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
             {t('home')}
           </Link>
-          <Link href="/boutique" className={`${styles.navLink} ${isActive('/boutique') ? styles.active : ''}`}>
+          <Link 
+            href="/boutique" 
+            className={`${styles.navLink} ${isActive('/boutique') ? styles.active : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
             {t('shop')}
           </Link>
-          <Link href="/services" className={`${styles.navLink} ${isActive('/services') ? styles.active : ''}`}>
+          <Link 
+            href="/services" 
+            className={`${styles.navLink} ${isActive('/services') ? styles.active : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
             {t('services')}
           </Link>
-          <Link href="/projets" className={`${styles.navLink} ${isActive('/projets') ? styles.active : ''}`}>
+          <Link 
+            href="/projets" 
+            className={`${styles.navLink} ${isActive('/projets') ? styles.active : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
             {t('projects')}
           </Link>
-          <Link href="/contact" className={`${styles.navLink} ${isActive('/contact') ? styles.active : ''}`}>
+          <Link 
+            href="/contact" 
+            className={`${styles.navLink} ${isActive('/contact') ? styles.active : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
             {t('contact')}
           </Link>
-          <LanguageSwitcher />
-          <CartIcon onClick={() => setIsCartOpen(true)} />
-          {session ? (
-            <UserMenu />
-          ) : (
-            <button onClick={() => setIsLoginOpen(true)} className={styles.loginButton}>
-              {tAuth('login')}
-            </button>
-          )}
+          <div className={styles.navActions}>
+            <LanguageSwitcher />
+            <CartIcon onClick={() => {
+              setIsCartOpen(true);
+              setIsMobileMenuOpen(false);
+            }} />
+            {session ? (
+              <UserMenu />
+            ) : (
+              <button onClick={() => {
+                setIsLoginOpen(true);
+                setIsMobileMenuOpen(false);
+              }} className={styles.loginButton}>
+                {tAuth('login')}
+              </button>
+            )}
+          </div>
         </nav>
       </div>
       {mounted && isCartOpen && createPortal(
