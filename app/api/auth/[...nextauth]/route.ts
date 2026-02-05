@@ -1,6 +1,8 @@
 import NextAuth, { type DefaultSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 // Pour un vrai e-commerce, vous devriez utiliser une vraie base de données
 // Ici, on utilise une solution simple avec variables d'environnement pour les admins
@@ -62,17 +64,40 @@ const handler = NextAuth({
           });
         }
 
-        // Comparaison stricte (sensible à la casse pour l'email, mais pas pour le mot de passe par défaut)
-        // Note: En production, vous devriez utiliser bcrypt pour comparer les mots de passe
+        // 1. Vérifier d'abord l'admin (variables d'environnement)
         const emailMatch = email.toLowerCase() === adminEmail.toLowerCase();
         const passwordMatch = password === adminPassword;
 
         if (emailMatch && passwordMatch) {
           return {
             id: '1',
-            email: adminEmail, // Utiliser l'email de l'env pour éviter les problèmes de casse
+            email: adminEmail,
             name: 'Admin',
           };
+        }
+
+        // 2. Vérifier les utilisateurs enregistrés (fichier JSON)
+        try {
+          const usersFilePath = join(process.cwd(), 'data', 'users.json');
+          const usersData = readFileSync(usersFilePath, 'utf8');
+          const users = JSON.parse(usersData);
+          
+          const user = users.find(
+            (u: any) => u.email.toLowerCase() === email.toLowerCase().trim()
+          );
+
+          if (user && user.password.trim() === password.trim()) {
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+            };
+          }
+        } catch (error) {
+          // Si le fichier n'existe pas ou erreur de lecture, continuer
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Erreur lecture users.json:', error);
+          }
         }
 
         // Log en développement pour déboguer (ne pas faire ça en production)
@@ -82,28 +107,8 @@ const handler = NextAuth({
             emailExpected: adminEmail,
             emailMatch,
             passwordMatch: passwordMatch ? '✓' : '✗',
-            passwordProvidedLength: password.length,
-            passwordExpectedLength: adminPassword.length,
-            passwordProvidedHasSpaces: password.includes(' '),
-            passwordExpectedHasSpaces: adminPassword.includes(' '),
-            passwordProvidedFirstChar: password.charAt(0),
-            passwordExpectedFirstChar: adminPassword.charAt(0),
-            passwordProvidedLastChar: password.charAt(password.length - 1),
-            passwordExpectedLastChar: adminPassword.charAt(adminPassword.length - 1),
           });
         }
-
-        // Ici, vous pouvez ajouter une vérification en base de données
-        // Exemple avec Supabase:
-        // const { data, error } = await supabase
-        //   .from('users')
-        //   .select('*')
-        //   .eq('email', credentials.email)
-        //   .single();
-        //
-        // if (error || !data) return null;
-        // if (!await bcrypt.compare(credentials.password, data.password)) return null;
-        // return { id: data.id, email: data.email, name: data.name };
 
         return null;
       },
@@ -126,6 +131,10 @@ const handler = NextAuth({
   },
   
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Autoriser toutes les connexions pour l'instant
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

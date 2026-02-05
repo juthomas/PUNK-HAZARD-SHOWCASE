@@ -289,12 +289,25 @@
     "logout": "Logout",
     "email": "Email",
     "password": "Password",
+    "name": "Name",
     "signIn": "Sign in",
+    "signUp": "Sign up",
     "signInWithGoogle": "Sign in with Google",
     "signingIn": "Signing in...",
+    "signingUp": "Signing up...",
     "error": "Login error",
     "invalidCredentials": "Invalid email or password",
-    "profile": "My profile"
+    "profile": "My profile",
+    "alreadyHaveAccount": "Already have an account?",
+    "noAccount": "Don't have an account?",
+    "register": {
+      "title": "Create an account",
+      "success": "Account created successfully! You can now sign in.",
+      "emailExists": "This email is already in use",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "invalidEmail": "Invalid email",
+      "allFieldsRequired": "All fields are required"
+    }
   },
   "profile": {
     "title": "My profile",
