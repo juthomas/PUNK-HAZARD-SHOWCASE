@@ -29,6 +29,8 @@ body {
 
 html {
   background: var(--background);
+  /* Réserver l'espace de la scrollbar pour éviter les décalages */
+  scrollbar-gutter: stable;
 }
 
 /* Tous les contenus principaux ont un z-index supérieur au footer */

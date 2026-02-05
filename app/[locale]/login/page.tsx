@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useRouter, useLocale } from '@/i18n/routing';
+import { useRouter } from '@/i18n/routing';
+import { useLocale } from 'next-intl';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import LoginModal from '@/app/components/LoginModal';
@@ -14,10 +15,18 @@ function LoginContent() {
   const locale = useLocale();
   const t = useTranslations('auth');
   const [isModalOpen, setIsModalOpen] = useState(true);
-  const error = searchParams.get('error');
-  const callbackUrl = searchParams.get('callbackUrl');
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!mounted) return;
+    
+    const error = searchParams.get('error');
+    const callbackUrl = searchParams.get('callbackUrl');
+    
     // Si pas d'erreur et callbackUrl, rediriger directement
     if (!error && callbackUrl) {
       try {
@@ -28,26 +37,32 @@ function LoginContent() {
         router.push(url.pathname + url.search);
       } catch {
         // Si ce n'est pas une URL complète, utiliser directement
+        const decodedUrl = decodeURIComponent(callbackUrl);
         router.push(decodedUrl);
       }
     }
-  }, [error, callbackUrl, router]);
+  }, [mounted, searchParams, router]);
 
   const handleClose = () => {
     setIsModalOpen(false);
-    // Rediriger vers la page d'accueil ou le callbackUrl
-    if (callbackUrl) {
-      try {
-        const decodedUrl = decodeURIComponent(callbackUrl);
-        const url = new URL(decodedUrl);
-        router.push(url.pathname + url.search);
-      } catch {
-        router.push(decodedUrl);
-      }
-    } else {
-      router.push('/');
-    }
+    // Rediriger vers la page d'accueil
+    router.push('/');
   };
+
+  if (!mounted) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Header />
+        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p>Chargement...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const error = searchParams.get('error');
+  const callbackUrl = searchParams.get('callbackUrl');
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>

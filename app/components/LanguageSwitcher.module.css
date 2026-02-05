@@ -19,6 +19,8 @@
   border-radius: 4px;
   transition: all 0.2s ease;
   opacity: 0.7;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .button:hover {
@@ -32,9 +34,15 @@
   opacity: 1;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 820px) {
+  .switcher {
+    width: 100%;
+    justify-content: center;
+  }
+  
   .button {
-    padding: 5px 10px;
-    font-size: 12px;
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 14px;
   }
 }

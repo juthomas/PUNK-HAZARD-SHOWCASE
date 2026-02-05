@@ -126,8 +126,8 @@ const handler = NextAuth({
   ],
   
   pages: {
-    signIn: '/login',
-    error: '/login',
+    signIn: '/fr/login',
+    error: '/fr/login',
   },
   
   callbacks: {

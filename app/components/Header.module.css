@@ -18,6 +18,8 @@
   justify-content: space-between;
   height: 64px;
   position: relative;
+  gap: 0;
+  min-width: 0;
 }
 
 .logo {
@@ -28,6 +30,15 @@
   color: var(--foreground);
   text-decoration: none;
   transition: opacity 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 32px;
+}
+
+@media (max-width: 1000px) and (min-width: 821px) {
+  .logo {
+    font-size: 16px;
+  }
 }
 
 .logo:hover {
@@ -53,33 +64,53 @@
   display: flex;
   gap: 32px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: visible;
+  min-width: 0;
+  flex: 1;
+  margin-left: 0;
 }
 
-@media (max-width: 900px) and (min-width: 821px) {
+@media (max-width: 1000px) and (min-width: 821px) {
+  .container {
+    padding: 0 16px;
+    gap: 0;
+  }
+  
+  .logo {
+    margin-right: 20px;
+  }
+  
   .nav {
     gap: 16px;
+    flex-wrap: nowrap;
+    overflow: visible;
   }
   
   .navLink {
     font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   
   .navActions {
-    gap: 12px;
+    gap: 8px;
+    flex-shrink: 0;
   }
   
   .loginButton {
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 6px 8px;
+    font-size: 11px;
+    white-space: nowrap;
   }
 }
 
 .navActions {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .navLink {
@@ -91,6 +122,8 @@
   font-weight: 500;
   position: relative;
   padding-bottom: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .navLink::after {
@@ -156,7 +189,7 @@
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-    padding: 16px 24px;
+    padding: 20px 24px;
     transform: translateY(-100%);
     opacity: 0;
     visibility: hidden;
@@ -164,6 +197,9 @@
     z-index: 100;
     max-height: calc(100vh - 64px);
     overflow-y: auto;
+    /* Le menu prend toute la largeur disponible, pas 100vw pour éviter le décalage */
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .navOpen {
@@ -174,10 +210,11 @@
 
   .navLink {
     font-size: 16px;
-    padding: 12px 0;
+    padding: 14px 0;
     border-bottom: 1px solid var(--border);
     width: 100%;
     display: block;
+    white-space: normal;
   }
 
   .navLink:last-of-type {
@@ -185,10 +222,16 @@
   }
 
   .navActions {
-    margin-top: 16px;
-    padding-top: 16px;
+    margin-top: 20px;
+    padding-top: 20px;
     border-top: 1px solid var(--border);
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    margin-left: 0;
+  }
+  
+  .navActions > * {
     width: 100%;
   }
 }
@@ -203,11 +246,21 @@
   cursor: pointer;
   transition: all 0.2s ease;
   opacity: 0.7;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .loginButton:hover {
   opacity: 1;
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 820px) {
+  .loginButton {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
 }
 
 .cartModal {

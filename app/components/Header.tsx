@@ -28,12 +28,11 @@ export default function Header() {
 
   // Bloquer le scroll du body quand une modale est ouverte
   useEffect(() => {
-    if (isCartOpen || isLoginOpen || isMobileMenuOpen) {
-      // Sauvegarder la position actuelle du scroll
+    // Gérer les modales (cart, login) - besoin de position: fixed et compensation scrollbar
+    if (isCartOpen || isLoginOpen) {
       const scrollY = window.scrollY;
-      // Calculer la largeur de la scrollbar pour compenser
       const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      // Bloquer le scroll et compenser la scrollbar
+      
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
       document.body.style.width = '100%';
@@ -41,13 +40,22 @@ export default function Header() {
       document.body.style.paddingRight = `${scrollbarWidth}px`;
       
       return () => {
-        // Restaurer le scroll quand la modale se ferme
         document.body.style.position = '';
         document.body.style.top = '';
         document.body.style.width = '';
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
         window.scrollTo(0, scrollY);
+      };
+    }
+    
+    // Gérer le menu mobile - juste bloquer le scroll sans position: fixed
+    // pour éviter le décalage visuel (le menu est déjà en position: fixed)
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        document.body.style.overflow = '';
       };
     }
   }, [isCartOpen, isLoginOpen, isMobileMenuOpen]);
