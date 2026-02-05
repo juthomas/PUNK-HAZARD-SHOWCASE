@@ -495,45 +495,142 @@ a.secondary {
 .glitchExtreme {
   animation: glitchShakeExtreme 0.08s linear infinite;
   will-change: transform;
+  position: relative;
 }
 
 .glitchExtreme::before {
   left: 10px;
   top: 10px;
-  animation: glitchClipIntense 0.12s linear infinite, glitchVisibilityIntense 0.08s infinite, glitchColorShift 0.15s infinite;
+  animation: glitchClipIntense 0.12s linear infinite, glitchVisibilityIntense 0.08s infinite, glitchColorShift 0.15s infinite, glitchLinesExtreme 0.2s infinite;
   filter: brightness(2) saturate(2) contrast(1.2);
   z-index: 1;
+  box-shadow: 
+    0 -2px 0 #ff0000,
+    0 2px 0 #00ffff,
+    -10px 0 0 #ff00ff,
+    10px 0 0 #00ff00;
 }
 
 .glitchExtreme::after {
   left: -10px;
   top: -10px;
-  animation: glitchClipIntense 0.12s 0.06s linear infinite, glitchVisibilityIntense 0.08s infinite, glitchColorShift 0.15s 0.075s infinite;
+  animation: glitchClipIntense 0.12s 0.06s linear infinite, glitchVisibilityIntense 0.08s infinite, glitchColorShift 0.15s 0.075s infinite, glitchLinesExtreme 0.2s 0.1s infinite;
   filter: brightness(2) saturate(2) contrast(1.2);
   z-index: 1;
+  box-shadow: 
+    0 -2px 0 #00ffff,
+    0 2px 0 #ff0000,
+    -10px 0 0 #00ff00,
+    10px 0 0 #ff00ff;
 }
 
 /* Glitch CRAZY - niveau maximum (7.5-10s+) */
 .glitchCrazy {
   animation: glitchShakeCrazy 0.04s linear infinite;
   will-change: transform;
+  position: relative;
+  overflow: visible;
 }
 
 .glitchCrazy::before {
   left: 20px;
   top: 20px;
-  animation: glitchClipCrazy 0.06s linear infinite, glitchVisibilityCrazy 0.04s infinite, glitchColorShiftCrazy 0.08s infinite;
+  animation: glitchClipCrazy 0.06s linear infinite, glitchVisibilityCrazy 0.04s infinite, glitchColorShiftCrazy 0.08s infinite, glitchLinesExtreme 0.2s infinite;
   filter: brightness(3) saturate(4) contrast(1.8) blur(1px);
   z-index: 1;
+  box-shadow: 
+    0 -3px 0 #ff0000,
+    0 3px 0 #00ffff,
+    -15px 0 0 #ff00ff,
+    15px 0 0 #00ff00,
+    -30px 0 0 #ffff00,
+    30px 0 0 #ff0080;
 }
 
 .glitchCrazy::after {
   left: -20px;
   top: -20px;
-  animation: glitchClipCrazy 0.06s 0.03s linear infinite, glitchVisibilityCrazy 0.04s infinite, glitchColorShiftCrazy 0.08s 0.04s infinite;
+  animation: glitchClipCrazy 0.06s 0.03s linear infinite, glitchVisibilityCrazy 0.04s infinite, glitchColorShiftCrazy 0.08s 0.04s infinite, glitchLinesExtreme 0.2s 0.1s infinite;
   filter: brightness(3) saturate(4) contrast(1.8) blur(1px);
   z-index: 1;
+  box-shadow: 
+    0 -3px 0 #00ffff,
+    0 3px 0 #ff0000,
+    -15px 0 0 #00ff00,
+    15px 0 0 #ff00ff,
+    -30px 0 0 #ff0080,
+    30px 0 0 #ffff00;
 }
+
+/* Lignes de glitch horizontales et verticales */
+.glitchLine {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, #ff0000, transparent);
+  animation: glitchLineFlicker 0.1s infinite;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.8;
+}
+
+.glitchLineVertical {
+  position: absolute;
+  background: linear-gradient(180deg, transparent, #00ffff, transparent);
+  animation: glitchLineFlicker 0.1s infinite;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.8;
+}
+
+/* Overlay glitch plein écran (mode crazy) */
+.glitchOverlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: screen;
+  animation: overlayFlicker 0.12s infinite;
+}
+
+/* Scanline pour mode crazy - fixe par rapport au viewport */
+.scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 0, 0, 0.9), transparent);
+  animation: scanlineMove 0.22s linear infinite, scanlineFlicker 0.08s infinite, scanlineColorShift 0.2s steps(1, end) infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+
+/* Vignette rétro */
+.vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.5) 70%);
+  mix-blend-mode: multiply;
+  opacity: 0.7;
+  z-index: 0;
+}
+
+/* Noise overlay pour mode crazy - fixe par rapport au viewport */
+.noiseOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(255, 0, 0, 0.05) 1px, rgba(255, 0, 0, 0.05) 3px),
+    repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0, 255, 255, 0.05) 1px, rgba(0, 255, 255, 0.05) 3px);
+  animation: noiseFlicker 0.035s infinite;
+  pointer-events: none;
+  z-index: 2;
+  mix-blend-mode: screen;
+}
+
 
 @keyframes glitchShakeModerate {
   0%, 100% { transform: translate(0, 0); }
@@ -885,6 +982,174 @@ a.secondary {
   95% { opacity: 0.75; }
   97.5% { opacity: 1; }
   100% { opacity: 0.85; }
+}
+
+@keyframes glitchLinesExtreme {
+  0%, 100% { 
+    box-shadow: 
+      0 -2px 0 #ff0000,
+      0 2px 0 #00ffff,
+      -10px 0 0 #ff00ff,
+      10px 0 0 #00ff00;
+  }
+  25% { 
+    box-shadow: 
+      0 -3px 0 #00ffff,
+      0 3px 0 #ff0000,
+      -12px 0 0 #00ff00,
+      12px 0 0 #ff00ff;
+  }
+  50% { 
+    box-shadow: 
+      0 -1px 0 #ff00ff,
+      0 1px 0 #00ff00,
+      -8px 0 0 #ff0000,
+      8px 0 0 #00ffff;
+  }
+  75% { 
+    box-shadow: 
+      0 -4px 0 #00ff00,
+      0 4px 0 #ff00ff,
+      -15px 0 0 #00ffff,
+      15px 0 0 #ff0000;
+  }
+}
+
+@keyframes glitchLinesCrazy {
+  0%, 100% { 
+    box-shadow: 
+      0 -3px 0 #ff0000,
+      0 3px 0 #00ffff,
+      -15px 0 0 #ff00ff,
+      15px 0 0 #00ff00,
+      -30px 0 0 #ffff00,
+      30px 0 0 #ff0080;
+  }
+  16.66% { 
+    box-shadow: 
+      0 -4px 0 #00ffff,
+      0 4px 0 #ff0000,
+      -18px 0 0 #00ff00,
+      18px 0 0 #ff00ff,
+      -35px 0 0 #ff0080,
+      35px 0 0 #ffff00;
+  }
+  33.33% { 
+    box-shadow: 
+      0 -2px 0 #ff00ff,
+      0 2px 0 #00ff00,
+      -12px 0 0 #ff0000,
+      12px 0 0 #00ffff,
+      -25px 0 0 #ffff00,
+      25px 0 0 #ff0080;
+  }
+  50% { 
+    box-shadow: 
+      0 -5px 0 #00ff00,
+      0 5px 0 #ff00ff,
+      -20px 0 0 #00ffff,
+      20px 0 0 #ff0000,
+      -40px 0 0 #ff0080,
+      40px 0 0 #ffff00;
+  }
+  66.66% { 
+    box-shadow: 
+      0 -3px 0 #ffff00,
+      0 3px 0 #ff0080,
+      -15px 0 0 #ff0000,
+      15px 0 0 #00ffff,
+      -30px 0 0 #00ff00,
+      30px 0 0 #ff00ff;
+  }
+  83.33% { 
+    box-shadow: 
+      0 -4px 0 #ff0080,
+      0 4px 0 #ffff00,
+      -18px 0 0 #00ff00,
+      18px 0 0 #ff00ff,
+      -35px 0 0 #ff0000,
+      35px 0 0 #00ffff;
+  }
+}
+
+@keyframes glitchLineFlicker {
+  0%, 100% { 
+    opacity: 0.8;
+    transform: translateX(0);
+  }
+  25% { 
+    opacity: 1;
+    transform: translateX(2px);
+  }
+  50% { 
+    opacity: 0.6;
+    transform: translateX(-2px);
+  }
+  75% { 
+    opacity: 0.9;
+    transform: translateX(1px);
+  }
+}
+
+@keyframes scanlineMove {
+  0% { 
+    top: 0;
+    opacity: 1;
+  }
+  50% { 
+    opacity: 0.8;
+  }
+  100% { 
+    top: 100vh;
+    opacity: 0;
+  }
+}
+
+@keyframes scanlineFlicker {
+  0%, 100% {
+    opacity: 0.9;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 0.6;
+    transform: translateX(1px);
+  }
+}
+
+@keyframes scanlineColorShift {
+  0% { background: linear-gradient(90deg, transparent, rgba(255, 0, 0, 0.9), transparent); }
+  20% { background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.9), transparent); }
+  40% { background: linear-gradient(90deg, transparent, rgba(255, 0, 255, 0.9), transparent); }
+  60% { background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.9), transparent); }
+  80% { background: linear-gradient(90deg, transparent, rgba(255, 255, 0, 0.9), transparent); }
+  100% { background: linear-gradient(90deg, transparent, rgba(255, 128, 0, 0.9), transparent); }
+}
+
+@keyframes overlayFlicker {
+  0%, 100% { opacity: 0.95; }
+  20% { opacity: 0.85; }
+  40% { opacity: 1; }
+  60% { opacity: 0.9; }
+  80% { opacity: 0.98; }
+}
+
+@keyframes noiseFlicker {
+  0%, 100% { 
+    opacity: 0.65;
+    transform: translate(0, 0);
+  }
+  25% { 
+    opacity: 0.8;
+    transform: translate(1px, -1px);
+  }
+  50% { 
+    opacity: 0.55;
+    transform: translate(-1px, 1px);
+  }
+  75% { 
+    opacity: 0.7;
+    transform: translate(1px, 1px);
+  }
 }
 
 @keyframes glitchColorShiftCrazy {

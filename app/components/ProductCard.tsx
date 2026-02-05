@@ -18,7 +18,7 @@ export type Product = {
     en: string;
   };
   image: string;
-  price: 'coming' | 'quote' | string; // 'coming', 'quote', or actual price like "150€"
+  price: 'coming' | 'quote' | string | number; // 'coming', 'quote', or actual price like "150€" or 150
   tags: string[];
 };
 
@@ -43,6 +43,13 @@ export default function ProductCard({ product }: ProductCardProps) {
     }
     if (product.price === 'quote') {
       return t('price.quote');
+    }
+    if (typeof product.price === 'number') {
+      return new Intl.NumberFormat(locale === 'fr' ? 'fr-FR' : 'en-US', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 0,
+      }).format(product.price);
     }
     return product.price;
   };

@@ -5,7 +5,7 @@ export type CartItem = {
   productId: number;
   quantity: number;
   name: { fr: string; en: string };
-  price: string;
+  price: 'coming' | 'quote' | string | number;
   image: string;
 };
 
@@ -75,6 +75,9 @@ export const useCartStore = create<CartStore>()(
           // Si le prix est "coming" ou "quote", on ne compte pas
           if (item.price === 'coming' || item.price === 'quote') {
             return total;
+          }
+          if (typeof item.price === 'number') {
+            return total + item.price * item.quantity;
           }
           // Sinon, on parse le prix (format: "€XX.XX" ou "XX.XX")
           const price = parseFloat(item.price.replace(/[^\d.,]/g, '').replace(',', '.'));

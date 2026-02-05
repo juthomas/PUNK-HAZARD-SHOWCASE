@@ -27,6 +27,7 @@ export default function Home() {
     description: product.description as { fr: string; en: string },
   }));
 
+
   const handleLongPressStart = () => {
     startTimeRef.current = Date.now();
     setGlitchIntensity('moderate');
@@ -52,9 +53,14 @@ export default function Home() {
     longPressTimerRef.current = setTimeout(() => {
       console.log('Long press action triggered!');
       alert('Easter egg activé ! 🎉');
-      
-      // Continuer l'effet de glitch en mode crazy
-      // Ne pas réinitialiser, laisser l'utilisateur relâcher pour arrêter
+
+      // Réinitialiser l'effet après l'action
+      setGlitchIntensity('normal');
+      if (intensityIntervalRef.current) {
+        clearInterval(intensityIntervalRef.current);
+        intensityIntervalRef.current = null;
+      }
+      startTimeRef.current = null;
     }, 10000);
   };
 
@@ -91,6 +97,13 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <Header />
+      {glitchIntensity === 'crazy' && (
+        <div className={styles.glitchOverlay} aria-hidden="true">
+          <span className={styles.scanline} />
+          <span className={styles.noiseOverlay} />
+          <span className={styles.vignette} />
+        </div>
+      )}
       <header className={styles.hero}>
         <div className={styles.container}>
           <span className={styles.badge}>{t('badge')}</span>
@@ -103,11 +116,20 @@ export default function Home() {
               glitchIntensity === 'crazy' ? styles.glitchCrazy : ''
             }`}
             data-text="PUNK HAZARD"
-            onMouseDown={handleLongPressStart}
-            onMouseUp={handleLongPressEnd}
-            onMouseLeave={handleLongPressEnd}
-            onTouchStart={handleLongPressStart}
-            onTouchEnd={handleLongPressEnd}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              handleLongPressStart();
+            }}
+            onPointerUp={(event) => {
+              event.preventDefault();
+              event.currentTarget.releasePointerCapture(event.pointerId);
+              handleLongPressEnd();
+            }}
+            onPointerCancel={(event) => {
+              event.preventDefault();
+              handleLongPressEnd();
+            }}
             style={{ cursor: 'pointer', userSelect: 'none' }}
           >
             {t('title')}

@@ -54,5 +54,75 @@
     "image": "/products/base-xxl.jpg",
     "price": "quote",
     "tags": ["Installation", "Audio", "Scénographie"]
+  },
+  {
+    "id": 5,
+    "name": {
+      "fr": "Fake Item",
+      "en": "Fake Item"
+    },
+    "description": {
+      "fr": "Fake item description",
+      "en": "Fake item description"
+    },
+    "image": "/products/fake-item.jpg",
+    "price": 12,
+    "tags": ["Fake", "Item"]
+  },
+  {
+    "id": 6,
+    "name": {
+      "fr": "Fake Item",
+      "en": "Fake Item"
+    },
+    "description": {
+      "fr": "Fake item description",
+      "en": "Fake item description"
+    },
+    "image": "/products/fake-item.jpg",
+    "price": 13,
+    "tags": ["Fake", "Item"]
+  },
+  {
+    "id": 7,
+    "name": {
+      "fr": "Fake Item",
+      "en": "Fake Item"
+    },
+    "description": {
+      "fr": "Fake item description",
+      "en": "Fake item description"
+    },
+    "image": "/products/fake-item.jpg",
+    "price": 14,
+    "tags": ["Fake", "Item"]
+  },
+  {
+    "id": 8,
+    "name": {
+      "fr": "Fake Item",
+      "en": "Fake Item"
+    },
+    "description": {
+      "fr": "Fake item description",
+      "en": "Fake item description"
+    },
+    "image": "/products/fake-item.jpg",
+    "price": 15,
+    "tags": ["Fake", "Item"]
+  },
+  {
+    "id": 9,
+    "name": {
+      "fr": "Fake Item",
+      "en": "Fake Item"
+    },
+    "description": {
+      "fr": "Fake item description",
+      "en": "Fake item description"
+    },
+    "image": "/products/fake-item.jpg",
+    "price": 16,
+    "tags": ["Fake", "Item"]
   }
 ]

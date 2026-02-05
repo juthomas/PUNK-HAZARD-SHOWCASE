@@ -42,6 +42,17 @@ export default function Cart() {
   const locale = useLocale() as 'fr' | 'en';
   const { items, removeItem, updateQuantity, getTotalPrice, clearCart } = useCartStore();
 
+  const formatPrice = (price: string | number) => {
+    if (typeof price === 'number') {
+      return new Intl.NumberFormat(locale === 'fr' ? 'fr-FR' : 'en-US', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 0,
+      }).format(price);
+    }
+    return price;
+  };
+
   const handleCheckout = () => {
     // TODO: Rediriger vers la page de checkout
     // router.push('/checkout');
@@ -76,7 +87,7 @@ export default function Cart() {
             ? t('price.coming') 
             : item.price === 'quote' 
             ? t('price.quote')
-            : item.price;
+            : formatPrice(item.price);
 
           return (
             <div key={item.productId} className={styles.cartItem}>
