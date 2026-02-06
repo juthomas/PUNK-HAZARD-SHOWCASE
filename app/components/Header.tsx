@@ -139,7 +139,6 @@ export default function Header() {
             {t('contact')}
           </Link>
           <div className={styles.navActions}>
-            <LanguageSwitcher />
             <CartIcon onClick={() => {
               setIsCartOpen(true);
               setIsMobileMenuOpen(false);
@@ -154,6 +153,7 @@ export default function Header() {
                 {tAuth('login')}
               </button>
             )}
+            <LanguageSwitcher />
           </div>
         </nav>
       </div>
