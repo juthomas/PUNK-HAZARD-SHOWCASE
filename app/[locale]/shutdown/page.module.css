@@ -1,0 +1,261 @@
+.page {
+  min-height: 100vh;
+  background: #050607;
+  color: #d8f3ff;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.crtOverlay,
+.vignette,
+.edgeDistortion {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.crtOverlay {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.03) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  animation: crtFlicker 0.08s infinite, crtJitter 0.2s infinite;
+  mix-blend-mode: screen;
+}
+
+.vignette {
+  background: radial-gradient(circle at center, transparent 45%, rgba(0, 0, 0, 0.7) 78%);
+  mix-blend-mode: multiply;
+  opacity: 0.8;
+}
+
+.edgeDistortion {
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.9),
+    inset 0 0 30px rgba(0, 255, 255, 0.12),
+    inset 0 0 30px rgba(255, 0, 0, 0.12);
+  animation: edgeWarp 1.2s ease-in-out infinite;
+}
+
+.shutdownScreen,
+.bootScreen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.shutdownScreen {
+  background: #000;
+  padding: 0;
+  z-index: 2;
+  animation: shutdownScreenFade 6s ease forwards;
+  animation-delay: 4s;
+}
+
+.screenCRT {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: absolute;
+  inset: 0;
+  background: #000;
+}
+
+.screenCRT:after {
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+  inset: 0;
+  content: "";
+  opacity: 0;
+  z-index: 90;
+  position: absolute;
+  animation: shutdown-opa 600ms linear;
+  animation-fill-mode: forwards;
+}
+
+.shutdownCRT {
+  height: 100%;
+  width: 100%;
+  inset: 0;
+  position: absolute;
+  z-index: 100;
+  background-color: #fff;
+  animation: shutdown 1000ms linear;
+  animation-fill-mode: forwards;
+  transform-origin: center;
+}
+
+.bootScreen {
+  opacity: 0;
+  animation: bootFadeSlow 8s ease forwards 4s, screenPowerOn 1.4s ease forwards 4s;
+  z-index: 3;
+  text-shadow: 0 0 8px rgba(52, 211, 255, 0.15);
+}
+
+.bootHeader {
+  font-size: 14px;
+  opacity: 0.7;
+  margin-bottom: 16px;
+}
+
+.bootList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  min-width: min(520px, 90vw);
+}
+
+.bootLine {
+  opacity: 0;
+  transform: translateY(6px);
+  text-shadow: 0 0 10px rgba(52, 211, 255, 0.35);
+  animation: bootLineReveal 0.2s steps(2, end) forwards, bootLineGlitch 0.9s ease-out forwards;
+  animation-delay: calc(var(--delay) + 6s), calc(var(--delay) + 6s);
+}
+
+.prompt {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  animation: promptIn 0.4s steps(2, end) forwards;
+  animation-delay: 18s;
+}
+
+.cursor {
+  width: 10px;
+  height: 16px;
+  background: #d8f3ff;
+  animation: blink 1s steps(1) infinite;
+}
+
+.returnLink {
+  margin-top: 24px;
+  font-size: 12px;
+  opacity: 0;
+  animation: promptIn 0.4s steps(2, end) forwards;
+  animation-delay: 20.5s;
+}
+
+.returnLink a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@keyframes shutdown {
+  0% {
+    transform: scale3d(1, 1, 1);
+  }
+  10% {
+    transform: scale3d(1, 1.6, 1);
+  }
+  30% {
+    transform: scale3d(1, 0.005, 1);
+  }
+  100% {
+    transform: scale3d(0, 0, 1);
+  }
+}
+
+@keyframes shutdown-opa {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes bootFadeSlow {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shutdownScreenFade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes screenPowerOn {
+  0% {
+    filter: brightness(0.4);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@keyframes bootLineReveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bootLineGlitch {
+  0% {
+    opacity: 0.2;
+    transform: translateY(6px) skewX(-2deg);
+    text-shadow: -2px 0 rgba(255, 0, 122, 0.35), 2px 0 rgba(0, 210, 255, 0.35);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(0) skewX(1deg);
+    text-shadow: 0 0 10px rgba(52, 211, 255, 0.45);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    text-shadow: 0 0 6px rgba(52, 211, 255, 0.2);
+  }
+}
+
+@keyframes promptIn {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes crtFlicker {
+  0%, 100% { opacity: 0.7; }
+  20% { opacity: 0.9; }
+  40% { opacity: 0.6; }
+  60% { opacity: 0.85; }
+  80% { opacity: 0.75; }
+}
+
+@keyframes crtJitter {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(1px, -1px); }
+  50% { transform: translate(-1px, 1px); }
+  75% { transform: translate(1px, 1px); }
+}
+
+@keyframes edgeWarp {
+  0%, 100% { filter: blur(0); }
+  50% { filter: blur(0.6px); }
+}

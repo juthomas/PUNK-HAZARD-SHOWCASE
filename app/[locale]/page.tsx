@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import ProductCarousel from '@/app/components/ProductCarousel';
@@ -14,6 +14,7 @@ import styles from './page.module.css';
 export default function Home() {
   const t = useTranslations('home');
   const tCommon = useTranslations('common.cta');
+  const router = useRouter();
   const contactEmail = process.env.NEXT_PUBLIC_CONTACT_EMAIL || 'contact@punkhazard.org';
   const [glitchIntensity, setGlitchIntensity] = useState<'normal' | 'moderate' | 'intense' | 'extreme' | 'crazy'>('normal');
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,16 +53,13 @@ export default function Home() {
     
     // Déclencher l'action après 10 secondes
     longPressTimerRef.current = setTimeout(() => {
-      console.log('Long press action triggered!');
-      // alert('Easter egg activé ! 🎉');
-
-      // Réinitialiser l'effet après l'action
-      setGlitchIntensity('normal');
       if (intensityIntervalRef.current) {
         clearInterval(intensityIntervalRef.current);
         intensityIntervalRef.current = null;
       }
       startTimeRef.current = null;
+      setGlitchIntensity('normal');
+      router.push('/shutdown');
     }, 10000);
   };
 
