@@ -30,10 +30,10 @@
   background:
     repeating-linear-gradient(
       0deg,
-      rgba(255, 255, 255, 0.28),
-      rgba(255, 255, 255, 0.28) 1px,
-      rgba(170, 170, 170, 0.28) 1px,
-      rgba(170, 170, 170, 0.28) 2px,
+      rgba(0, 255, 255, 0.28),
+      rgba(0, 255, 255,0.28) 1px,
+      rgba(0, 98, 107, 0.28) 1px,
+      rgba(0, 98, 107,  0.28) 2px,
       transparent 2px,
       transparent 4px
     );
@@ -119,15 +119,19 @@
 }
 
 .bootHeader {
-  font-size: 14px;
-  opacity: 0.7;
+  color: #58aea9;
+
+  font-size: 20px;
+  opacity: 1;
   margin-bottom: 16px;
+  font-variant-ligatures: none;
 }
 
 .bootList {
   list-style: none;
   padding: 0;
   margin: 0;
+
   display: grid;
   gap: 6px;
   min-width: min(520px, 90vw);
@@ -135,20 +139,64 @@
 
 .bootLine {
   opacity: 0;
-  transform: translateY(6px);
-  text-shadow: 0 0 10px rgba(52, 211, 255, 0.35);
+  color: #58aea9;
+  text-shadow: 0 0 10px rgba(80, 217, 255, 0.601);
+  font-variant-ligatures: none;
+  display: grid;
+  grid-template-columns: calc(var(--max-main) * 1ch) 6ch calc(var(--max-dots) * 1ch) 0.4ch 2ch;
+  align-items: center;
+  column-gap: 0;
   animation: bootLineReveal 0.2s steps(2, end) forwards, bootLineGlitch 0.9s ease-out forwards;
-  animation-delay: calc(var(--delay) + 6s), calc(var(--delay) + 6s);
+  animation-delay: var(--delay), var(--delay);
 }
 
+.bootLineMain {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  animation: bootType var(--main-duration) steps(var(--main-chars), end) forwards;
+  animation-delay: var(--delay);
+  justify-self: start;
+  grid-column: 1;
+}
+
+.bootLineDots {
+  display: inline-block;
+  white-space: nowrap;
+  width: calc(var(--max-dots) * 1ch);
+  justify-self: end;
+  text-align: left;
+  grid-column: 3;
+}
+
+
+.bootLineOk {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  animation: bootType var(--ok-duration) steps(2, end) forwards;
+  animation-delay: calc(var(--delay) + var(--main-duration) + var(--dots-duration) + var(--ok-delay));
+  justify-self: end;
+  grid-column: 5;
+}
+
+
 .prompt {
+  color: #58aea9;
   margin-top: 18px;
   display: flex;
   align-items: center;
   gap: 8px;
   opacity: 0;
-  animation: promptIn 0.4s steps(2, end) forwards;
-  animation-delay: 18s;
+  animation: promptIn 0.1s steps(1, end) forwards;
+  animation-delay: var(--prompt-delay);
+}
+
+.promptText {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .cursor {
@@ -161,9 +209,15 @@
 .returnLink {
   margin-top: 24px;
   font-size: 12px;
+  color: #58aea9;
   opacity: 0;
-  animation: promptIn 0.4s steps(2, end) forwards;
-  animation-delay: 20.5s;
+  animation: promptIn 0.1s steps(1, end) forwards;
+  animation-delay: var(--return-delay);
+}
+
+.returnText {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .returnLink a {
@@ -218,24 +272,35 @@
 @keyframes bootLineReveal {
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
+
+@keyframes bootType {
+  to {
+    width: calc(var(--chars) * 1ch);
+  }
+}
+
+@keyframes dotIn {
+  to {
+    opacity: 1;
+  }
+}
+
 
 @keyframes bootLineGlitch {
   0% {
     opacity: 0.2;
-    transform: translateY(6px) skewX(-2deg);
     text-shadow: -2px 0 rgba(255, 0, 122, 0.35), 2px 0 rgba(0, 210, 255, 0.35);
   }
   35% {
     opacity: 1;
-    transform: translateY(0) skewX(1deg);
+    transform: skewX(1deg);
     text-shadow: 0 0 10px rgba(52, 211, 255, 0.45);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
     text-shadow: 0 0 6px rgba(52, 211, 255, 0.2);
   }
 }
