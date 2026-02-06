@@ -517,6 +517,8 @@ a.secondary {
 
 .glitchTitle {
   position: relative;
+  z-index: 1;
+  isolation: isolate;
 }
 .glitchTitle::before,
 .glitchTitle::after {
@@ -528,6 +530,12 @@ a.secondary {
   height: 100%;
   overflow: hidden;
   opacity: 0;
+  z-index: 0;
+}
+
+.glitchTitleText {
+  position: relative;
+  z-index: 2;
 }
 .glitchTitle::before {
   left: 2.5px;

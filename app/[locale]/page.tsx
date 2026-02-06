@@ -133,7 +133,7 @@ export default function Home() {
             }}
             style={{ cursor: 'pointer', userSelect: 'none' }}
           >
-            {t('title')}
+            <span className={styles.glitchTitleText}>{t('title')}</span>
           </h1>
           <p className={`${styles.subtitle} ${styles.terminalLine}`}>
             {t('subtitle')}
