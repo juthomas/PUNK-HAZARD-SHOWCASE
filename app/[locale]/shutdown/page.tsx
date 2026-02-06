@@ -1,10 +1,21 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import type { CSSProperties } from 'react';
 import { Link } from '@/i18n/routing';
 import styles from './page.module.css';
 
 export default function ShutdownPage() {
+  useEffect(() => {
+    document.documentElement.classList.add(styles.shutdownNoScroll);
+    document.body.classList.add(styles.shutdownNoScroll);
+
+    return () => {
+      document.documentElement.classList.remove(styles.shutdownNoScroll);
+      document.body.classList.remove(styles.shutdownNoScroll);
+    };
+  }, []);
+
   const bootLines = useMemo(
     () => [
       'BOOT SEQUENCE INIT',
@@ -39,7 +50,7 @@ export default function ShutdownPage() {
             <li
               key={line}
               className={styles.bootLine}
-              style={{ ['--delay' as any]: `${index * 0.9}s` }}
+              style={{ '--delay': `${index * 0.9}s` } as CSSProperties}
             >
               {line}
             </li>

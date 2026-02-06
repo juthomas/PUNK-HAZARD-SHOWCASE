@@ -10,12 +10,12 @@
   width: 100vw;
 }
 
-:global(html),
-:global(body) {
-  background: #000;
-  scrollbar-gutter: auto;
+.shutdownNoScroll {
   overflow: hidden;
+  scrollbar-gutter: auto;
+  background: #000;
 }
+
 
 .crtOverlay,
 .vignette,
