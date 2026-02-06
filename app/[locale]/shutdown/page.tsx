@@ -11,7 +11,7 @@ export default function ShutdownPage() {
       'CHECKING MEMORY..................OK',
       'LOADING AUDIO STACK..............OK',
       'INIT SENSOR BUS..................OK',
-      'SYNC CLOCK........................OK',
+      'SYNC CLOCK.......................OK',
       'MOUNTING FILESYSTEM..............OK',
       'STARTING SERVICES................OK',
       'GRAPHICS PIPELINE................OK',

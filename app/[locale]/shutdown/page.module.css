@@ -7,6 +7,14 @@
   place-items: center;
   overflow: hidden;
   position: relative;
+  width: 100vw;
+}
+
+:global(html),
+:global(body) {
+  background: #000;
+  scrollbar-gutter: auto;
+  overflow: hidden;
 }
 
 .crtOverlay,
