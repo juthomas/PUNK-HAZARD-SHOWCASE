@@ -7,7 +7,79 @@ import styles from './page.module.css';
 
 export default function ShutdownPage() {
   const dotTimeoutsRef = useRef<number[]>([]);
+  const soundTimeoutsRef = useRef<number[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const masterGainRef = useRef<GainNode | null>(null);
+  const shutdownAudioRef = useRef<HTMLAudioElement | null>(null);
   const [dotCounts, setDotCounts] = useState<number[]>([]);
+
+  const ensureAudioContext = () => {
+    if (typeof window === 'undefined') return null;
+
+    if (!audioContextRef.current) {
+      const AudioContextCtor =
+        window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) return null;
+
+      audioContextRef.current = new AudioContextCtor();
+      masterGainRef.current = audioContextRef.current.createGain();
+      masterGainRef.current.gain.value = 0.3;
+      masterGainRef.current.connect(audioContextRef.current.destination);
+    }
+
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+
+    return audioContextRef.current;
+  };
+
+  const playTone = (frequency: number, duration = 0.08, volume = 1, type: OscillatorType = 'sine') => {
+    const ctx = ensureAudioContext();
+    if (!ctx || !masterGainRef.current) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const base = masterGainRef.current.gain.value;
+
+    osc.type = type;
+    osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(Math.max(base * volume, 0.0001), ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(masterGainRef.current);
+
+    osc.start();
+    osc.stop(ctx.currentTime + duration + 0.02);
+  };
+
+  const playDiskTick = (timeOffset = 0, volume = 0.55) => {
+    const ctx = ensureAudioContext();
+    if (!ctx || !masterGainRef.current) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const base = masterGainRef.current.gain.value;
+    const startTime = ctx.currentTime + timeOffset;
+    const jitter = (Math.random() - 0.5) * 0.12;
+    const freq = 920 * (1 + jitter);
+    const duration = 0.022 + Math.random() * 0.01;
+    const vol = volume * (0.9 + Math.random() * 0.2);
+
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.exponentialRampToValueAtTime(Math.max(base * vol, 0.0001), startTime + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+    osc.connect(gain);
+    gain.connect(masterGainRef.current);
+
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.01);
+  };
 
   useEffect(() => {
     document.documentElement.classList.add(styles.shutdownNoScroll);
@@ -16,6 +88,33 @@ export default function ShutdownPage() {
     return () => {
       document.documentElement.classList.remove(styles.shutdownNoScroll);
       document.body.classList.remove(styles.shutdownNoScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    const resumeAudio = () => {
+      ensureAudioContext();
+      if (shutdownAudioRef.current) {
+        shutdownAudioRef.current.load();
+      }
+    };
+
+    window.addEventListener('pointerdown', resumeAudio, { once: true });
+    window.addEventListener('keydown', resumeAudio, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', resumeAudio);
+      window.removeEventListener('keydown', resumeAudio);
+    };
+  }, []);
+
+  useEffect(() => {
+    shutdownAudioRef.current = new Audio('/audio/crt_shutdown.mp3');
+    shutdownAudioRef.current.preload = 'auto';
+    shutdownAudioRef.current.playbackRate = 0.4;
+
+    return () => {
+      shutdownAudioRef.current = null;
     };
   }, []);
 
@@ -147,6 +246,7 @@ export default function ShutdownPage() {
             next[lineIndex] = dotIndex + 1;
             return next;
           });
+          playDiskTick(0, 0.5);
         }, delayMs);
 
         dotTimeoutsRef.current.push(timeoutId);
@@ -157,6 +257,53 @@ export default function ShutdownPage() {
     return () => {
       dotTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
       dotTimeoutsRef.current = [];
+    };
+  }, [bootSequence]);
+
+  useEffect(() => {
+    soundTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    soundTimeoutsRef.current = [];
+
+    const addSound = (delaySec: number, action: () => void) => {
+      const timeoutId = window.setTimeout(action, delaySec * 1000);
+      soundTimeoutsRef.current.push(timeoutId);
+    };
+
+    const bootStart = bootSequence.lines[0]?.delay ?? 6;
+    const screenPowerOn = Math.max(0.2, bootStart - 2);
+    addSound(0.18, () => {
+      if (shutdownAudioRef.current) {
+        shutdownAudioRef.current.currentTime = 0;
+        shutdownAudioRef.current.play().catch(() => {
+          playDiskTick(0, 0.7);
+          playDiskTick(0.05, 0.55);
+          playDiskTick(0.12, 0.6);
+        });
+      } else {
+        playDiskTick(0, 0.7);
+        playDiskTick(0.05, 0.55);
+        playDiskTick(0.12, 0.6);
+      }
+    });
+    addSound(screenPowerOn, () => {
+      playDiskTick(0, 0.8);
+      playDiskTick(0.07, 0.6);
+      playDiskTick(0.16, 0.5);
+    });
+    addSound(bootStart, () => playDiskTick(0, 0.7));
+
+    bootSequence.lines.forEach((line) => {
+      if (!line.hasOk) return;
+      const okTime = line.delay + line.mainDuration + line.dotsDuration + line.okDelay;
+      addSound(okTime, () => playDiskTick(0, 0.75));
+    });
+
+    addSound(bootSequence.promptDelay, () => playDiskTick(0, 0.7));
+    addSound(bootSequence.returnDelay, () => playDiskTick(0, 0.7));
+
+    return () => {
+      soundTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      soundTimeoutsRef.current = [];
     };
   }, [bootSequence]);
 
