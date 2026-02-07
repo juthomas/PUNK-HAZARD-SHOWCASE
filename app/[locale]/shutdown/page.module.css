@@ -362,3 +362,56 @@
   0%, 100% { filter: blur(0.2px); }
   50% { filter: blur(1px); }
 }
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .bootScreen {
+    padding: 16px;
+  }
+
+  .bootList {
+    min-width: min(100%, calc(100vw - 32px));
+    width: auto;
+    max-width: 100%;
+    overflow-x: hidden;
+    margin: 0 auto;
+    justify-items: center;
+  }
+
+  .bootHeader {
+    font-size: 18px;
+    text-align: center;
+    width: 100%;
+  }
+
+  .bootLine {
+    font-size: 13px;
+    gap: 0px;
+    grid-template-columns: calc(var(--max-main) * 0.8ch) 5ch calc(var(--max-dots) * 0.8ch) 0.5ch 2ch;
+  }
+
+  .bootLineDots {
+    width: calc(var(--max-dots) * 0.8ch);
+    max-width: calc(var(--max-dots) * 0.8ch);
+    justify-self: end;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+
+  .bootLineOk {
+    justify-self: start;
+    grid-column: 5;
+  }
+
+  .prompt {
+    font-size: 14px;
+    margin-top: 12px;
+  }
+
+  .returnLink {
+    font-size: 14px;
+    margin-top: 16px;
+  }
+}
+
+

@@ -23,6 +23,9 @@ export default function ShutdownPage() {
   const audioUnlockedRef = useRef(false);
   const [dotCounts, setDotCounts] = useState<number[]>([]);
 
+  // Volume global des effets sonores (0.0 à 1.0)
+  const GLOBAL_SOUND_VOLUME = 0.02;
+
   const ensureAudioContext = () => {
     if (typeof window === 'undefined') return null;
 
@@ -33,7 +36,7 @@ export default function ShutdownPage() {
 
       audioContextRef.current = new AudioContextCtor();
       masterGainRef.current = audioContextRef.current.createGain();
-      masterGainRef.current.gain.value = 1;
+      masterGainRef.current.gain.value = GLOBAL_SOUND_VOLUME;
       masterGainRef.current.connect(audioContextRef.current.destination);
     }
 
@@ -168,15 +171,16 @@ export default function ShutdownPage() {
 
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
-      const base = masterGainRef.current.gain.value;
-      const boosted = Math.min(volume, 3);
+      // Utiliser GLOBAL_SOUND_VOLUME pour les points/apparitions, pas GLOBAL_SOUND_VOLUME
+      const baseVolume = GLOBAL_SOUND_VOLUME;
+      const boosted = Math.min(volume, 3); // Limiter à 3 pour éviter la distorsion
 
       source.buffer = buffer;
-      gain.gain.setValueAtTime(Math.max(base * boosted, 0.0001), startTime);
+      gain.gain.setValueAtTime(Math.max(baseVolume * boosted, 0.0001), startTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, startTime + safeDuration);
 
       source.connect(gain);
-      gain.connect(masterGainRef.current);
+      gain.connect(ctx.destination); // Connecter directement à la destination, pas à masterGain
 
       source.start(startTime, offset, safeDuration);
       source.stop(startTime + safeDuration + 0.02);
@@ -186,7 +190,7 @@ export default function ShutdownPage() {
     if (runAudioRef.current) {
       const audio = new Audio('/audio/floppy_run.mp3');
       audio.preload = 'auto';
-      audio.volume = 1;
+      audio.volume = Math.min(volume, 1) * GLOBAL_SOUND_VOLUME; // Utiliser GLOBAL_SOUND_VOLUME pour les points/apparitions
       const runDuration = Number.isFinite(runAudioRef.current.duration) && runAudioRef.current.duration > 0
         ? runAudioRef.current.duration
         : 0.5;
@@ -212,10 +216,11 @@ export default function ShutdownPage() {
 
   const playOverlapSnippet = (timeOffset = 0, duration = 0.308, volume = 0.9, overlap = 0.3) => {
     const ctx = ensureAudioContext();
-    if (ctx && masterGainRef.current && runBufferRef.current) {
+    if (ctx && runBufferRef.current) {
       const startTime = ctx.currentTime + timeOffset;
-      const base = masterGainRef.current.gain.value;
-      const totalGain = Math.max(base * volume, 0.0001);
+      // Utiliser GLOBAL_SOUND_VOLUME pour les points/apparitions, pas GLOBAL_SOUND_VOLUME
+      const baseVolume = GLOBAL_SOUND_VOLUME;
+      const totalGain = Math.max(baseVolume * Math.min(volume, 3), 0.0001);
 
       const runBuffer = runBufferRef.current;
       const safeDuration = Math.min(duration, Math.max(runBuffer.duration - 0.02, 0.02));
@@ -229,7 +234,7 @@ export default function ShutdownPage() {
       runGainA.gain.setValueAtTime(totalGain, startTime);
       runGainA.gain.exponentialRampToValueAtTime(0.0001, startTime + safeDuration);
       runSourceA.connect(runGainA);
-      runGainA.connect(masterGainRef.current);
+      runGainA.connect(ctx.destination); // Connecter directement à la destination, pas à masterGain
       runSourceA.start(startTime, runOffsetA, safeDuration);
       runSourceA.stop(startTime + safeDuration + 0.02);
 
@@ -239,7 +244,7 @@ export default function ShutdownPage() {
       runGainB.gain.setValueAtTime(totalGain, startTime + overlap);
       runGainB.gain.exponentialRampToValueAtTime(0.0001, startTime + overlap + safeDuration);
       runSourceB.connect(runGainB);
-      runGainB.connect(masterGainRef.current);
+      runGainB.connect(ctx.destination); // Connecter directement à la destination, pas à masterGain
       runSourceB.start(startTime + overlap, runOffsetB, safeDuration);
       runSourceB.stop(startTime + overlap + safeDuration + 0.02);
       return;
@@ -250,8 +255,8 @@ export default function ShutdownPage() {
       const runAudioB = new Audio('/audio/floppy_run.mp3');
       runAudioA.preload = 'auto';
       runAudioB.preload = 'auto';
-      runAudioA.volume = 1;
-      runAudioB.volume = 1;
+      runAudioA.volume = Math.min(volume, 1) * GLOBAL_SOUND_VOLUME; // Utiliser GLOBAL_SOUND_VOLUME pour les points/apparitions
+      runAudioB.volume = Math.min(volume, 1) * GLOBAL_SOUND_VOLUME;
       runAudioA.currentTime = 0;
       runAudioB.currentTime = 0;
       runAudioA.play().catch(() => {
@@ -282,7 +287,7 @@ export default function ShutdownPage() {
 
     const audio = shutdownAudioRef.current.cloneNode(true) as HTMLAudioElement;
     audio.preload = 'auto';
-    audio.volume = 0.9;
+    audio.volume = 0.9 * GLOBAL_SOUND_VOLUME;
     audio.currentTime = 0;
     audio.play().catch(() => {
       playDiskTick(timeOffset, 0.8, 'soft');
@@ -299,9 +304,10 @@ export default function ShutdownPage() {
       return;
     }
 
-    const buzzer = buzzerAudioRef.current.cloneNode(true) as HTMLAudioElement;
+    const buzzer = buzzerAudioRef.current.cloneNode(false) as HTMLAudioElement;
+    buzzer.src = buzzerAudioRef.current.src;
     buzzer.preload = 'auto';
-    buzzer.volume = 1;
+    buzzer.volume = GLOBAL_SOUND_VOLUME;
     buzzer.playbackRate = 0.2 + Math.random() * 0.80;
     const duration = Number.isFinite(buzzerAudioRef.current.duration)
       ? buzzerAudioRef.current.duration
@@ -374,20 +380,25 @@ export default function ShutdownPage() {
   useEffect(() => {
     shutdownAudioRef.current = new Audio('/audio/crt_shutdown.mp3');
     shutdownAudioRef.current.preload = 'auto';
+    shutdownAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
     // shutdownAudioRef.current.playbackRate = 0.4;
 
     startupAudioRef.current = new Audio('/audio/floppy_startup.mp3');
     startupAudioRef.current.preload = 'auto';
+    startupAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
 
     runAudioRef.current = new Audio('/audio/floppy_run.mp3');
     runAudioRef.current.preload = 'auto';
     runAudioRef.current.loop = true;
+    runAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
 
     buzzerAudioRef.current = new Audio('/audio/buzzer.mp3');
     buzzerAudioRef.current.preload = 'auto';
+    buzzerAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
 
     workAudioRef.current = new Audio('/audio/floppy_work.mp3');
     workAudioRef.current.preload = 'auto';
+    workAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
 
     return () => {
       startupAudioRef.current?.pause();
@@ -559,7 +570,7 @@ export default function ShutdownPage() {
 
     const okSoundDuration = 0.04;
     const okSoundVolume = 0.85;
-    const okLoudVolume = 2.2;
+    const okLoudVolume = 1.5; // Réduit car utilise maintenant GLOBAL_SOUND_VOLUME au lieu de GLOBAL_SOUND_VOLUME
     const okLongDuration = 0.7;
 
     bootSequence.lines.forEach((line, lineIndex) => {
@@ -581,7 +592,7 @@ export default function ShutdownPage() {
             next[lineIndex] = dotIndex + 1;
             return next;
           });
-          playRunSnippet(0, 0.308, 1.1);
+          playRunSnippet(0, 0.308, 1.5);
         }, delayMs);
 
         dotTimeoutsRef.current.push(timeoutId);
@@ -624,9 +635,12 @@ export default function ShutdownPage() {
 
       if (ctx && runBufferRef.current && masterGainRef.current) {
         const source = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        gain.gain.value = 1; // Volume relatif, masterGain a déjà GLOBAL_SOUND_VOLUME
         source.buffer = runBufferRef.current;
         source.loop = true;
-        source.connect(masterGainRef.current);
+        source.connect(gain);
+        gain.connect(masterGainRef.current);
         source.start();
         runSourceRef.current = source;
         return;
@@ -634,6 +648,7 @@ export default function ShutdownPage() {
 
       if (!runAudioRef.current) return;
       runAudioRef.current.currentTime = 0;
+      runAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
       runAudioRef.current.play().catch(() => {
         playOverlapSnippet(0, okSoundDuration, okSoundVolume);
         playOverlapSnippet(0, okSoundDuration, okSoundVolume);
@@ -645,8 +660,11 @@ export default function ShutdownPage() {
       if (ctx && startupBufferRef.current && masterGainRef.current) {
         const overlapSec = 0.12;
         const source = ctx.createBufferSource();
+        const gain = ctx.createGain();
+        gain.gain.value = 1; // Volume relatif, masterGain a déjà GLOBAL_SOUND_VOLUME
         source.buffer = startupBufferRef.current;
-        source.connect(masterGainRef.current);
+        source.connect(gain);
+        gain.connect(masterGainRef.current);
         source.start();
 
         const startRunAt = Math.max(ctx.currentTime + startupBufferRef.current.duration - overlapSec, ctx.currentTime);
@@ -661,9 +679,12 @@ export default function ShutdownPage() {
           }
 
           const runSource = ctx.createBufferSource();
+          const runGain = ctx.createGain();
+          runGain.gain.value = 1; // Volume relatif, masterGain a déjà GLOBAL_SOUND_VOLUME
           runSource.buffer = runBufferRef.current;
           runSource.loop = true;
-          runSource.connect(masterGainRef.current);
+          runSource.connect(runGain);
+          runGain.connect(masterGainRef.current);
           runSource.start(startRunAt);
           runSourceRef.current = runSource;
         } else {
@@ -682,6 +703,7 @@ export default function ShutdownPage() {
 
       const overlapSec = 0.12;
       startupAudioRef.current.currentTime = 0;
+      startupAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
       startupAudioRef.current.onended = () => {
         playRunLoop();
       };
@@ -707,6 +729,7 @@ export default function ShutdownPage() {
     addSound(0.18, () => {
       if (shutdownAudioRef.current) {
         shutdownAudioRef.current.currentTime = 0;
+        shutdownAudioRef.current.volume = GLOBAL_SOUND_VOLUME;
         shutdownAudioRef.current.play().catch(() => {
           playRunSnippet(0, 0.306, 0.85);
           playRunSnippet(0.05, 0.305, 0.7);
