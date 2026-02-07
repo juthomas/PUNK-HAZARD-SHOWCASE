@@ -380,37 +380,75 @@
 
   .bootHeader {
     font-size: 18px;
+    font-weight: 700;
     text-align: center;
     width: 100%;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
   }
 
   .bootLine {
     font-size: 13px;
+    font-weight: 700;
     gap: 0px;
     grid-template-columns: calc(var(--max-main) * 0.8ch) 5ch calc(var(--max-dots) * 0.8ch) 0.5ch 2ch;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
+  }
+
+  .bootLineMain {
+    font-weight: 700;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
   }
 
   .bootLineDots {
     width: calc(var(--max-dots) * 0.8ch);
     max-width: calc(var(--max-dots) * 0.8ch);
+    font-weight: 700;
     justify-self: end;
     overflow: hidden;
     text-overflow: clip;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
   }
 
   .bootLineOk {
+    font-weight: 700;
     justify-self: start;
     grid-column: 5;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
   }
 
   .prompt {
     font-size: 14px;
+    font-weight: 700;
     margin-top: 12px;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
+  }
+
+  .promptText {
+    font-weight: 700;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
   }
 
   .returnLink {
     font-size: 14px;
+    font-weight: 700;
     margin-top: 16px;
+    text-shadow:
+      0 0 4px rgba(80, 217, 255, 0.5),
+      0 0 8px rgba(80, 217, 255, 0.3);
   }
 }
 
