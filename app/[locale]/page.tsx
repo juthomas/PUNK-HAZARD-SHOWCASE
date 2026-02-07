@@ -21,6 +21,9 @@ export default function Home() {
   const intensityIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const pointerIdRef = useRef<number | null>(null);
+  const initialPointerPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isLongPressingRef = useRef<boolean>(false);
 
   // Convert JSON data to Product type
   const products: Product[] = productsData.map((product) => ({
@@ -31,12 +34,14 @@ export default function Home() {
 
 
   const handleLongPressStart = () => {
+    if (isLongPressingRef.current) return; // Éviter les doubles déclenchements
+    isLongPressingRef.current = true;
     startTimeRef.current = Date.now();
     setGlitchIntensity('moderate');
     
     // Augmenter progressivement l'intensité sur 10 secondes
     intensityIntervalRef.current = setInterval(() => {
-      if (!startTimeRef.current) return;
+      if (!startTimeRef.current || !isLongPressingRef.current) return;
       
       const elapsed = Date.now() - startTimeRef.current;
       
@@ -57,6 +62,16 @@ export default function Home() {
         clearInterval(intensityIntervalRef.current);
         intensityIntervalRef.current = null;
       }
+      if (pointerIdRef.current !== null && titleRef.current) {
+        try {
+          titleRef.current.releasePointerCapture(pointerIdRef.current);
+        } catch (e) {
+          // Ignore si le pointer n'est plus actif
+        }
+        pointerIdRef.current = null;
+      }
+      initialPointerPosRef.current = null;
+      isLongPressingRef.current = false;
       startTimeRef.current = null;
       setGlitchIntensity('normal');
       router.push('/shutdown');
@@ -64,6 +79,8 @@ export default function Home() {
   };
 
   const handleLongPressEnd = () => {
+    if (!isLongPressingRef.current) return; // Éviter les doubles arrêts
+    isLongPressingRef.current = false;
     setGlitchIntensity('normal');
     
     if (longPressTimerRef.current) {
@@ -76,6 +93,16 @@ export default function Home() {
       intensityIntervalRef.current = null;
     }
     
+    if (pointerIdRef.current !== null && titleRef.current) {
+      try {
+        titleRef.current.releasePointerCapture(pointerIdRef.current);
+      } catch (e) {
+        // Ignore si le pointer n'est plus actif
+      }
+      pointerIdRef.current = null;
+    }
+    
+    initialPointerPosRef.current = null;
     startTimeRef.current = null;
   };
 
@@ -115,21 +142,104 @@ export default function Home() {
               glitchIntensity === 'crazy' ? styles.glitchCrazy : ''
             }`}
             data-text="PUNK HAZARD"
-            onPointerDown={(event) => {
+            onTouchStart={(event) => {
               event.preventDefault();
-              event.currentTarget.setPointerCapture(event.pointerId);
-              handleLongPressStart();
+              event.stopPropagation();
+              if (event.touches.length === 1) {
+                const touch = event.touches[0];
+                initialPointerPosRef.current = { x: touch.clientX, y: touch.clientY };
+                handleLongPressStart();
+              }
+            }}
+            onTouchEnd={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleLongPressEnd();
+            }}
+            onTouchCancel={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              // Vérifier si le mouvement est petit avant d'annuler
+              if (event.changedTouches.length > 0 && initialPointerPosRef.current) {
+                const touch = event.changedTouches[0];
+                const dx = touch.clientX - initialPointerPosRef.current.x;
+                const dy = touch.clientY - initialPointerPosRef.current.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Si le mouvement est trop grand, annuler
+                if (distance > 150) {
+                  handleLongPressEnd();
+                }
+                // Sinon, ignorer le cancel (petit mouvement)
+              } else {
+                handleLongPressEnd();
+              }
+            }}
+            onTouchMove={(event) => {
+              // Vérifier la distance depuis la position initiale
+              if (event.touches.length > 0 && initialPointerPosRef.current && isLongPressingRef.current) {
+                const touch = event.touches[0];
+                const dx = touch.clientX - initialPointerPosRef.current.x;
+                const dy = touch.clientY - initialPointerPosRef.current.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Si le mouvement est trop grand, annuler
+                if (distance > 150) {
+                  event.preventDefault();
+                  handleLongPressEnd();
+                }
+              }
+            }}
+            onPointerDown={(event) => {
+              // Pour les souris, utiliser pointer events
+              if (event.pointerType === 'mouse') {
+                event.preventDefault();
+                event.stopPropagation();
+                pointerIdRef.current = event.pointerId;
+                initialPointerPosRef.current = { x: event.clientX, y: event.clientY };
+                const element = event.currentTarget;
+                element.setPointerCapture(event.pointerId);
+                handleLongPressStart();
+              }
             }}
             onPointerUp={(event) => {
-              event.preventDefault();
-              event.currentTarget.releasePointerCapture(event.pointerId);
-              handleLongPressEnd();
+              if (event.pointerType === 'mouse' && pointerIdRef.current === event.pointerId) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.releasePointerCapture(event.pointerId);
+                pointerIdRef.current = null;
+                initialPointerPosRef.current = null;
+                handleLongPressEnd();
+              }
             }}
             onPointerCancel={(event) => {
-              event.preventDefault();
-              handleLongPressEnd();
+              if (event.pointerType === 'mouse' && pointerIdRef.current === event.pointerId) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.releasePointerCapture(event.pointerId);
+                pointerIdRef.current = null;
+                initialPointerPosRef.current = null;
+                handleLongPressEnd();
+              }
             }}
-            style={{ cursor: 'pointer', userSelect: 'none' }}
+            onPointerMove={(event) => {
+              // Pour les souris uniquement
+              if (event.pointerType === 'mouse' && pointerIdRef.current === event.pointerId && startTimeRef.current !== null) {
+                if (initialPointerPosRef.current) {
+                  const dx = event.clientX - initialPointerPosRef.current.x;
+                  const dy = event.clientY - initialPointerPosRef.current.y;
+                  const distance = Math.sqrt(dx * dx + dy * dy);
+                  
+                  if (distance > 150) {
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                    pointerIdRef.current = null;
+                    initialPointerPosRef.current = null;
+                    handleLongPressEnd();
+                  }
+                }
+              }
+            }}
+            style={{ cursor: 'pointer' }}
           >
             <span className={styles.glitchTitleText}>{t('title')}</span>
           </h1>

@@ -519,6 +519,11 @@ a.secondary {
   position: relative;
   z-index: 1;
   isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
 }
 .glitchTitle::before,
 .glitchTitle::after {
