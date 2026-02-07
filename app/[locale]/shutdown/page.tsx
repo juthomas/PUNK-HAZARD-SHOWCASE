@@ -11,6 +11,11 @@ export default function ShutdownPage() {
   const audioContextRef = useRef<AudioContext | null>(null);
   const masterGainRef = useRef<GainNode | null>(null);
   const shutdownAudioRef = useRef<HTMLAudioElement | null>(null);
+  const startupAudioRef = useRef<HTMLAudioElement | null>(null);
+  const runAudioRef = useRef<HTMLAudioElement | null>(null);
+  const startupBufferRef = useRef<AudioBuffer | null>(null);
+  const runBufferRef = useRef<AudioBuffer | null>(null);
+  const runSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const [dotCounts, setDotCounts] = useState<number[]>([]);
 
   const ensureAudioContext = () => {
@@ -97,6 +102,12 @@ export default function ShutdownPage() {
       if (shutdownAudioRef.current) {
         shutdownAudioRef.current.load();
       }
+      if (startupAudioRef.current) {
+        startupAudioRef.current.load();
+      }
+      if (runAudioRef.current) {
+        runAudioRef.current.load();
+      }
     };
 
     window.addEventListener('pointerdown', resumeAudio, { once: true });
@@ -111,10 +122,53 @@ export default function ShutdownPage() {
   useEffect(() => {
     shutdownAudioRef.current = new Audio('/audio/crt_shutdown.mp3');
     shutdownAudioRef.current.preload = 'auto';
-    shutdownAudioRef.current.playbackRate = 0.4;
+    // shutdownAudioRef.current.playbackRate = 0.4;
+
+    startupAudioRef.current = new Audio('/audio/floppy_startup.mp3');
+    startupAudioRef.current.preload = 'auto';
+
+    runAudioRef.current = new Audio('/audio/floppy_run.mp3');
+    runAudioRef.current.preload = 'auto';
+    runAudioRef.current.loop = true;
 
     return () => {
+      startupAudioRef.current?.pause();
+      runAudioRef.current?.pause();
       shutdownAudioRef.current = null;
+      startupAudioRef.current = null;
+      runAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+
+    let isCancelled = false;
+    const loadBuffer = async (url: string) => {
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      return ctx.decodeAudioData(arrayBuffer);
+    };
+
+    loadBuffer('/audio/floppy_startup.mp3')
+      .then((buffer) => {
+        if (!isCancelled) startupBufferRef.current = buffer;
+      })
+      .catch(() => {
+        startupBufferRef.current = null;
+      });
+
+    loadBuffer('/audio/floppy_run.mp3')
+      .then((buffer) => {
+        if (!isCancelled) runBufferRef.current = buffer;
+      })
+      .catch(() => {
+        runBufferRef.current = null;
+      });
+
+    return () => {
+      isCancelled = true;
     };
   }, []);
 
@@ -271,6 +325,97 @@ export default function ShutdownPage() {
 
     const bootStart = bootSequence.lines[0]?.delay ?? 6;
     const screenPowerOn = Math.max(0.2, bootStart - 2);
+    const playRunLoop = () => {
+      const ctx = ensureAudioContext();
+      if (runSourceRef.current) {
+        try {
+          runSourceRef.current.stop();
+        } catch {
+          // ignore
+        }
+        runSourceRef.current = null;
+      }
+
+      if (ctx && runBufferRef.current && masterGainRef.current) {
+        const source = ctx.createBufferSource();
+        source.buffer = runBufferRef.current;
+        source.loop = true;
+        source.connect(masterGainRef.current);
+        source.start();
+        runSourceRef.current = source;
+        return;
+      }
+
+      if (!runAudioRef.current) return;
+      runAudioRef.current.currentTime = 0;
+      runAudioRef.current.play().catch(() => {
+        playDiskTick(0, 0.5);
+      });
+    };
+    const playStartup = () => {
+      const ctx = ensureAudioContext();
+      if (ctx && startupBufferRef.current && masterGainRef.current) {
+        const overlapSec = 0.12;
+        const source = ctx.createBufferSource();
+        source.buffer = startupBufferRef.current;
+        source.connect(masterGainRef.current);
+        source.start();
+
+        const startRunAt = Math.max(ctx.currentTime + startupBufferRef.current.duration - overlapSec, ctx.currentTime);
+        if (runBufferRef.current) {
+          if (runSourceRef.current) {
+            try {
+              runSourceRef.current.stop();
+            } catch {
+              // ignore
+            }
+            runSourceRef.current = null;
+          }
+
+          const runSource = ctx.createBufferSource();
+          runSource.buffer = runBufferRef.current;
+          runSource.loop = true;
+          runSource.connect(masterGainRef.current);
+          runSource.start(startRunAt);
+          runSourceRef.current = runSource;
+        } else {
+          const timeoutId = window.setTimeout(() => {
+            playRunLoop();
+          }, Math.max((startRunAt - ctx.currentTime) * 1000, 0));
+          soundTimeoutsRef.current.push(timeoutId);
+        }
+        return;
+      }
+
+      if (!startupAudioRef.current) {
+        playRunLoop();
+        return;
+      }
+
+      const overlapSec = 0.12;
+      startupAudioRef.current.currentTime = 0;
+      startupAudioRef.current.onended = () => {
+        playRunLoop();
+      };
+      startupAudioRef.current.play().then(() => {
+        const duration = startupAudioRef.current?.duration ?? 0;
+        if (Number.isFinite(duration) && duration > overlapSec) {
+          const runDelay = Math.max(duration - overlapSec, 0);
+          const timeoutId = window.setTimeout(() => {
+            playRunLoop();
+          }, runDelay * 1000);
+          soundTimeoutsRef.current.push(timeoutId);
+        } else {
+          const timeoutId = window.setTimeout(() => {
+            playRunLoop();
+          }, 300);
+          soundTimeoutsRef.current.push(timeoutId);
+        }
+      }).catch(() => {
+        playRunLoop();
+      });
+    };
+
     addSound(0.18, () => {
       if (shutdownAudioRef.current) {
         shutdownAudioRef.current.currentTime = 0;
@@ -286,9 +431,7 @@ export default function ShutdownPage() {
       }
     });
     addSound(screenPowerOn, () => {
-      playDiskTick(0, 0.8);
-      playDiskTick(0.07, 0.6);
-      playDiskTick(0.16, 0.5);
+      playStartup();
     });
     addSound(bootStart, () => playDiskTick(0, 0.7));
 
@@ -304,6 +447,21 @@ export default function ShutdownPage() {
     return () => {
       soundTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
       soundTimeoutsRef.current = [];
+      if (startupAudioRef.current) {
+        startupAudioRef.current.pause();
+        startupAudioRef.current.onended = null;
+      }
+      if (runAudioRef.current) {
+        runAudioRef.current.pause();
+      }
+      if (runSourceRef.current) {
+        try {
+          runSourceRef.current.stop();
+        } catch {
+          // ignore
+        }
+        runSourceRef.current = null;
+      }
     };
   }, [bootSequence]);
 
