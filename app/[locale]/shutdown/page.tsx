@@ -529,6 +529,8 @@ export default function ShutdownPage() {
 
     const okSoundDuration = 0.04;
     const okSoundVolume = 0.85;
+    const okLoudVolume = 2.2;
+    const okLongDuration = 0.7;
 
     bootSequence.lines.forEach((line, lineIndex) => {
       if (!line.hasOk || line.dotsCount === 0) {
@@ -569,6 +571,8 @@ export default function ShutdownPage() {
 
     const okSoundDuration = 0.04;
     const okSoundVolume = 0.85;
+    const okLoudVolume = 2.2;
+    const okLongDuration = 0.5;
 
     const addSound = (delaySec: number, action: () => void) => {
       const timeoutId = window.setTimeout(action, delaySec * 1000);
@@ -687,17 +691,17 @@ export default function ShutdownPage() {
     addSound(screenPowerOn, () => {
       playStartup();
     });
-    addSound(bootStart, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
+    addSound(bootStart, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
 
     bootSequence.lines.forEach((line) => {
-      addSound(line.delay, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
+      addSound(line.delay, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
       if (!line.hasOk) return;
       const okTime = line.delay + line.mainDuration + line.dotsDuration + line.okDelay;
-      addSound(okTime, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
+      addSound(okTime, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
     });
 
-    addSound(bootSequence.promptDelay, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
-    addSound(bootSequence.returnDelay, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
+    addSound(bootSequence.promptDelay, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
+    addSound(bootSequence.returnDelay, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
 
     return () => {
       soundTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
