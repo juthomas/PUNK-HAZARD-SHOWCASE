@@ -6,6 +6,7 @@ import { Link } from '@/i18n/routing';
 import styles from './page.module.css';
 
 export default function ShutdownPage() {
+  const DEBUG_AUDIO = true;
   const dotTimeoutsRef = useRef<number[]>([]);
   const soundTimeoutsRef = useRef<number[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -13,9 +14,12 @@ export default function ShutdownPage() {
   const shutdownAudioRef = useRef<HTMLAudioElement | null>(null);
   const startupAudioRef = useRef<HTMLAudioElement | null>(null);
   const runAudioRef = useRef<HTMLAudioElement | null>(null);
+  const workAudioRef = useRef<HTMLAudioElement | null>(null);
   const startupBufferRef = useRef<AudioBuffer | null>(null);
   const runBufferRef = useRef<AudioBuffer | null>(null);
+  const workBufferRef = useRef<AudioBuffer | null>(null);
   const runSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const audioUnlockedRef = useRef(false);
   const [dotCounts, setDotCounts] = useState<number[]>([]);
 
   const ensureAudioContext = () => {
@@ -28,7 +32,7 @@ export default function ShutdownPage() {
 
       audioContextRef.current = new AudioContextCtor();
       masterGainRef.current = audioContextRef.current.createGain();
-      masterGainRef.current.gain.value = 0.3;
+      masterGainRef.current.gain.value = 1;
       masterGainRef.current.connect(audioContextRef.current.destination);
     }
 
@@ -60,7 +64,11 @@ export default function ShutdownPage() {
     osc.stop(ctx.currentTime + duration + 0.02);
   };
 
-  const playDiskTick = (timeOffset = 0, volume = 0.55) => {
+  const playDiskTick = (
+    timeOffset = 0,
+    volume = 0.55,
+    variant: 'soft' | 'hard' | 'seek' | 'motor' = 'soft'
+  ) => {
     const ctx = ensureAudioContext();
     if (!ctx || !masterGainRef.current) return;
 
@@ -69,21 +77,219 @@ export default function ShutdownPage() {
     const base = masterGainRef.current.gain.value;
     const startTime = ctx.currentTime + timeOffset;
     const jitter = (Math.random() - 0.5) * 0.12;
-    const freq = 920 * (1 + jitter);
-    const duration = 0.022 + Math.random() * 0.01;
+    const freqBase =
+      variant === 'hard' ? 1200 : variant === 'seek' ? 760 : variant === 'motor' ? 420 : 920;
+    const freq = freqBase * (1 + jitter);
+    const duration =
+      (variant === 'motor' ? 0.08 : variant === 'seek' ? 0.035 : 0.022) + Math.random() * 0.01;
     const vol = volume * (0.9 + Math.random() * 0.2);
+    const noiseDuration = duration * (variant === 'seek' ? 1.3 : 0.9);
 
-    osc.type = 'square';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.exponentialRampToValueAtTime(Math.max(base * vol, 0.0001), startTime + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    if (variant !== 'motor') {
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(Math.max(base * vol, 0.0001), startTime + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    }
 
-    osc.connect(gain);
-    gain.connect(masterGainRef.current);
+    const noiseBufferSize = Math.max(1, Math.floor(ctx.sampleRate * noiseDuration));
+    const noiseBuffer = ctx.createBuffer(1, noiseBufferSize, ctx.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < noiseBufferSize; i += 1) {
+      noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseBufferSize);
+    }
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = variant === 'motor' ? 'lowpass' : variant === 'hard' ? 'highpass' : 'bandpass';
+    noiseFilter.frequency.value = variant === 'motor' ? 700 : variant === 'hard' ? 1800 : 1200;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(Math.max(base * vol * 0.6, 0.0001), startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + noiseDuration);
 
-    osc.start(startTime);
-    osc.stop(startTime + duration + 0.01);
+    if (variant !== 'motor') {
+      osc.connect(gain);
+      gain.connect(masterGainRef.current);
+    }
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(masterGainRef.current);
+
+    if (variant === 'motor') {
+      const motorOsc = ctx.createOscillator();
+      const motorGain = ctx.createGain();
+      motorOsc.type = 'triangle';
+      motorOsc.frequency.value = 90 + Math.random() * 30;
+      motorGain.gain.setValueAtTime(Math.max(base * vol * 0.5, 0.0001), startTime);
+      motorGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      motorOsc.connect(motorGain);
+      motorGain.connect(masterGainRef.current);
+      motorOsc.start(startTime);
+      motorOsc.stop(startTime + duration + 0.02);
+    }
+
+    if (variant !== 'motor') {
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.01);
+    }
+    noiseSource.start(startTime);
+    noiseSource.stop(startTime + noiseDuration + 0.01);
+  };
+
+  const playRunSnippet = (timeOffset = 0, duration = 0.314, volume = 3) => {
+    const ctx = ensureAudioContext();
+    if (DEBUG_AUDIO) {
+      // eslint-disable-next-line no-console
+      console.debug('[shutdown audio] dot snippet', {
+        hasCtx: Boolean(ctx),
+        ctxState: ctx?.state,
+        hasRunBuffer: Boolean(runBufferRef.current),
+        hasRunAudio: Boolean(runAudioRef.current),
+      });
+    }
+    if (ctx && ctx.state === 'suspended' && !audioUnlockedRef.current) {
+      ctx.resume().then(() => {
+        audioUnlockedRef.current = true;
+        playRunSnippet(timeOffset, duration, volume);
+      }).catch(() => {
+        // ignore
+      });
+      return;
+    }
+
+    if (ctx && masterGainRef.current && runBufferRef.current) {
+      const buffer = runBufferRef.current;
+      const safeDuration = Math.min(duration, Math.max(buffer.duration - 0.02, 0.01));
+      const maxOffset = Math.max(buffer.duration - safeDuration, 0);
+      const offset = maxOffset > 0 ? Math.random() * maxOffset : 0;
+      const startTime = ctx.currentTime + timeOffset;
+
+      const source = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      const base = masterGainRef.current.gain.value;
+      const boosted = Math.min(volume, 3);
+
+      source.buffer = buffer;
+      gain.gain.setValueAtTime(Math.max(base * boosted, 0.0001), startTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + safeDuration);
+
+      source.connect(gain);
+      gain.connect(masterGainRef.current);
+
+      source.start(startTime, offset, safeDuration);
+      source.stop(startTime + safeDuration + 0.02);
+      return;
+    }
+
+    if (runAudioRef.current) {
+      const audio = new Audio('/audio/floppy_run.mp3');
+      audio.preload = 'auto';
+      audio.volume = 1;
+      const runDuration = Number.isFinite(runAudioRef.current.duration) && runAudioRef.current.duration > 0
+        ? runAudioRef.current.duration
+        : 0.5;
+      const safeDuration = Math.min(duration, Math.max(runDuration - 0.02, 0.01));
+      const maxOffset = Math.max(runDuration - safeDuration, 0);
+      audio.currentTime = maxOffset > 0 ? Math.random() * maxOffset : 0;
+      audio.play().catch((err) => {
+        if (DEBUG_AUDIO) {
+          // eslint-disable-next-line no-console
+          console.debug('[shutdown audio] snippet HTMLAudio play failed', err);
+        }
+        playDiskTick(timeOffset, Math.min(volume, 1), 'soft');
+      });
+      window.setTimeout(() => {
+        audio.pause();
+        audio.src = '';
+      }, Math.max(safeDuration * 1000, 10));
+      return;
+    }
+
+    playDiskTick(timeOffset, volume, 'soft');
+  };
+
+  const playOverlapSnippet = (timeOffset = 0, duration = 0.308, volume = 0.9, overlap = 0.3) => {
+    const ctx = ensureAudioContext();
+    if (ctx && masterGainRef.current && runBufferRef.current) {
+      const startTime = ctx.currentTime + timeOffset;
+      const base = masterGainRef.current.gain.value;
+      const totalGain = Math.max(base * volume, 0.0001);
+
+      const runBuffer = runBufferRef.current;
+      const safeDuration = Math.min(duration, Math.max(runBuffer.duration - 0.02, 0.02));
+      const maxRunOffset = Math.max(runBuffer.duration - safeDuration, 0);
+      const runOffsetA = maxRunOffset > 0 ? Math.random() * maxRunOffset : 0;
+      const runOffsetB = maxRunOffset > 0 ? Math.random() * maxRunOffset : 0;
+
+      const runSourceA = ctx.createBufferSource();
+      runSourceA.buffer = runBuffer;
+      const runGainA = ctx.createGain();
+      runGainA.gain.setValueAtTime(totalGain, startTime);
+      runGainA.gain.exponentialRampToValueAtTime(0.0001, startTime + safeDuration);
+      runSourceA.connect(runGainA);
+      runGainA.connect(masterGainRef.current);
+      runSourceA.start(startTime, runOffsetA, safeDuration);
+      runSourceA.stop(startTime + safeDuration + 0.02);
+
+      const runSourceB = ctx.createBufferSource();
+      runSourceB.buffer = runBuffer;
+      const runGainB = ctx.createGain();
+      runGainB.gain.setValueAtTime(totalGain, startTime + overlap);
+      runGainB.gain.exponentialRampToValueAtTime(0.0001, startTime + overlap + safeDuration);
+      runSourceB.connect(runGainB);
+      runGainB.connect(masterGainRef.current);
+      runSourceB.start(startTime + overlap, runOffsetB, safeDuration);
+      runSourceB.stop(startTime + overlap + safeDuration + 0.02);
+      return;
+    }
+
+    if (runAudioRef.current) {
+      const runAudioA = new Audio('/audio/floppy_run.mp3');
+      const runAudioB = new Audio('/audio/floppy_run.mp3');
+      runAudioA.preload = 'auto';
+      runAudioB.preload = 'auto';
+      runAudioA.volume = 1;
+      runAudioB.volume = 1;
+      runAudioA.currentTime = 0;
+      runAudioB.currentTime = 0;
+      runAudioA.play().catch(() => {
+        playRunSnippet(timeOffset, duration, volume);
+      });
+      window.setTimeout(() => {
+        runAudioB.play().catch(() => {
+          playRunSnippet(timeOffset, duration, volume);
+        });
+      }, Math.max(overlap * 1000, 0));
+      window.setTimeout(() => {
+        runAudioA.pause();
+        runAudioA.src = '';
+        runAudioB.pause();
+        runAudioB.src = '';
+      }, Math.max((duration + overlap) * 1000, 40));
+      return;
+    }
+
+    playRunSnippet(timeOffset, duration, volume);
+  };
+
+  const playShutdownSnippet = (timeOffset = 0) => {
+    if (!shutdownAudioRef.current) {
+      playDiskTick(timeOffset, 0.8, 'soft');
+      return;
+    }
+
+    const audio = shutdownAudioRef.current.cloneNode(true) as HTMLAudioElement;
+    audio.preload = 'auto';
+    audio.volume = 0.9;
+    audio.currentTime = 0;
+    audio.play().catch(() => {
+      playDiskTick(timeOffset, 0.8, 'soft');
+    });
+    window.setTimeout(() => {
+      audio.pause();
+      audio.src = '';
+    }, 220);
   };
 
   useEffect(() => {
@@ -98,7 +304,24 @@ export default function ShutdownPage() {
 
   useEffect(() => {
     const resumeAudio = () => {
-      ensureAudioContext();
+      const ctx = ensureAudioContext();
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          audioUnlockedRef.current = true;
+          if (DEBUG_AUDIO) {
+            // eslint-disable-next-line no-console
+            console.debug('[shutdown audio] AudioContext resumed');
+          }
+        }).catch(() => {
+          // ignore
+        });
+      } else {
+        audioUnlockedRef.current = true;
+        if (DEBUG_AUDIO) {
+          // eslint-disable-next-line no-console
+          console.debug('[shutdown audio] AudioContext ready');
+        }
+      }
       if (shutdownAudioRef.current) {
         shutdownAudioRef.current.load();
       }
@@ -107,6 +330,9 @@ export default function ShutdownPage() {
       }
       if (runAudioRef.current) {
         runAudioRef.current.load();
+      }
+      if (workAudioRef.current) {
+        workAudioRef.current.load();
       }
     };
 
@@ -131,12 +357,16 @@ export default function ShutdownPage() {
     runAudioRef.current.preload = 'auto';
     runAudioRef.current.loop = true;
 
+    workAudioRef.current = new Audio('/audio/floppy_work.mp3');
+    workAudioRef.current.preload = 'auto';
+
     return () => {
       startupAudioRef.current?.pause();
       runAudioRef.current?.pause();
       shutdownAudioRef.current = null;
       startupAudioRef.current = null;
       runAudioRef.current = null;
+      workAudioRef.current = null;
     };
   }, []);
 
@@ -154,6 +384,10 @@ export default function ShutdownPage() {
     loadBuffer('/audio/floppy_startup.mp3')
       .then((buffer) => {
         if (!isCancelled) startupBufferRef.current = buffer;
+        if (DEBUG_AUDIO) {
+          // eslint-disable-next-line no-console
+          console.debug('[shutdown audio] startup buffer loaded', buffer.duration);
+        }
       })
       .catch(() => {
         startupBufferRef.current = null;
@@ -162,9 +396,21 @@ export default function ShutdownPage() {
     loadBuffer('/audio/floppy_run.mp3')
       .then((buffer) => {
         if (!isCancelled) runBufferRef.current = buffer;
+        if (DEBUG_AUDIO) {
+          // eslint-disable-next-line no-console
+          console.debug('[shutdown audio] run buffer loaded', buffer.duration);
+        }
       })
       .catch(() => {
         runBufferRef.current = null;
+      });
+
+    loadBuffer('/audio/floppy_work.mp3')
+      .then((buffer) => {
+        if (!isCancelled) workBufferRef.current = buffer;
+      })
+      .catch(() => {
+        workBufferRef.current = null;
       });
 
     return () => {
@@ -281,6 +527,9 @@ export default function ShutdownPage() {
     dotTimeoutsRef.current = [];
     setDotCounts(bootSequence.lines.map(() => 0));
 
+    const okSoundDuration = 0.04;
+    const okSoundVolume = 0.85;
+
     bootSequence.lines.forEach((line, lineIndex) => {
       if (!line.hasOk || line.dotsCount === 0) {
         return;
@@ -300,7 +549,7 @@ export default function ShutdownPage() {
             next[lineIndex] = dotIndex + 1;
             return next;
           });
-          playDiskTick(0, 0.5);
+          playRunSnippet(0, 0.308, 1.1);
         }, delayMs);
 
         dotTimeoutsRef.current.push(timeoutId);
@@ -317,6 +566,9 @@ export default function ShutdownPage() {
   useEffect(() => {
     soundTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     soundTimeoutsRef.current = [];
+
+    const okSoundDuration = 0.04;
+    const okSoundVolume = 0.85;
 
     const addSound = (delaySec: number, action: () => void) => {
       const timeoutId = window.setTimeout(action, delaySec * 1000);
@@ -349,7 +601,9 @@ export default function ShutdownPage() {
       if (!runAudioRef.current) return;
       runAudioRef.current.currentTime = 0;
       runAudioRef.current.play().catch(() => {
-        playDiskTick(0, 0.5);
+        playOverlapSnippet(0, okSoundDuration, okSoundVolume);
+        playOverlapSnippet(0, okSoundDuration, okSoundVolume);
+        playOverlapSnippet(0, okSoundDuration, okSoundVolume);
       });
     };
     const playStartup = () => {
@@ -420,29 +674,30 @@ export default function ShutdownPage() {
       if (shutdownAudioRef.current) {
         shutdownAudioRef.current.currentTime = 0;
         shutdownAudioRef.current.play().catch(() => {
-          playDiskTick(0, 0.7);
-          playDiskTick(0.05, 0.55);
-          playDiskTick(0.12, 0.6);
+          playRunSnippet(0, 0.306, 0.85);
+          playRunSnippet(0.05, 0.305, 0.7);
+          playRunSnippet(0.12, 0.305, 0.7);
         });
       } else {
-        playDiskTick(0, 0.7);
-        playDiskTick(0.05, 0.55);
-        playDiskTick(0.12, 0.6);
+        playRunSnippet(0, 0.306, 0.85);
+        playRunSnippet(0.05, 0.305, 0.7);
+        playRunSnippet(0.12, 0.305, 0.7);
       }
     });
     addSound(screenPowerOn, () => {
       playStartup();
     });
-    addSound(bootStart, () => playDiskTick(0, 0.7));
+    addSound(bootStart, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
 
     bootSequence.lines.forEach((line) => {
+      addSound(line.delay, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
       if (!line.hasOk) return;
       const okTime = line.delay + line.mainDuration + line.dotsDuration + line.okDelay;
-      addSound(okTime, () => playDiskTick(0, 0.75));
+      addSound(okTime, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
     });
 
-    addSound(bootSequence.promptDelay, () => playDiskTick(0, 0.7));
-    addSound(bootSequence.returnDelay, () => playDiskTick(0, 0.7));
+    addSound(bootSequence.promptDelay, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
+    addSound(bootSequence.returnDelay, () => playOverlapSnippet(0, okSoundDuration, okSoundVolume));
 
     return () => {
       soundTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
