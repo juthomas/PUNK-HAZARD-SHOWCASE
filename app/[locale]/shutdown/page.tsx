@@ -14,6 +14,7 @@ export default function ShutdownPage() {
   const shutdownAudioRef = useRef<HTMLAudioElement | null>(null);
   const startupAudioRef = useRef<HTMLAudioElement | null>(null);
   const runAudioRef = useRef<HTMLAudioElement | null>(null);
+  const buzzerAudioRef = useRef<HTMLAudioElement | null>(null);
   const workAudioRef = useRef<HTMLAudioElement | null>(null);
   const startupBufferRef = useRef<AudioBuffer | null>(null);
   const runBufferRef = useRef<AudioBuffer | null>(null);
@@ -292,6 +293,28 @@ export default function ShutdownPage() {
     }, 220);
   };
 
+  const playBuzzerOk = (timeOffset = 0) => {
+    if (!buzzerAudioRef.current) {
+      playDiskTick(timeOffset, 0.9, 'soft');
+      return;
+    }
+
+    const buzzer = buzzerAudioRef.current.cloneNode(true) as HTMLAudioElement;
+    buzzer.preload = 'auto';
+    buzzer.volume = 1;
+    buzzer.playbackRate = 0.2 + Math.random() * 0.80;
+    const duration = Number.isFinite(buzzerAudioRef.current.duration)
+      ? buzzerAudioRef.current.duration
+      : 0;
+    const maxOffset = Math.max(duration - 0.20, 0);
+    buzzer.currentTime = maxOffset > 0 ? Math.random() * maxOffset : 0;
+    window.setTimeout(() => {
+      buzzer.play().catch(() => {
+        playDiskTick(0, 0.9, 'soft');
+      });
+    }, Math.max(timeOffset * 1000, 0));
+  };
+
   useEffect(() => {
     document.documentElement.classList.add(styles.shutdownNoScroll);
     document.body.classList.add(styles.shutdownNoScroll);
@@ -331,6 +354,9 @@ export default function ShutdownPage() {
       if (runAudioRef.current) {
         runAudioRef.current.load();
       }
+      if (buzzerAudioRef.current) {
+        buzzerAudioRef.current.load();
+      }
       if (workAudioRef.current) {
         workAudioRef.current.load();
       }
@@ -357,6 +383,9 @@ export default function ShutdownPage() {
     runAudioRef.current.preload = 'auto';
     runAudioRef.current.loop = true;
 
+    buzzerAudioRef.current = new Audio('/audio/buzzer.mp3');
+    buzzerAudioRef.current.preload = 'auto';
+
     workAudioRef.current = new Audio('/audio/floppy_work.mp3');
     workAudioRef.current.preload = 'auto';
 
@@ -366,6 +395,7 @@ export default function ShutdownPage() {
       shutdownAudioRef.current = null;
       startupAudioRef.current = null;
       runAudioRef.current = null;
+      buzzerAudioRef.current = null;
       workAudioRef.current = null;
     };
   }, []);
@@ -697,7 +727,7 @@ export default function ShutdownPage() {
       addSound(line.delay, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
       if (!line.hasOk) return;
       const okTime = line.delay + line.mainDuration + line.dotsDuration + line.okDelay;
-      addSound(okTime, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
+      addSound(okTime, () => playBuzzerOk(0));
     });
 
     addSound(bootSequence.promptDelay, () => playOverlapSnippet(0, okLongDuration, okLoudVolume));
