@@ -24,7 +24,7 @@ export default function ShutdownPage() {
   const [dotCounts, setDotCounts] = useState<number[]>([]);
 
   // Volume global des effets sonores (0.0 à 1.0)
-  const GLOBAL_SOUND_VOLUME = 0.02;
+  const GLOBAL_SOUND_VOLUME = 0.10;
 
   const ensureAudioContext = () => {
     if (typeof window === 'undefined') return null;
