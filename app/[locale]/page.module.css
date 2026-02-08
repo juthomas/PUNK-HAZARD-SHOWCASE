@@ -150,6 +150,12 @@
   font-weight: 500;
 }
 
+@media (min-width: 1024px) {
+  .heroSplit {
+    display: none;
+  }
+}
+
 @media (max-width: 820px) {
   .heroSplit {
     grid-template-columns: 1fr;
@@ -205,6 +211,66 @@ a.secondary {
   border-color: var(--border);
   background: transparent;
   color: var(--foreground);
+}
+
+/* Split Layout */
+.splitLayout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+}
+
+.splitColumn {
+  flex: 1;
+  transition: flex 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Ligne de séparation */
+.splitColumn[data-side="left"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  opacity: 0.6;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* Sur grand écran uniquement */
+@media (min-width: 1024px) {
+  .splitLayout:has(.splitColumn[data-side="left"]:hover) .splitColumn[data-side="left"] {
+    flex: 0.67;
+  }
+
+  .splitLayout:has(.splitColumn[data-side="left"]:hover) .splitColumn[data-side="right"] {
+    flex: 0.33;
+  }
+
+  .splitLayout:has(.splitColumn[data-side="right"]:hover) .splitColumn[data-side="right"] {
+    flex: 0.67;
+  }
+
+  .splitLayout:has(.splitColumn[data-side="right"]:hover) .splitColumn[data-side="left"] {
+    flex: 0.33;
+  }
+}
+
+/* Sur mobile/tablette, layout normal */
+@media (max-width: 1023px) {
+  .splitLayout {
+    flex-direction: column;
+  }
+
+  .splitColumn[data-side="left"]::after {
+    display: none;
+  }
 }
 
 /* Sections */

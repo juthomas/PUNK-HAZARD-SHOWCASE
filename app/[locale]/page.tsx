@@ -286,15 +286,9 @@ export default function Home() {
       </header>
 
       <main>
-        <section id="boutique" className={styles.section}>
-          <div className={styles.container}>
-            <h2 className={styles.sectionTitle}>{t('sections.shop.title')}</h2>
-            <p className={styles.sectionSubtitle}>{t('sections.shop.subtitle')}</p>
-            <ProductCarousel products={products} />
-          </div>
-        </section>
-
-        <section id="services" className={styles.section}>
+        <div className={styles.splitLayout}>
+          <div className={styles.splitColumn} data-side="left">
+            <section id="services" className={styles.section}>
           <div className={styles.container}>
             <h2 className={styles.sectionTitle}>{t('sections.services.title')}</h2>
             <div className={styles.grid}>
@@ -467,6 +461,18 @@ export default function Home() {
             </div>
           </div>
         </section>
+          </div>
+
+          <div className={styles.splitColumn} data-side="right">
+            <section id="boutique" className={styles.section}>
+              <div className={styles.container}>
+                <h2 className={styles.sectionTitle}>{t('sections.shop.title')}</h2>
+                <p className={styles.sectionSubtitle}>{t('sections.shop.subtitle')}</p>
+                <ProductCarousel products={products} />
+              </div>
+            </section>
+          </div>
+        </div>
 
         <section id="expertise" className={styles.sectionAlt}>
           <div className={styles.container}>

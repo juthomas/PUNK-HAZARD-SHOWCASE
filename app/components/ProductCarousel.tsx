@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import ProductCard, { Product } from './ProductCard';
@@ -14,14 +14,18 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [itemsPerView, setItemsPerView] = useState(3);
   const [isPaused, setIsPaused] = useState(false);
+  const carouselContainerRef = useRef<HTMLDivElement>(null);
   const t = useTranslations('shop');
 
   useEffect(() => {
     const updateItemsPerView = () => {
-      const width = window.innerWidth;
-      if (width >= 1200) {
+      // Utiliser la largeur du conteneur plutôt que la fenêtre pour le split layout
+      const container = carouselContainerRef.current;
+      const width = container ? container.clientWidth : window.innerWidth;
+      
+      if (width >= 800) {
         setItemsPerView(3);
-      } else if (width >= 820) {
+      } else if (width >= 500) {
         setItemsPerView(2);
       } else {
         setItemsPerView(1);
@@ -29,8 +33,26 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
     };
 
     updateItemsPerView();
-    window.addEventListener('resize', updateItemsPerView);
-    return () => window.removeEventListener('resize', updateItemsPerView);
+
+    // Utiliser ResizeObserver pour détecter les changements de taille du conteneur
+    const container = carouselContainerRef.current;
+    if (container && typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        updateItemsPerView();
+      });
+      resizeObserver.observe(container);
+      
+      // Également écouter les changements de taille de la fenêtre
+      window.addEventListener('resize', updateItemsPerView);
+      
+      return () => {
+        resizeObserver.disconnect();
+        window.removeEventListener('resize', updateItemsPerView);
+      };
+    } else {
+      window.addEventListener('resize', updateItemsPerView);
+      return () => window.removeEventListener('resize', updateItemsPerView);
+    }
   }, []);
 
   // Carrousel infini : on peut aller au-delà des limites
@@ -96,7 +118,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
   };
 
   return (
-    <div className={styles.carouselContainer}>
+    <div ref={carouselContainerRef} className={styles.carouselContainer}>
       {products.length > itemsPerView && (
         <div className={styles.mobileNavButtons}>
           <button
