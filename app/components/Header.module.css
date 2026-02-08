@@ -1,12 +1,14 @@
 .header {
   border-bottom: 1px solid var(--border);
-  background: var(--background);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   backdrop-filter: blur(8px);
   background: rgba(10, 11, 15, 0.8);
   isolation: isolate;
+  width: 100%;
 }
 
 .container {
