@@ -307,7 +307,7 @@ export default function ShutdownPage() {
     const buzzer = buzzerAudioRef.current.cloneNode(false) as HTMLAudioElement;
     buzzer.src = buzzerAudioRef.current.src;
     buzzer.preload = 'auto';
-    buzzer.volume = GLOBAL_SOUND_VOLUME;
+    buzzer.volume = GLOBAL_SOUND_VOLUME * 0.5;
     buzzer.playbackRate = 0.2 + Math.random() * 0.80;
     const duration = Number.isFinite(buzzerAudioRef.current.duration)
       ? buzzerAudioRef.current.duration
