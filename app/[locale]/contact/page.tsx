@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, FormEvent, useEffect, useRef, ChangeEvent } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
@@ -9,6 +9,7 @@ import styles from './page.module.css';
 
 export default function ContactPage() {
   const t = useTranslations('contact');
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     name: '',
@@ -64,6 +65,7 @@ export default function ContactPage() {
         },
         body: JSON.stringify({
           ...formData,
+          locale,
           antiBot: {
             sliderValue: antiBotSlider,
             honeypot,
