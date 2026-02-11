@@ -5,7 +5,7 @@ import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import ProductCard, { Product } from '@/app/components/ProductCard';
 import productsData from '@/data/products.json';
-import { buildAlternates } from '@/lib/seo';
+import { buildPageMetadata } from '@/lib/seo';
 import styles from './page.module.css';
 
 export async function generateMetadata({
@@ -15,13 +15,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'shop' });
-  const alternates = buildAlternates(locale, 'boutique');
-  return {
+  return buildPageMetadata({
+    locale,
+    pathSegment: 'boutique',
     title: t('title'),
     description: t('subtitle'),
-    alternates: { canonical: alternates.canonical, languages: alternates.languages },
-    openGraph: { title: t('title'), description: t('subtitle') },
-  };
+  });
 }
 
 export default function BoutiquePage() {

@@ -8,16 +8,18 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'contact' });
+  const t = await getTranslations({ locale, namespace: 'profile' });
+
   return buildPageMetadata({
     locale,
-    pathSegment: 'contact',
+    pathSegment: 'profil',
     title: t('title'),
     description: t('subtitle'),
+    noIndex: true,
   });
 }
 
-export default function ContactLayout({
+export default function ProfileLayout({
   children,
 }: {
   children: React.ReactNode;

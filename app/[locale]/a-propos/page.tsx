@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { useTranslations } from 'next-intl';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
-import { buildAlternates } from '@/lib/seo';
+import { buildPageMetadata } from '@/lib/seo';
 import styles from './page.module.css';
 
 export async function generateMetadata({
@@ -13,13 +13,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'about' });
-  const alternates = buildAlternates(locale, 'a-propos');
-  return {
+  return buildPageMetadata({
+    locale,
+    pathSegment: 'a-propos',
     title: t('title'),
     description: t('subtitle'),
-    alternates: { canonical: alternates.canonical, languages: alternates.languages },
-    openGraph: { title: t('title'), description: t('subtitle') },
-  };
+  });
 }
 
 export default function AboutPage() {

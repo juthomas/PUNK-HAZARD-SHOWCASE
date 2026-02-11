@@ -3,11 +3,10 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
+import { baseUrl, buildPageMetadata } from '@/lib/seo';
 import { Geist, Geist_Mono, Baloo_2 } from "next/font/google";
 import SessionProvider from '@/app/providers/SessionProvider';
 import "../globals.css";
-
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://punkhazard.org';
 
 export async function generateMetadata({
   params,
@@ -16,29 +15,38 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'home' });
+  const pageMetadata = buildPageMetadata({
+    locale,
+    pathSegment: '',
+    title: t('title'),
+    description: t('subtitle'),
+  });
+
+  const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION;
+
   return {
+    ...pageMetadata,
     metadataBase: new URL(baseUrl),
     title: {
       default: t('title'),
       template: `%s | PUNK HAZARD`,
     },
-    description: t('subtitle'),
-    openGraph: {
-      type: 'website',
-      siteName: 'PUNK HAZARD',
-      locale: locale === 'fr' ? 'fr_FR' : 'en_GB',
-      title: t('title'),
-      description: t('subtitle'),
-    },
-    twitter: {
-      card: 'summary_large_image',
-    },
-    alternates: {
-      languages: {
-        fr: `${baseUrl}/fr`,
-        en: `${baseUrl}/en`,
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
       },
     },
+    verification: googleSiteVerification
+      ? {
+          google: googleSiteVerification,
+        }
+      : undefined,
   };
 }
 

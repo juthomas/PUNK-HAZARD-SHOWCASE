@@ -9,13 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: '/',
         disallow: [
-          '/api/',           // Routes API (contact, auth, etc.)
-          '/fr/login',
-          '/en/login',
-          '/fr/profil',
-          '/en/profil',
-          '/fr/shutdown',    // Page easter egg / effet
-          '/en/shutdown',
+          '/api/', // Routes API (contact, auth, etc.)
         ],
       },
     ],

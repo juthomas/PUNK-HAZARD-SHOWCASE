@@ -8,16 +8,21 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'contact' });
+  const t = await getTranslations({ locale, namespace: 'auth' });
+
   return buildPageMetadata({
     locale,
-    pathSegment: 'contact',
-    title: t('title'),
-    description: t('subtitle'),
+    pathSegment: 'login',
+    title: t('login'),
+    description:
+      locale === 'fr'
+        ? 'Page de connexion au compte PUNK HAZARD.'
+        : 'Login page for your PUNK HAZARD account.',
+    noIndex: true,
   });
 }
 
-export default function ContactLayout({
+export default function LoginLayout({
   children,
 }: {
   children: React.ReactNode;
