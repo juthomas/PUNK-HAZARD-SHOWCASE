@@ -45,6 +45,7 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  position: relative;
 }
 
 .formGroup {
@@ -82,6 +83,51 @@
 .textarea {
   resize: vertical;
   min-height: 160px;
+}
+
+.honeypotWrapper {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.humanCheckHint {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.75;
+}
+
+.humanCheckGroup {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: auto;
+}
+
+.slider {
+  width: 100%;
+  margin-top: 4px;
+  accent-color: var(--foreground);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: auto;
+}
+
+.humanCheckStatus {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.humanCheckStatusReady {
+  color: #51cf66;
+  font-weight: 600;
+  opacity: 1;
 }
 
 .submitButton {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useRef, ChangeEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/app/components/Header';
@@ -16,8 +16,12 @@ export default function ContactPage() {
     subject: '',
     message: '',
   });
+  const [antiBotSlider, setAntiBotSlider] = useState(0);
+  const [honeypot, setHoneypot] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const formStartedAtRef = useRef<number>(Date.now());
+  const isHumanVerified = antiBotSlider >= 100;
 
   // Préremplir le sujet si présent dans l'URL
   useEffect(() => {
@@ -36,6 +40,19 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (!isHumanVerified) {
+      setStatus('error');
+      setErrorMessage(t('form.humanCheckError'));
+      return;
+    }
+
+    if (honeypot.trim().length > 0) {
+      setStatus('error');
+      setErrorMessage(t('form.error'));
+      return;
+    }
+
     setStatus('loading');
     setErrorMessage('');
 
@@ -45,7 +62,14 @@ export default function ContactPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          antiBot: {
+            sliderValue: antiBotSlider,
+            honeypot,
+            elapsedMs: Date.now() - formStartedAtRef.current,
+          },
+        }),
       });
 
       const data = await response.json();
@@ -56,17 +80,24 @@ export default function ContactPage() {
 
       setStatus('success');
       setFormData({ name: '', email: '', subject: '', message: '' });
+      setAntiBotSlider(0);
+      setHoneypot('');
+      formStartedAtRef.current = Date.now();
     } catch (error) {
       setStatus('error');
       setErrorMessage(error instanceof Error ? error.message : t('form.error'));
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleAntiBotSliderChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setAntiBotSlider(Number(e.target.value));
   };
 
   return (
@@ -146,6 +177,47 @@ export default function ContactPage() {
                 />
               </div>
 
+              <div className={styles.honeypotWrapper} aria-hidden="true">
+                <label htmlFor="website">Website</label>
+                <input
+                  type="text"
+                  id="website"
+                  name="website"
+                  value={honeypot}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className={`${styles.formGroup} ${styles.humanCheckGroup}`}>
+                <label htmlFor="antiBotSlider" className={styles.label}>
+                  {t('form.humanCheckLabel')} {t('form.required')}
+                </label>
+                <p className={styles.humanCheckHint}>{t('form.humanCheckHint')}</p>
+                <input
+                  type="range"
+                  id="antiBotSlider"
+                  name="antiBotSlider"
+                  min={0}
+                  max={100}
+                  value={antiBotSlider}
+                  onChange={handleAntiBotSliderChange}
+                  className={styles.slider}
+                  aria-describedby="antiBotStatus"
+                />
+                <p
+                  id="antiBotStatus"
+                  className={`${styles.humanCheckStatus} ${
+                    isHumanVerified ? styles.humanCheckStatusReady : ''
+                  }`}
+                >
+                  {isHumanVerified
+                    ? t('form.humanCheckReady')
+                    : t('form.humanCheckProgress', { value: antiBotSlider })}
+                </p>
+              </div>
+
               {status === 'error' && (
                 <div className={styles.error}>
                   {errorMessage || t('form.error')}
@@ -160,10 +232,14 @@ export default function ContactPage() {
 
               <button
                 type="submit"
-                disabled={status === 'loading'}
+                disabled={status === 'loading' || !isHumanVerified}
                 className={styles.submitButton}
               >
-                {status === 'loading' ? t('form.sending') : t('form.submit')}
+                {status === 'loading'
+                  ? t('form.sending')
+                  : isHumanVerified
+                    ? t('form.submit')
+                    : t('form.submitLocked')}
               </button>
             </form>
 

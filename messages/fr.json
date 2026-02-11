@@ -172,10 +172,16 @@
       "messagePlaceholder": "Décrivez votre projet...",
       "required": "*",
       "submit": "Envoyer le message",
+      "submitLocked": "Validez la vérification anti-robot",
       "sending": "Envoi en cours...",
       "success": "Message envoyé avec succès ! Vous allez recevoir un email de confirmation. Nous vous répondrons dans les plus brefs délais.",
       "error": "Erreur lors de l'envoi du message. Veuillez réessayer.",
-      "defaultSubject": "Devis"
+      "defaultSubject": "Devis",
+      "humanCheckLabel": "Vérification anti-robot",
+      "humanCheckHint": "Faites glisser le curseur complètement vers la droite pour activer l'envoi.",
+      "humanCheckProgress": "Progression: {value}%",
+      "humanCheckReady": "Vérification validée.",
+      "humanCheckError": "Veuillez compléter la vérification anti-robot."
     },
     "other": {
       "title": "Autres moyens de contact",

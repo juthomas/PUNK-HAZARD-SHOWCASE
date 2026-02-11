@@ -172,10 +172,16 @@
       "messagePlaceholder": "Describe your project...",
       "required": "*",
       "submit": "Send message",
+      "submitLocked": "Complete anti-bot verification",
       "sending": "Sending...",
       "success": "Message sent successfully! You will receive a confirmation email. We will respond as soon as possible.",
       "error": "Error sending message. Please try again.",
-      "defaultSubject": "Quote"
+      "defaultSubject": "Quote",
+      "humanCheckLabel": "Anti-bot verification",
+      "humanCheckHint": "Slide all the way to the right to unlock sending.",
+      "humanCheckProgress": "Progress: {value}%",
+      "humanCheckReady": "Verification complete.",
+      "humanCheckError": "Please complete the anti-bot verification."
     },
     "other": {
       "title": "Other ways to contact",
