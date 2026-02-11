@@ -237,6 +237,7 @@
   },
   "cgv": {
     "title": "Conditions Générales de Vente",
+    "metaDescription": "Conditions générales de vente de PUNK HAZARD : commandes, livraison, paiement, garantie et contact.",
     "lastUpdate": "Dernière mise à jour:",
     "sections": {
       "object": {
@@ -271,6 +272,7 @@
   },
   "legal": {
     "title": "Mentions Légales",
+    "metaDescription": "Informations légales du site PUNK HAZARD : éditeur, hébergement, propriété intellectuelle, données personnelles et cookies.",
     "sections": {
       "publisher": {
         "title": "Éditeur du site",

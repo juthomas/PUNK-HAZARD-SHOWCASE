@@ -237,6 +237,7 @@
   },
   "cgv": {
     "title": "Terms and Conditions of Sale",
+    "metaDescription": "PUNK HAZARD terms and conditions of sale: orders, delivery, payment, warranty and contact.",
     "lastUpdate": "Last updated:",
     "sections": {
       "object": {
@@ -271,6 +272,7 @@
   },
   "legal": {
     "title": "Legal Notice",
+    "metaDescription": "Legal information for PUNK HAZARD website: publisher, hosting, intellectual property, personal data and cookies.",
     "sections": {
       "publisher": {
         "title": "Site publisher",

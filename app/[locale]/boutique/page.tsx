@@ -1,9 +1,28 @@
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { useTranslations } from 'next-intl';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
 import ProductCard, { Product } from '@/app/components/ProductCard';
 import productsData from '@/data/products.json';
+import { buildAlternates } from '@/lib/seo';
 import styles from './page.module.css';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'shop' });
+  const alternates = buildAlternates(locale, 'boutique');
+  return {
+    title: t('title'),
+    description: t('subtitle'),
+    alternates: { canonical: alternates.canonical, languages: alternates.languages },
+    openGraph: { title: t('title'), description: t('subtitle') },
+  };
+}
 
 export default function BoutiquePage() {
   const t = useTranslations('shop');

@@ -1,10 +1,46 @@
+import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { getMessages, getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
 import { Geist, Geist_Mono, Baloo_2 } from "next/font/google";
 import SessionProvider from '@/app/providers/SessionProvider';
 import "../globals.css";
+
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://punkhazard.org';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'home' });
+  return {
+    metadataBase: new URL(baseUrl),
+    title: {
+      default: t('title'),
+      template: `%s | PUNK HAZARD`,
+    },
+    description: t('subtitle'),
+    openGraph: {
+      type: 'website',
+      siteName: 'PUNK HAZARD',
+      locale: locale === 'fr' ? 'fr_FR' : 'en_GB',
+      title: t('title'),
+      description: t('subtitle'),
+    },
+    twitter: {
+      card: 'summary_large_image',
+    },
+    alternates: {
+      languages: {
+        fr: `${baseUrl}/fr`,
+        en: `${baseUrl}/en`,
+      },
+    },
+  };
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

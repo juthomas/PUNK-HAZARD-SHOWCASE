@@ -1,7 +1,26 @@
+import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { useTranslations } from 'next-intl';
 import Header from '@/app/components/Header';
 import Footer from '@/app/components/Footer';
+import { buildAlternates } from '@/lib/seo';
 import styles from './page.module.css';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'cgv' });
+  const alternates = buildAlternates(locale, 'cgv');
+  return {
+    title: t('title'),
+    description: t('metaDescription'),
+    alternates: { canonical: alternates.canonical, languages: alternates.languages },
+    openGraph: { title: t('title'), description: t('metaDescription') },
+  };
+}
 
 export default function CGVPage() {
   const t = useTranslations('cgv');
