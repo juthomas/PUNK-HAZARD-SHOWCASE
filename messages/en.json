@@ -5,6 +5,7 @@
       "shop": "Shop",
       "services": "Services",
       "projects": "Projects",
+      "softwares": "Softwares",
       "contact": "Contact"
     },
     "cta": {
@@ -212,6 +213,86 @@
     "title": "Projects & Achievements",
     "subtitle": "Our artistic and technical projects",
     "presentations": "Presentations:"
+  },
+  "softwares": {
+    "title": "Softwares",
+    "subtitle": "Online flashable firmwares and licensed desktop software.",
+    "sections": {
+      "firmwares": "Embedded firmwares",
+      "desktop": "Desktop software"
+    },
+    "cards": {
+      "boardLabel": "Target board",
+      "licenseLabel": "License",
+      "includesData": "Already includes the project data partition",
+      "openFlasher": "Open flasher"
+    },
+    "states": {
+      "loading": "Loading softwares...",
+      "loadingConfig": "Loading configuration...",
+      "noFirmware": "No firmware is currently available.",
+      "noDesktop": "No desktop software is currently available."
+    },
+    "desktopStatus": {
+      "coming_soon": "Coming soon",
+      "available": "Available"
+    },
+    "modal": {
+      "close": "Close",
+      "chromeOnly": "Online flashing requires Google Chrome (Web Serial).",
+      "notSecureContext": "Flashing is available only on HTTPS (or localhost).",
+      "chromeReady": "Google Chrome detected: you can connect and flash your ESP32.",
+      "staticNotice": "This firmware is static and precompiled: no server-side build is required.",
+      "staticDataNotice": "The SPIFFS partition already embeds web assets + current project data/data.json.",
+      "offsetLabel": "Offset",
+      "launchFlasher": "Launch integrated flasher",
+      "launchingFlasher": "Opening flasher...",
+      "clearLiveLogs": "Clear logs",
+      "flashPanelTitle": "Flash inside this modal",
+      "progressLabel": "Write progress: {value}%",
+      "integratedHint": "The flash wizard appears here, inside this modal.",
+      "dialogPlaceholder": "Click \"Launch integrated flasher\" to start.",
+      "liveLogsTitle": "Live log",
+      "liveLogsEmpty": "No events yet.",
+      "status": {
+        "idle": "Idle",
+        "waiting_for_port": "Waiting serial port",
+        "dialog_ready": "Ready to flash",
+        "installing": "Installing",
+        "finished": "Finished",
+        "error": "Error"
+      },
+      "logs": {
+        "requestingPort": "Requesting serial port access...",
+        "buttonUnavailable": "Flash button is unavailable.",
+        "chromeRequired": "Chrome with Web Serial is required.",
+        "noDialogDetected": "No flash wizard detected (port selection may have been cancelled).",
+        "dialogAttached": "Flash wizard loaded inside modal.",
+        "dialogClosed": "Flash wizard closed.",
+        "hostMissing": "Flash wizard host container not found.",
+        "stateChanged": "Wizard state: {state}",
+        "dialogError": "Wizard error: {error}",
+        "addressMapError": "Unable to prepare address map: {error}"
+      },
+      "saving": "Saving...",
+      "saveConfig": "Save config",
+      "configSaved": "Configuration saved.",
+      "building": "Building...",
+      "buildAndPrepare": "Build and prepare flashing",
+      "buildSuccess": "Build complete. Firmware is ready to flash.",
+      "flashReady": "Ready to flash: connect your ESP32 then start installation.",
+      "flashNow": "Flash now",
+      "showLogs": "Show build logs"
+    },
+    "errors": {
+      "loadSoftwares": "Unable to load software list.",
+      "loadConfig": "Unable to load firmware configuration.",
+      "saveConfig": "Unable to save firmware configuration.",
+      "buildFirmware": "Unable to build firmware.",
+      "invalidConfigFormat": "Invalid configuration format.",
+      "invalidJsonField": "Field \"{field}\" does not contain valid JSON.",
+      "unexpected": "An unexpected error occurred."
+    }
   },
   "about": {
     "title": "About",

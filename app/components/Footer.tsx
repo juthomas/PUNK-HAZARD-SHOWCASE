@@ -63,6 +63,7 @@ export default function Footer() {
               <li><Link href="/boutique">{tNav('shop')}</Link></li>
               <li><Link href="/services">{tNav('services')}</Link></li>
               <li><Link href="/projets">{tNav('projects')}</Link></li>
+              <li><Link href="/logiciels">{tNav('softwares')}</Link></li>
             </ul>
           </div>
           

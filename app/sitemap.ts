@@ -9,6 +9,7 @@ const publicPaths = [
   'boutique',
   'cgv',
   'contact',
+  'logiciels',
   'mentions-legales',
   'projets',
   'services',

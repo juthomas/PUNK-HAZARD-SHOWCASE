@@ -1,0 +1,33 @@
+{
+  "name": "I2S ESP32 SD",
+  "version": "2026-02-24-static",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "/firmwares/i2s-esp32-sd/bootloader.bin",
+          "offset": 4096
+        },
+        {
+          "path": "/firmwares/i2s-esp32-sd/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "/firmwares/i2s-esp32-sd/boot_app0.bin",
+          "offset": 57344
+        },
+        {
+          "path": "/firmwares/i2s-esp32-sd/firmware.bin",
+          "offset": 65536
+        },
+        {
+          "path": "/firmwares/i2s-esp32-sd/spiffs.bin",
+          "offset": 2162688
+        }
+      ]
+    }
+  ]
+}
+

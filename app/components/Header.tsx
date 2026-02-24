@@ -132,6 +132,13 @@ export default function Header() {
             {t('projects')}
           </Link>
           <Link 
+            href="/logiciels" 
+            className={`${styles.navLink} ${isActive('/logiciels') ? styles.active : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            {t('softwares')}
+          </Link>
+          <Link 
             href="/contact" 
             className={`${styles.navLink} ${isActive('/contact') ? styles.active : ''}`}
             onClick={() => setIsMobileMenuOpen(false)}

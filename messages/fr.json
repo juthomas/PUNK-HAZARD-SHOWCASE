@@ -5,6 +5,7 @@
       "shop": "Boutique",
       "services": "Services",
       "projects": "Projets",
+      "softwares": "Logiciels",
       "contact": "Contact"
     },
     "cta": {
@@ -212,6 +213,86 @@
     "title": "Projets & Réalisations",
     "subtitle": "Nos projets artistiques et techniques",
     "presentations": "Présentations:"
+  },
+  "softwares": {
+    "title": "Logiciels",
+    "subtitle": "Firmwares flashables en ligne et logiciels PC sous licence.",
+    "sections": {
+      "firmwares": "Firmwares embarqués",
+      "desktop": "Logiciels PC"
+    },
+    "cards": {
+      "boardLabel": "Carte cible",
+      "licenseLabel": "Licence",
+      "includesData": "Inclut deja la partition data du projet",
+      "openFlasher": "Ouvrir le flasheur"
+    },
+    "states": {
+      "loading": "Chargement des logiciels...",
+      "loadingConfig": "Chargement de la configuration...",
+      "noFirmware": "Aucun firmware n'est disponible pour le moment.",
+      "noDesktop": "Aucun logiciel PC n'est disponible pour le moment."
+    },
+    "desktopStatus": {
+      "coming_soon": "Bientôt disponible",
+      "available": "Disponible"
+    },
+    "modal": {
+      "close": "Fermer",
+      "chromeOnly": "Le flash en ligne requiert Google Chrome (Web Serial).",
+      "notSecureContext": "Le flash est disponible uniquement en HTTPS (ou localhost).",
+      "chromeReady": "Google Chrome détecté : vous pouvez connecter et flasher l'ESP32.",
+      "staticNotice": "Ce firmware est statique et pre-compile : aucune compilation serveur n'est necessaire.",
+      "staticDataNotice": "La partition SPIFFS inclut deja les fichiers web + data/data.json du projet actuel.",
+      "offsetLabel": "Offset",
+      "launchFlasher": "Lancer le flasheur integre",
+      "launchingFlasher": "Ouverture du flasheur...",
+      "clearLiveLogs": "Vider le journal",
+      "flashPanelTitle": "Flasher dans la modale",
+      "progressLabel": "Progression ecriture: {value}%",
+      "integratedHint": "Le wizard de flash apparait ici, dans cette modale.",
+      "dialogPlaceholder": "Cliquez sur \"Lancer le flasheur integre\" pour demarrer.",
+      "liveLogsTitle": "Journal live",
+      "liveLogsEmpty": "Aucun evenement pour le moment.",
+      "status": {
+        "idle": "En attente",
+        "waiting_for_port": "Attente port serie",
+        "dialog_ready": "Pret a flasher",
+        "installing": "Installation en cours",
+        "finished": "Installation terminee",
+        "error": "Erreur"
+      },
+      "logs": {
+        "requestingPort": "Demande d'acces au port serie...",
+        "buttonUnavailable": "Le bouton de flash est indisponible.",
+        "chromeRequired": "Chrome avec Web Serial est requis.",
+        "noDialogDetected": "Aucun wizard detecte (annulation possible de la selection de port).",
+        "dialogAttached": "Wizard de flash charge dans la modale.",
+        "dialogClosed": "Wizard de flash ferme.",
+        "hostMissing": "Zone de rendu du wizard introuvable.",
+        "stateChanged": "Etat wizard: {state}",
+        "dialogError": "Erreur wizard: {error}",
+        "addressMapError": "Impossible de preparer la map d'adresses: {error}"
+      },
+      "saving": "Sauvegarde...",
+      "saveConfig": "Sauvegarder la config",
+      "configSaved": "Configuration sauvegardée.",
+      "building": "Compilation en cours...",
+      "buildAndPrepare": "Compiler et préparer le flash",
+      "buildSuccess": "Compilation terminée. Le firmware est prêt à être flashé.",
+      "flashReady": "Prêt à flasher : connectez l'ESP32 puis lancez l'installation.",
+      "flashNow": "Flasher maintenant",
+      "showLogs": "Afficher les logs de build"
+    },
+    "errors": {
+      "loadSoftwares": "Impossible de charger la liste des logiciels.",
+      "loadConfig": "Impossible de charger la configuration firmware.",
+      "saveConfig": "Impossible de sauvegarder la configuration firmware.",
+      "buildFirmware": "Impossible de compiler le firmware.",
+      "invalidConfigFormat": "Format de configuration invalide.",
+      "invalidJsonField": "Le champ \"{field}\" ne contient pas un JSON valide.",
+      "unexpected": "Une erreur inattendue est survenue."
+    }
   },
   "about": {
     "title": "À propos",
