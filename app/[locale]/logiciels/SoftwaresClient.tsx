@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Script from 'next/script';
 import { useLocale, useTranslations } from 'next-intl';
 import { softwaresCatalog } from '@/lib/softwares';
 import type { FirmwareSoftware, LocalizedText, PublicSoftware } from '@/lib/softwares';
@@ -11,23 +10,103 @@ type Locale = 'fr' | 'en';
 type DesktopSoftware = Extract<PublicSoftware, { kind: 'desktop' }>;
 type FlashStatus = 'idle' | 'waiting_for_port' | 'dialog_ready' | 'installing' | 'finished' | 'error';
 
-type InstallStatePayload = {
-  state: string;
-  message?: string;
-  details?: {
-    percentage?: number;
-    done?: boolean;
-    bytesTotal?: number;
-    bytesWritten?: number;
+type FirmwareManifest = {
+  builds: Array<{
+    chipFamily: string;
+    parts: Array<{
+      path: string;
+      offset: number;
+    }>;
+  }>;
+};
+
+type EsptoolTerminal = {
+  clean: () => void;
+  writeLine: (data: string) => void;
+  write: (data: string) => void;
+};
+
+type EsptoolTransport = {
+  disconnect: () => Promise<void>;
+};
+
+type WriteFlashOptions = {
+  fileArray: Array<{ data: Uint8Array | string; address: number }>;
+  eraseAll: boolean;
+  compress: boolean;
+  flashMode: 'keep';
+  flashFreq: 'keep';
+  flashSize: 'keep';
+  reportProgress?: (fileIndex: number, written: number, total: number) => void;
+};
+
+type EsploaderInstance = {
+  main: () => Promise<string>;
+  eraseFlash: () => Promise<void>;
+  writeFlash: (options: WriteFlashOptions) => Promise<void>;
+  after: () => Promise<void>;
+};
+
+type EsptoolModule = {
+  Transport: new (device: unknown, tracing?: boolean) => EsptoolTransport;
+  ESPLoader: new (options: {
+    transport: EsptoolTransport;
+    baudrate: number;
+    terminal: EsptoolTerminal;
+    debugLogging?: boolean;
+  }) => EsploaderInstance;
+};
+
+type SerialNavigator = Navigator & {
+  serial?: {
+    requestPort: (options?: unknown) => Promise<unknown>;
   };
 };
 
-type EwtInstallDialogElement = HTMLElement & {
-  _state?: string;
-  _error?: string;
-  _installState?: InstallStatePayload;
-  _closeDialog?: () => void;
+type SerialPortLike = {
+  readable?: ReadableStream<Uint8Array> | null;
+  open?: (options: { baudRate: number }) => Promise<void>;
+  close?: () => Promise<void>;
+  setSignals?: (signals: {
+    dataTerminalReady?: boolean;
+    requestToSend?: boolean;
+    break?: boolean;
+  }) => Promise<void>;
+  getInfo?: () => {
+    usbVendorId?: number;
+    usbProductId?: number;
+  };
 };
+
+function uint8ToBinaryString(bytes: Uint8Array): string {
+  // Keep byte-perfect conversion (0x00-0xFF) for esptool-js string input.
+  // Do not use TextDecoder("latin1") because browsers map it to windows-1252.
+  const chunkSize = 0x8000;
+  let output = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    output += String.fromCharCode(...chunk);
+  }
+  return output;
+}
+
+function normalizeChipFamily(chipDescription: string): string {
+  const normalized = chipDescription.trim().toUpperCase();
+
+  if (normalized.includes('ESP32-C61')) return 'ESP32-C61';
+  if (normalized.includes('ESP32-C6')) return 'ESP32-C6';
+  if (normalized.includes('ESP32-C5')) return 'ESP32-C5';
+  if (normalized.includes('ESP32-C3')) return 'ESP32-C3';
+  if (normalized.includes('ESP32-C2')) return 'ESP32-C2';
+  if (normalized.includes('ESP32-S3')) return 'ESP32-S3';
+  if (normalized.includes('ESP32-S2')) return 'ESP32-S2';
+  if (normalized.includes('ESP32-H2')) return 'ESP32-H2';
+  if (normalized.includes('ESP32-P4')) return 'ESP32-P4';
+  if (normalized.includes('ESP8266')) return 'ESP8266';
+  if (normalized.includes('ESP32')) return 'ESP32';
+
+  return chipDescription.trim();
+}
 
 function localize(text: LocalizedText, locale: Locale): string {
   return locale === 'en' ? text.en : text.fr;
@@ -62,19 +141,29 @@ export default function SoftwaresClient() {
   const [flashStatus, setFlashStatus] = useState<FlashStatus>('idle');
   const [flashProgress, setFlashProgress] = useState<number | null>(null);
   const [flashLogs, setFlashLogs] = useState<string[]>([]);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const [isPortPicking, setIsPortPicking] = useState(false);
+  const [eraseBeforeFlash, setEraseBeforeFlash] = useState(true);
+  const [showFlashConfirm, setShowFlashConfirm] = useState(false);
+  const [isCopyingLogs, setIsCopyingLogs] = useState(false);
   const [isDialogMounted, setIsDialogMounted] = useState(false);
+  const [selectedSerialPort, setSelectedSerialPort] = useState<unknown | null>(null);
+  const [serialMonitorLogs, setSerialMonitorLogs] = useState<string[]>([]);
+  const [isSerialMonitoring, setIsSerialMonitoring] = useState(false);
+  const [isSerialMonitorStarting, setIsSerialMonitorStarting] = useState(false);
+  const [activeLogView, setActiveLogView] = useState<'flash' | 'serial'>('flash');
 
-  const flashDialogHostRef = useRef<HTMLDivElement | null>(null);
-  const activeDialogRef = useRef<EwtInstallDialogElement | null>(null);
-  const dialogObserverRef = useRef<MutationObserver | null>(null);
-  const statePollerRef = useRef<number | null>(null);
-  const dialogAttachTimeoutRef = useRef<number | null>(null);
-  const flashAddressMapRef = useRef<Array<{
-    startByte: number;
-    endByte: number;
-    offset: number;
-    path: string;
-  }> | null>(null);
+  const logContainerRef = useRef<HTMLPreElement | null>(null);
+  const terminalBufferRef = useRef('');
+  const serialMonitorBufferRef = useRef('');
+  const lastProgressPercentRef = useRef(-1);
+  const partProgressByIndexRef = useRef<Record<number, number>>({});
+  const lastProgressBytesRef = useRef(0);
+  const lastProgressAddressRef = useRef(0);
+  const serialMonitorReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const serialMonitorPortRef = useRef<unknown | null>(null);
+  const serialMonitorOpenedLocallyRef = useRef(false);
+  const serialMonitorStopRequestedRef = useRef(false);
 
   const firmwareSoftwares = useMemo(
     () => softwaresCatalog.filter((software): software is FirmwareSoftware => software.kind === 'firmware'),
@@ -99,6 +188,14 @@ export default function SoftwaresClient() {
     setIsGoogleChrome(isChromeUa);
   }, []);
 
+  useEffect(() => {
+    const node = logContainerRef.current;
+    if (!node) {
+      return;
+    }
+    node.scrollTop = node.scrollHeight;
+  }, [flashLogs, serialMonitorLogs, activeLogView]);
+
   function appendFlashLog(message: string) {
     const timestamp = new Date().toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
       hour: '2-digit',
@@ -109,99 +206,262 @@ export default function SoftwaresClient() {
     setFlashLogs((previous) => [...previous, `[${timestamp}] ${message}`].slice(-250));
   }
 
-  function stopDialogObserver() {
-    if (!dialogObserverRef.current) {
-      return;
-    }
-    dialogObserverRef.current.disconnect();
-    dialogObserverRef.current = null;
+  function appendSerialMonitorLog(message: string) {
+    const timestamp = new Date().toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    setSerialMonitorLogs((previous) => [...previous, `[${timestamp}] ${message}`].slice(-400));
   }
 
-  function stopDialogStatePolling() {
-    if (statePollerRef.current === null) {
-      return;
+  function asSerialPort(port: unknown): SerialPortLike | null {
+    if (!port || typeof port !== 'object') {
+      return null;
     }
-    window.clearInterval(statePollerRef.current);
-    statePollerRef.current = null;
+
+    return port as SerialPortLike;
   }
 
-  function clearDialogAttachTimeout() {
-    if (dialogAttachTimeoutRef.current === null) {
-      return;
-    }
-    window.clearTimeout(dialogAttachTimeoutRef.current);
-    dialogAttachTimeoutRef.current = null;
+  function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, ms);
+    });
   }
 
-  function clearFlashHost() {
-    if (!flashDialogHostRef.current) {
-      return;
-    }
-    flashDialogHostRef.current.innerHTML = '';
+  function isLikelyPortBusyMessage(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('failed to open serial port') ||
+      normalized.includes('already open') ||
+      normalized.includes('resource busy') ||
+      normalized.includes('access denied') ||
+      normalized.includes('networkerror') ||
+      normalized.includes('device is already in use') ||
+      normalized.includes('port is busy')
+    );
   }
 
-  function closeActiveDialog() {
-    const dialog = activeDialogRef.current;
-    if (!dialog) {
+  function getErrorMessage(error: unknown): string {
+    if (error instanceof DOMException && error.name === 'NotFoundError') {
+      return t('modal.logs.userCancelled');
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error;
+    }
+
+    return t('errors.unexpected');
+  }
+
+  function normalizePortErrorMessage(error: unknown): string {
+    const message = getErrorMessage(error);
+    if (message === t('modal.logs.userCancelled')) {
+      return message;
+    }
+
+    if (isLikelyPortBusyMessage(message)) {
+      return t('modal.logs.portBusy');
+    }
+
+    return message;
+  }
+
+  function shouldIgnoreTerminalLine(line: string): boolean {
+    const normalized = line.trim().toLowerCase();
+    return normalized.startsWith('writing at 0x');
+  }
+
+  function getPartDisplayName(partPath: string, fileIndex: number): string {
+    const normalizedPath = partPath.replace(/\\/g, '/');
+    const partName = normalizedPath.split('/').pop();
+    if (partName && partName.length > 0) {
+      return partName;
+    }
+    return `part-${fileIndex + 1}`;
+  }
+
+  function formatHexAddress(value: number): string {
+    return `0x${Math.max(0, value).toString(16)}`;
+  }
+
+  async function probePortAvailability(port: unknown): Promise<void> {
+    const serialPort = asSerialPort(port);
+    if (!serialPort || !serialPort.open || !serialPort.close) {
       return;
     }
 
+    if (serialPort.readable) {
+      throw new Error(t('modal.logs.portBusy'));
+    }
+
+    let opened = false;
     try {
-      dialog._closeDialog?.();
-    } catch {
-      // Best effort: if close API is not available we still remove the element.
+      await serialPort.open({ baudRate: 115200 });
+      opened = true;
+    } catch (error) {
+      throw new Error(normalizePortErrorMessage(error));
+    } finally {
+      if (opened) {
+        try {
+          await serialPort.close();
+        } catch {
+          // Ignore close failures during availability probe.
+        }
+      }
+    }
+  }
+
+  async function cleanupSerialMonitorConnection(): Promise<void> {
+    const reader = serialMonitorReaderRef.current;
+    serialMonitorReaderRef.current = null;
+    if (reader) {
+      try {
+        await reader.cancel();
+      } catch {
+        // Reader may already be closed.
+      }
+
+      try {
+        reader.releaseLock();
+      } catch {
+        // Ignore lock release errors.
+      }
     }
 
-    if (dialog.isConnected) {
-      dialog.remove();
+    const monitorPort = serialMonitorPortRef.current;
+    const openedLocally = serialMonitorOpenedLocallyRef.current;
+    serialMonitorPortRef.current = null;
+    serialMonitorOpenedLocallyRef.current = false;
+    serialMonitorBufferRef.current = '';
+
+    if (openedLocally) {
+      const serialPort = asSerialPort(monitorPort);
+      if (serialPort?.close) {
+        try {
+          await serialPort.close();
+        } catch {
+          // Ignore close failures on monitor shutdown.
+        }
+      }
+    }
+  }
+
+  async function stopSerialMonitor(options?: { silent?: boolean; switchToFlashLogs?: boolean }) {
+    const silent = options?.silent ?? false;
+    const switchToFlashLogs = options?.switchToFlashLogs ?? false;
+    serialMonitorStopRequestedRef.current = true;
+
+    await cleanupSerialMonitorConnection();
+    setIsSerialMonitoring(false);
+    setIsSerialMonitorStarting(false);
+
+    if (switchToFlashLogs) {
+      setActiveLogView('flash');
     }
 
-    activeDialogRef.current = null;
+    if (!silent) {
+      appendSerialMonitorLog(t('modal.logs.serialMonitorStopped'));
+    }
+  }
+
+  async function pulseBoardReset(port: unknown): Promise<boolean> {
+    const serialPort = asSerialPort(port);
+    if (!serialPort?.setSignals) {
+      return false;
+    }
+
+    let openedLocally = false;
+    try {
+      if (!serialPort.readable && serialPort.open) {
+        await serialPort.open({ baudRate: 115200 });
+        openedLocally = true;
+      }
+
+      await serialPort.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await sleep(120);
+      await serialPort.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await sleep(120);
+      return true;
+    } finally {
+      if (openedLocally && serialPort.close) {
+        try {
+          await serialPort.close();
+        } catch {
+          // Ignore close failures after reset pulse.
+        }
+      }
+    }
   }
 
   function teardownFlashSession(updateUiState: boolean) {
-    stopDialogObserver();
-    stopDialogStatePolling();
-    clearDialogAttachTimeout();
-    closeActiveDialog();
-    clearFlashHost();
-
     if (updateUiState) {
       setIsDialogMounted(false);
       setFlashProgress(null);
+      setIsFlashing(false);
     }
   }
 
   useEffect(() => {
     return () => {
       teardownFlashSession(false);
+      serialMonitorStopRequestedRef.current = true;
+      const reader = serialMonitorReaderRef.current;
+      if (reader) {
+        void reader.cancel();
+      }
     };
   }, []);
 
   function openFirmwareModal(firmware: FirmwareSoftware) {
+    void stopSerialMonitor({ silent: true, switchToFlashLogs: true });
     teardownFlashSession(true);
     setSelectedFirmware(firmware);
     setIsModalOpen(true);
     setManifestToken(Date.now());
+    setEraseBeforeFlash(true);
+    setShowFlashConfirm(false);
+    setIsCopyingLogs(false);
+    setIsPortPicking(false);
+    setSelectedSerialPort(null);
     setFlashStatus('idle');
     setFlashLogs([]);
-    flashAddressMapRef.current = null;
+    setSerialMonitorLogs([]);
+    setActiveLogView('flash');
+    terminalBufferRef.current = '';
+    serialMonitorBufferRef.current = '';
+    lastProgressPercentRef.current = -1;
+    partProgressByIndexRef.current = {};
+    lastProgressBytesRef.current = 0;
+    lastProgressAddressRef.current = 0;
   }
 
   function closeFirmwareModal() {
+    void stopSerialMonitor({ silent: true, switchToFlashLogs: true });
     teardownFlashSession(true);
     setIsModalOpen(false);
     setSelectedFirmware(null);
     setManifestToken(0);
     setFlashStatus('idle');
     setFlashLogs([]);
-    flashAddressMapRef.current = null;
-  }
-
-  function applyDialogTheme(dialog: EwtInstallDialogElement) {
-    // Keep default ESP Web Tools theme as requested.
-    // The dialog remains rendered inside our modal host.
-    void dialog;
+    setSerialMonitorLogs([]);
+    setEraseBeforeFlash(true);
+    setShowFlashConfirm(false);
+    setIsCopyingLogs(false);
+    setIsPortPicking(false);
+    setSelectedSerialPort(null);
+    setActiveLogView('flash');
+    terminalBufferRef.current = '';
+    serialMonitorBufferRef.current = '';
+    lastProgressPercentRef.current = -1;
+    partProgressByIndexRef.current = {};
+    lastProgressBytesRef.current = 0;
+    lastProgressAddressRef.current = 0;
   }
 
   function resolvePartUrl(manifestPath: string, partPath: string): string {
@@ -213,257 +473,78 @@ export default function SoftwaresClient() {
     return new URL(partPath, base).toString();
   }
 
-  async function getBinarySize(url: string): Promise<number> {
-    try {
-      const head = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-      const sizeHeader = head.headers.get('content-length');
-      if (head.ok && sizeHeader) {
-        const parsed = Number(sizeHeader);
-        if (Number.isFinite(parsed) && parsed > 0) {
-          return parsed;
-        }
-      }
-    } catch {
-      // Fallback to GET below
-    }
-
+  async function fetchBinary(url: string): Promise<Uint8Array> {
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) {
-      throw new Error(`Unable to fetch binary size for ${url}`);
+      throw new Error(`Unable to fetch firmware binary: ${url}`);
     }
-
-    const blob = await response.blob();
-    return blob.size;
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
   }
 
-  async function prepareFlashAddressMap(manifestPath: string, chipFamily: string) {
-    try {
-      const manifestResponse = await fetch(manifestPath, { cache: 'no-store' });
-      if (!manifestResponse.ok) {
-        throw new Error(`Manifest fetch failed: ${manifestResponse.status}`);
-      }
-
-      const manifest = (await manifestResponse.json()) as {
-        builds?: Array<{
-          chipFamily?: string;
-          parts?: Array<{ path?: string; offset?: number }>;
-        }>;
-      };
-
-      const build = manifest.builds?.find((candidate) => candidate.chipFamily === chipFamily);
-      if (!build || !Array.isArray(build.parts) || build.parts.length === 0) {
-        return;
-      }
-
-      const segments: Array<{
-        startByte: number;
-        endByte: number;
-        offset: number;
-        path: string;
-      }> = [];
-
-      let cursor = 0;
-      for (const part of build.parts) {
-        if (typeof part.path !== 'string' || typeof part.offset !== 'number') {
-          continue;
-        }
-
-        const resolvedUrl = resolvePartUrl(manifestPath, part.path);
-        const size = await getBinarySize(resolvedUrl);
-        if (!Number.isFinite(size) || size <= 0) {
-          continue;
-        }
-
-        segments.push({
-          startByte: cursor,
-          endByte: cursor + size,
-          offset: part.offset,
-          path: part.path,
-        });
-        cursor += size;
-      }
-
-      if (segments.length > 0) {
-        flashAddressMapRef.current = segments;
-      }
-    } catch (error) {
-      appendFlashLog(
-        error instanceof Error
-          ? t('modal.logs.addressMapError', { error: error.message })
-          : t('modal.logs.addressMapError', { error: 'unknown' })
-      );
+  async function loadManifest(manifestPath: string): Promise<FirmwareManifest> {
+    const response = await fetch(manifestPath, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Manifest fetch failed (${response.status})`);
     }
+
+    return (await response.json()) as FirmwareManifest;
   }
 
-  function computeCurrentFlashAddress(bytesWritten: number): number | null {
-    const segments = flashAddressMapRef.current;
-    if (!segments || segments.length === 0) {
+  function buildTerminalLogger(): EsptoolTerminal {
+    return {
+      clean() {
+        terminalBufferRef.current = '';
+      },
+      writeLine(data: string) {
+        const trimmed = data.trim();
+        if (trimmed.length > 0 && !shouldIgnoreTerminalLine(trimmed)) {
+          appendFlashLog(trimmed);
+        }
+      },
+      write(data: string) {
+        terminalBufferRef.current += data;
+        const lines = terminalBufferRef.current.split('\n');
+        terminalBufferRef.current = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.length > 0 && !shouldIgnoreTerminalLine(trimmed)) {
+            appendFlashLog(trimmed);
+          }
+        }
+      },
+    };
+  }
+
+  function formatSelectedPort(port: unknown): string | null {
+    const maybePort = asSerialPort(port);
+    if (!maybePort?.getInfo) {
       return null;
     }
 
-    const safeBytes = Math.max(0, bytesWritten);
-    for (const segment of segments) {
-      if (safeBytes <= segment.endByte) {
-        const localProgress = Math.max(0, safeBytes - segment.startByte);
-        return segment.offset + localProgress;
+    try {
+      const info = maybePort.getInfo();
+      if (!info) {
+        return null;
       }
+
+      const vendor =
+        typeof info.usbVendorId === 'number'
+          ? `0x${info.usbVendorId.toString(16)}`
+          : 'n/a';
+      const product =
+        typeof info.usbProductId === 'number'
+          ? `0x${info.usbProductId.toString(16)}`
+          : 'n/a';
+
+      return `VID ${vendor} / PID ${product}`;
+    } catch {
+      return null;
     }
-
-    const last = segments[segments.length - 1];
-    return last.offset + (last.endByte - last.startByte);
   }
 
-  function startDialogStatePolling() {
-    stopDialogStatePolling();
-
-    let previousDialogState = '';
-    let previousInstallState = '';
-    let previousDialogError = '';
-
-    statePollerRef.current = window.setInterval(() => {
-      const dialog = activeDialogRef.current;
-      if (!dialog) {
-        return;
-      }
-
-      const dialogState = dialog.getAttribute('state') ?? dialog._state ?? 'unknown';
-      if (dialogState !== previousDialogState) {
-        previousDialogState = dialogState;
-        appendFlashLog(t('modal.logs.stateChanged', { state: dialogState }));
-      }
-
-      const installState = dialog._installState;
-      if (installState) {
-        const percentage = installState.details?.percentage;
-        const snapshot = JSON.stringify({
-          state: installState.state,
-          message: installState.message,
-          percentage,
-          done: installState.details?.done,
-          bytesWritten: installState.details?.bytesWritten,
-          bytesTotal: installState.details?.bytesTotal,
-        });
-
-        if (snapshot !== previousInstallState) {
-          previousInstallState = snapshot;
-
-          if (typeof percentage === 'number' && Number.isFinite(percentage)) {
-            setFlashProgress(Math.max(0, Math.min(100, percentage)));
-          }
-
-          if (installState.state === 'error') {
-            setFlashStatus('error');
-          } else if (installState.state === 'finished') {
-            setFlashStatus('finished');
-            setFlashProgress(100);
-          } else {
-            setFlashStatus('installing');
-          }
-
-          const progressText =
-            typeof percentage === 'number' ? ` (${Math.round(percentage)}%)` : '';
-          const messageText = installState.message ? ` - ${installState.message}` : '';
-
-          if (installState.state === 'writing') {
-            const bytesWritten = installState.details?.bytesWritten;
-            const computedAddress =
-              typeof bytesWritten === 'number' && Number.isFinite(bytesWritten)
-                ? computeCurrentFlashAddress(bytesWritten)
-                : null;
-            const roundedPercentage =
-              typeof percentage === 'number' && Number.isFinite(percentage)
-                ? Math.round(percentage)
-                : null;
-
-            if (computedAddress !== null && roundedPercentage !== null) {
-              appendFlashLog(
-                `Writing at 0x${computedAddress.toString(16)}... (${roundedPercentage}%)`
-              );
-            } else {
-              appendFlashLog(`${installState.state}${messageText}${progressText}`);
-            }
-          } else {
-            appendFlashLog(`${installState.state}${messageText}${progressText}`);
-          }
-        }
-      }
-
-      const dialogError = dialog._error;
-      if (dialogError && dialogError !== previousDialogError) {
-        previousDialogError = dialogError;
-        setFlashStatus('error');
-        appendFlashLog(t('modal.logs.dialogError', { error: dialogError }));
-      }
-    }, 250);
-  }
-
-  function attachDialogToModal(dialog: EwtInstallDialogElement) {
-    const host = flashDialogHostRef.current;
-    if (!host) {
-      setFlashStatus('error');
-      appendFlashLog(t('modal.logs.hostMissing'));
-      return;
-    }
-
-    clearFlashHost();
-    applyDialogTheme(dialog);
-    host.appendChild(dialog);
-    activeDialogRef.current = dialog;
-    setIsDialogMounted(true);
-    setFlashStatus('dialog_ready');
-    appendFlashLog(t('modal.logs.dialogAttached'));
-
-    dialog.addEventListener(
-      'closed',
-      () => {
-        appendFlashLog(t('modal.logs.dialogClosed'));
-        teardownFlashSession(true);
-        setFlashStatus('idle');
-      },
-      { once: true }
-    );
-
-    startDialogStatePolling();
-  }
-
-  function observeDialogCreation() {
-    stopDialogObserver();
-
-    const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (!(node instanceof HTMLElement)) {
-            continue;
-          }
-
-          if (node.tagName.toLowerCase() !== 'ewt-install-dialog') {
-            continue;
-          }
-
-          stopDialogObserver();
-          clearDialogAttachTimeout();
-          attachDialogToModal(node as EwtInstallDialogElement);
-          return;
-        }
-      }
-    });
-
-    observer.observe(document.body, { childList: true });
-    dialogObserverRef.current = observer;
-
-    clearDialogAttachTimeout();
-    dialogAttachTimeoutRef.current = window.setTimeout(() => {
-      if (activeDialogRef.current) {
-        return;
-      }
-
-      stopDialogObserver();
-      setFlashStatus('idle');
-      appendFlashLog(t('modal.logs.noDialogDetected'));
-    }, 20_000);
-  }
-
-  function prepareFlasherLaunch() {
+  async function openPortForFlashing() {
     if (!selectedFirmware) {
       return;
     }
@@ -474,29 +555,438 @@ export default function SoftwaresClient() {
       return;
     }
 
-    teardownFlashSession(true);
-    setFlashLogs([]);
-    setFlashProgress(null);
-    setManifestToken(Date.now());
+    if (!window.isSecureContext) {
+      setFlashStatus('error');
+      appendFlashLog(t('modal.logs.notSecureContext'));
+      return;
+    }
+
+    setIsPortPicking(true);
+    setShowFlashConfirm(false);
+    setSelectedSerialPort(null);
     setFlashStatus('waiting_for_port');
+    setActiveLogView('flash');
     appendFlashLog(t('modal.logs.requestingPort'));
 
-    void prepareFlashAddressMap(manifestUrl, selectedFirmware.chipFamily);
-    observeDialogCreation();
+    try {
+      const serialApi = (navigator as SerialNavigator).serial;
+      if (!serialApi) {
+        throw new Error(t('modal.logs.chromeRequired'));
+      }
+
+      const pickedPort = await serialApi.requestPort({});
+      appendFlashLog(t('modal.logs.checkingPort'));
+      await probePortAvailability(pickedPort);
+      setSelectedSerialPort(pickedPort);
+      setShowFlashConfirm(true);
+      setFlashStatus('dialog_ready');
+      appendFlashLog(t('modal.logs.portSelected'));
+      const portLabel = formatSelectedPort(pickedPort);
+      if (portLabel) {
+        appendFlashLog(t('modal.logs.portInfo', { info: portLabel }));
+      }
+      appendFlashLog(t('modal.logs.portAvailable'));
+      appendFlashLog(t('modal.logs.readyToConfirm'));
+    } catch (error) {
+      const message = normalizePortErrorMessage(error);
+
+      setFlashStatus(message === t('modal.logs.userCancelled') ? 'idle' : 'error');
+      appendFlashLog(t('modal.logs.flashError', { error: message }));
+    } finally {
+      setIsPortPicking(false);
+    }
+  }
+
+  async function startIntegratedFlasher() {
+    if (!selectedFirmware) {
+      return;
+    }
+
+    if (!selectedSerialPort) {
+      appendFlashLog(t('modal.logs.noPortSelected'));
+      return;
+    }
+
+    if (!isGoogleChrome || !isWebSerialSupported) {
+      setFlashStatus('error');
+      appendFlashLog(t('modal.logs.chromeRequired'));
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      setFlashStatus('error');
+      appendFlashLog(t('modal.logs.notSecureContext'));
+      return;
+    }
+
+    if (isSerialMonitoring || isSerialMonitorStarting) {
+      await stopSerialMonitor({ silent: true, switchToFlashLogs: true });
+    }
+
+    teardownFlashSession(true);
+    setIsFlashing(true);
+    setIsDialogMounted(true);
+    setShowFlashConfirm(false);
+    setFlashProgress(null);
+    setManifestToken(Date.now());
+    setFlashStatus('installing');
+    setActiveLogView('flash');
+    lastProgressPercentRef.current = -1;
+    partProgressByIndexRef.current = {};
+    lastProgressBytesRef.current = 0;
+    lastProgressAddressRef.current = 0;
+    terminalBufferRef.current = '';
+    appendFlashLog(t('modal.logs.flashConfirmed'));
+
+    let transport: EsptoolTransport | null = null;
+    let flashSucceeded = false;
+
+    try {
+      appendFlashLog(t('modal.logs.loadingFlasherLib'));
+
+      const dynamicImport = new Function(
+        'modulePath',
+        'return import(modulePath);'
+      ) as (modulePath: string) => Promise<unknown>;
+
+      const moduleCandidates = [
+        'https://cdn.jsdelivr.net/npm/esptool-js/+esm',
+        'https://esm.sh/esptool-js?bundle',
+      ];
+
+      let esptoolModule: EsptoolModule | null = null;
+      let lastLoadError: unknown = null;
+
+      for (const moduleUrl of moduleCandidates) {
+        try {
+          esptoolModule = (await dynamicImport(moduleUrl)) as EsptoolModule;
+          appendFlashLog(t('modal.logs.flasherLibLoadedFrom', { url: moduleUrl }));
+          break;
+        } catch (error) {
+          lastLoadError = error;
+          appendFlashLog(t('modal.logs.flasherLibLoadFailed', { url: moduleUrl }));
+        }
+      }
+
+      if (!esptoolModule) {
+        throw lastLoadError instanceof Error
+          ? lastLoadError
+          : new Error('Unable to load esptool-js');
+      }
+
+      const terminal = buildTerminalLogger();
+      transport = new esptoolModule.Transport(selectedSerialPort, true);
+
+      appendFlashLog(t('modal.logs.connectingBootloader'));
+      const loader = new esptoolModule.ESPLoader({
+        transport,
+        baudrate: 115200,
+        terminal,
+        debugLogging: false,
+      });
+
+      const detectedChip = await loader.main();
+      const chipFamily = normalizeChipFamily(detectedChip);
+      appendFlashLog(t('modal.logs.chipDetected', { chip: detectedChip }));
+      appendFlashLog(t('modal.logs.chipFamilyUsed', { chip: chipFamily }));
+
+      const manifest = await loadManifest(manifestUrl);
+      appendFlashLog(t('modal.logs.manifestLoaded'));
+
+      const build = manifest.builds.find(
+        (candidate) => candidate.chipFamily.toUpperCase() === chipFamily.toUpperCase()
+      );
+      if (!build) {
+        throw new Error(
+          t('modal.logs.unsupportedChip', {
+            chip: `${detectedChip} -> ${chipFamily}`,
+          })
+        );
+      }
+
+      setFlashStatus('dialog_ready');
+      appendFlashLog(t('modal.logs.downloadingBinaries'));
+
+      const binaries: Array<{
+        address: number;
+        bytes: Uint8Array;
+        binaryString: string;
+        path: string;
+      }> = [];
+      for (const part of build.parts) {
+        const resolvedPath = resolvePartUrl(manifestUrl, part.path);
+        const bytes = await fetchBinary(resolvedPath);
+        binaries.push({
+          address: part.offset,
+          bytes,
+          binaryString: uint8ToBinaryString(bytes),
+          path: part.path,
+        });
+        appendFlashLog(
+          t('modal.logs.fileDownloaded', { path: part.path, size: String(bytes.byteLength) })
+        );
+      }
+
+      const prefixTotals: number[] = [];
+      let globalTotal = 0;
+      for (const binary of binaries) {
+        prefixTotals.push(globalTotal);
+        globalTotal += binary.bytes.byteLength;
+      }
+
+      if (eraseBeforeFlash) {
+        appendFlashLog(t('modal.logs.eraseStart'));
+        await loader.eraseFlash();
+        appendFlashLog(t('modal.logs.eraseDone'));
+      }
+
+      setFlashStatus('installing');
+      appendFlashLog(t('modal.logs.startWrite'));
+
+      await loader.writeFlash({
+        fileArray: binaries.map((binary) => ({
+          data: binary.binaryString,
+          address: binary.address,
+        })),
+        eraseAll: false,
+        compress: true,
+        flashMode: 'keep',
+        flashFreq: 'keep',
+        flashSize: 'keep',
+        reportProgress: (fileIndex, written, total) => {
+          const currentBinary = binaries[fileIndex];
+          const fileOffset = currentBinary?.address ?? 0;
+          const boundedTotal = Math.max(1, total);
+          const boundedWritten = Math.max(0, Math.min(written, boundedTotal));
+          const globalWritten = Math.min(
+            globalTotal,
+            (prefixTotals[fileIndex] ?? 0) + boundedWritten
+          );
+          const stableGlobalWritten = Math.max(lastProgressBytesRef.current, globalWritten);
+          lastProgressBytesRef.current = stableGlobalWritten;
+
+          const percentage =
+            globalTotal > 0 ? Math.floor((stableGlobalWritten / globalTotal) * 100) : 0;
+          const stablePercentage = Math.max(lastProgressPercentRef.current, percentage);
+          const stableAddress = Math.max(lastProgressAddressRef.current, fileOffset + boundedWritten);
+          lastProgressAddressRef.current = stableAddress;
+          setFlashProgress(stablePercentage);
+
+          if (stablePercentage !== lastProgressPercentRef.current) {
+            lastProgressPercentRef.current = stablePercentage;
+          }
+
+          const partProgressPercent = Math.floor((boundedWritten / boundedTotal) * 100);
+          const previousPartProgress = partProgressByIndexRef.current[fileIndex] ?? -1;
+          const stablePartProgress = Math.max(previousPartProgress, partProgressPercent);
+          if (stablePartProgress !== previousPartProgress) {
+            partProgressByIndexRef.current[fileIndex] = stablePartProgress;
+            const partName = getPartDisplayName(currentBinary?.path ?? '', fileIndex);
+            appendFlashLog(
+              t('modal.logs.partWriteProgress', {
+                name: partName,
+                address: formatHexAddress(fileOffset),
+                current: formatHexAddress(fileOffset + boundedWritten),
+                value: String(stablePartProgress),
+              })
+            );
+          }
+        },
+      });
+
+      await loader.after();
+      setFlashProgress(100);
+      setFlashStatus('finished');
+      appendFlashLog(t('modal.logs.finished'));
+      flashSucceeded = true;
+    } catch (error) {
+      const message = normalizePortErrorMessage(error);
+
+      setFlashStatus('error');
+      appendFlashLog(t('modal.logs.flashError', { error: message }));
+    } finally {
+      if (transport) {
+        try {
+          await transport.disconnect();
+        } catch {
+          // Ignore disconnect errors; port may already be closed.
+        }
+      }
+      if (flashSucceeded && selectedSerialPort) {
+        appendFlashLog(t('modal.logs.resetStart'));
+        try {
+          const hasReset = await pulseBoardReset(selectedSerialPort);
+          appendFlashLog(hasReset ? t('modal.logs.resetDone') : t('modal.logs.resetSkipped'));
+        } catch (error) {
+          appendFlashLog(t('modal.logs.resetFailed', { error: normalizePortErrorMessage(error) }));
+        }
+      }
+      setIsFlashing(false);
+      if (flashSucceeded) {
+        void startSerialMonitor({ ignoreFlashingGuard: true });
+      }
+    }
+  }
+
+  async function copyLogsToClipboard() {
+    const logsToCopy =
+      activeLogView === 'serial' ? [...flashLogs, ...serialMonitorLogs] : flashLogs;
+    if (logsToCopy.length === 0 || isCopyingLogs) {
+      return;
+    }
+
+    setIsCopyingLogs(true);
+    const text = logsToCopy.join('\n');
+    const appendCopyMessage = (success: boolean) => {
+      const message = success ? t('modal.logs.logsCopied') : t('modal.logs.logsCopyFailed');
+      if (activeLogView === 'serial') {
+        appendSerialMonitorLog(message);
+      } else {
+        appendFlashLog(message);
+      }
+    };
+
+    try {
+      await navigator.clipboard.writeText(text);
+      appendCopyMessage(true);
+    } catch {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        appendCopyMessage(true);
+      } catch {
+        appendCopyMessage(false);
+      }
+    } finally {
+      setIsCopyingLogs(false);
+    }
+  }
+
+  async function startSerialMonitor(options?: { ignoreFlashingGuard?: boolean }) {
+    const ignoreFlashingGuard = options?.ignoreFlashingGuard ?? false;
+    if ((!ignoreFlashingGuard && isFlashing) || isSerialMonitorStarting || isSerialMonitoring) {
+      return;
+    }
+
+    if (!isGoogleChrome || !isWebSerialSupported) {
+      setActiveLogView('flash');
+      appendFlashLog(t('modal.logs.chromeRequired'));
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      setActiveLogView('flash');
+      appendFlashLog(t('modal.logs.notSecureContext'));
+      return;
+    }
+
+    setIsSerialMonitorStarting(true);
+    setActiveLogView('serial');
+    serialMonitorStopRequestedRef.current = false;
+    appendSerialMonitorLog(t('modal.logs.serialMonitorStarting'));
+
+    try {
+      let monitorPort = selectedSerialPort;
+      if (!monitorPort) {
+        appendSerialMonitorLog(t('modal.logs.serialMonitorRequestingPort'));
+        const serialApi = (navigator as SerialNavigator).serial;
+        if (!serialApi) {
+          throw new Error(t('modal.logs.chromeRequired'));
+        }
+        monitorPort = await serialApi.requestPort({});
+        setSelectedSerialPort(monitorPort);
+        appendSerialMonitorLog(t('modal.logs.portSelected'));
+      }
+
+      const serialPort = asSerialPort(monitorPort);
+      if (!serialPort?.open) {
+        throw new Error(t('modal.logs.serialMonitorUnsupported'));
+      }
+
+      if (!serialPort.readable) {
+        await serialPort.open({ baudRate: 115200 });
+        serialMonitorOpenedLocallyRef.current = true;
+      } else {
+        serialMonitorOpenedLocallyRef.current = false;
+      }
+
+      if (!serialPort.readable) {
+        throw new Error(t('modal.logs.serialMonitorNoReadable'));
+      }
+
+      serialMonitorPortRef.current = monitorPort;
+      serialMonitorBufferRef.current = '';
+      const reader = serialPort.readable.getReader();
+      serialMonitorReaderRef.current = reader;
+      setIsSerialMonitoring(true);
+      setIsSerialMonitorStarting(false);
+      appendSerialMonitorLog(t('modal.logs.serialMonitorStarted'));
+
+      const decoder = new TextDecoder();
+      while (!serialMonitorStopRequestedRef.current) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        if (!value || value.length === 0) {
+          continue;
+        }
+
+        serialMonitorBufferRef.current += decoder.decode(value, { stream: true });
+        const lines = serialMonitorBufferRef.current.split(/\r?\n/);
+        serialMonitorBufferRef.current = lines.pop() ?? '';
+        for (const line of lines) {
+          if (line.length > 0) {
+            appendSerialMonitorLog(line);
+          }
+        }
+      }
+
+      const tail = serialMonitorBufferRef.current.trim();
+      if (tail.length > 0) {
+        appendSerialMonitorLog(tail);
+      }
+    } catch (error) {
+      appendSerialMonitorLog(
+        t('modal.logs.serialMonitorError', { error: normalizePortErrorMessage(error) })
+      );
+    } finally {
+      const stoppedByUser = serialMonitorStopRequestedRef.current;
+      await cleanupSerialMonitorConnection();
+      setIsSerialMonitoring(false);
+      setIsSerialMonitorStarting(false);
+      serialMonitorStopRequestedRef.current = false;
+      if (!stoppedByUser) {
+        appendSerialMonitorLog(t('modal.logs.serialMonitorStopped'));
+      }
+    }
+  }
+
+  function clearActiveLogs() {
+    if (activeLogView === 'serial') {
+      setFlashLogs([]);
+      setSerialMonitorLogs([]);
+      return;
+    }
+    setFlashLogs([]);
   }
 
   const manifestUrl = selectedFirmware
     ? `${selectedFirmware.manifestPath}?ts=${manifestToken}`
     : '';
+  const visibleLogs =
+    activeLogView === 'serial' ? [...flashLogs, ...serialMonitorLogs] : flashLogs;
 
   return (
     <>
-      <Script
-        src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"
-        type="module"
-        strategy="afterInteractive"
-      />
-
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t('sections.firmwares')}</h2>
         {firmwareSoftwares.length === 0 && <p className={styles.infoText}>{t('states.noFirmware')}</p>}
@@ -584,33 +1074,73 @@ export default function SoftwaresClient() {
             </div>
 
             <div className={styles.modalActions}>
-              <esp-web-install-button
-                manifest={manifestUrl}
-                className={styles.embeddedInstallButton}
-                onClickCapture={prepareFlasherLaunch}
+              <button
+                type="button"
+                className={styles.flashButton}
+                onClick={() => {
+                  void openPortForFlashing();
+                }}
+                disabled={
+                  !isGoogleChrome ||
+                  !isWebSerialSupported ||
+                  isFlashing ||
+                  isPortPicking ||
+                  isSerialMonitoring ||
+                  isSerialMonitorStarting
+                }
               >
-                <button
-                  type="button"
-                  slot="activate"
-                  className={styles.flashButton}
-                  disabled={!isGoogleChrome || !isWebSerialSupported}
-                >
-                  {t('modal.launchFlasher')}
-                </button>
-                <span slot="unsupported" className={styles.warningText}>
-                  {t('modal.chromeOnly')}
-                </span>
-                <span slot="not-allowed" className={styles.warningText}>
-                  {t('modal.notSecureContext')}
-                </span>
-              </esp-web-install-button>
+                {isPortPicking ? t('modal.openingPort') : t('modal.openPort')}
+              </button>
+              {showFlashConfirm && (
+                <>
+                  <button
+                    type="button"
+                    className={styles.confirmFlashButton}
+                    onClick={() => {
+                      void startIntegratedFlasher();
+                    }}
+                    disabled={
+                      !isGoogleChrome ||
+                      !isWebSerialSupported ||
+                      isFlashing ||
+                      isSerialMonitoring ||
+                      isSerialMonitorStarting
+                    }
+                  >
+                    {t('modal.confirmFlash')}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => {
+                      setShowFlashConfirm(false);
+                      setSelectedSerialPort(null);
+                      setFlashStatus('idle');
+                      appendFlashLog(t('modal.logs.portReset'));
+                    }}
+                    disabled={isFlashing}
+                  >
+                    {t('modal.cancelFlash')}
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 className={styles.secondaryButton}
-                onClick={() => setFlashLogs([])}
-                disabled={flashLogs.length === 0}
+                onClick={() => {
+                  if (isSerialMonitoring || isSerialMonitorStarting) {
+                    void stopSerialMonitor({ switchToFlashLogs: false });
+                    return;
+                  }
+                  void startSerialMonitor();
+                }}
+                disabled={isFlashing || isPortPicking}
               >
-                {t('modal.clearLiveLogs')}
+                {isSerialMonitoring
+                  ? t('modal.stopSerialMonitor')
+                  : isSerialMonitorStarting
+                    ? t('modal.startingSerialMonitor')
+                    : t('modal.startSerialMonitor')}
               </button>
             </div>
 
@@ -627,14 +1157,41 @@ export default function SoftwaresClient() {
                 </p>
               )}
               <p className={styles.infoText}>{t('modal.integratedHint')}</p>
-              <div ref={flashDialogHostRef} className={styles.flashDialogHost} />
               {!isDialogMounted && (
                 <p className={styles.infoText}>{t('modal.dialogPlaceholder')}</p>
               )}
 
               <div className={styles.liveLogs}>
-                <p className={styles.liveLogsTitle}>{t('modal.liveLogsTitle')}</p>
-                <pre>{flashLogs.length > 0 ? flashLogs.join('\n') : t('modal.liveLogsEmpty')}</pre>
+                <div className={styles.liveLogsHeader}>
+                  <p className={styles.liveLogsTitle}>
+                    {activeLogView === 'serial'
+                      ? t('modal.serialMonitorTitle')
+                      : t('modal.liveLogsTitle')}
+                  </p>
+                  <div className={styles.logActions}>
+                    <button
+                      type="button"
+                      className={styles.logActionButton}
+                      onClick={() => {
+                        void copyLogsToClipboard();
+                      }}
+                      disabled={visibleLogs.length === 0 || isCopyingLogs}
+                    >
+                      {isCopyingLogs ? t('modal.copyingLogs') : t('modal.copyLogs')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.logActionButton}
+                      onClick={clearActiveLogs}
+                      disabled={visibleLogs.length === 0}
+                    >
+                      {t('modal.clearLiveLogs')}
+                    </button>
+                  </div>
+                </div>
+                <pre ref={logContainerRef}>
+                  {visibleLogs.length > 0 ? visibleLogs.join('\n') : t('modal.liveLogsEmpty')}
+                </pre>
               </div>
             </div>
           </div>

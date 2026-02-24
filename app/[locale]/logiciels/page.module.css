@@ -92,7 +92,8 @@
 
 .primaryButton,
 .secondaryButton,
-.flashButton {
+.flashButton,
+.confirmFlashButton {
   border: 1px solid var(--foreground);
   border-radius: 8px;
   padding: 10px 14px;
@@ -113,6 +114,16 @@
   opacity: 0.9;
 }
 
+.confirmFlashButton {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.confirmFlashButton:hover {
+  opacity: 0.9;
+}
+
 .secondaryButton {
   background: transparent;
   color: var(--foreground);
@@ -125,7 +136,8 @@
 
 .primaryButton:disabled,
 .secondaryButton:disabled,
-.flashButton:disabled {
+.flashButton:disabled,
+.confirmFlashButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -249,11 +261,6 @@
   flex-wrap: wrap;
 }
 
-.embeddedInstallButton {
-  display: inline-flex;
-  width: fit-content;
-}
-
 .flashPanel {
   border-top: 1px solid var(--border);
   padding-top: 14px;
@@ -309,23 +316,49 @@
   border-color: rgba(255, 122, 122, 0.5);
 }
 
-.flashDialogHost {
-  min-height: 96px;
-}
-
-.flashDialogHost :global(ewt-install-dialog) {
-  display: block;
-}
-
 .liveLogs {
   border-top: 1px solid var(--border);
   padding-top: 10px;
 }
 
+.liveLogsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 .liveLogsTitle {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: 14px;
   opacity: 0.85;
+}
+
+.logActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logActionButton {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logActionButton:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.logActionButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .liveLogs pre {
