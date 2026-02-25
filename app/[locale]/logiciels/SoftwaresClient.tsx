@@ -60,11 +60,13 @@ type EsptoolModule = {
 type SerialNavigator = Navigator & {
   serial?: {
     requestPort: (options?: unknown) => Promise<unknown>;
+    getPorts?: () => Promise<unknown[]>;
   };
 };
 
 type SerialPortLike = {
   readable?: ReadableStream<Uint8Array> | null;
+  writable?: WritableStream<Uint8Array> | null;
   open?: (options: { baudRate: number }) => Promise<void>;
   close?: () => Promise<void>;
   setSignals?: (signals: {
@@ -77,6 +79,8 @@ type SerialPortLike = {
     usbProductId?: number;
   };
 };
+
+type ConfigFieldType = 'boolean' | 'number' | 'string' | 'json';
 
 function uint8ToBinaryString(bytes: Uint8Array): string {
   // Keep byte-perfect conversion (0x00-0xFF) for esptool-js string input.
@@ -153,6 +157,10 @@ export default function SoftwaresClient() {
   const [isSerialMonitoring, setIsSerialMonitoring] = useState(false);
   const [isSerialMonitorStarting, setIsSerialMonitorStarting] = useState(false);
   const [activeLogView, setActiveLogView] = useState<'flash' | 'serial'>('flash');
+  const [isConfigTemplateLoading, setIsConfigTemplateLoading] = useState(false);
+  const [configFieldOrder, setConfigFieldOrder] = useState<string[]>([]);
+  const [configFieldTypes, setConfigFieldTypes] = useState<Record<string, ConfigFieldType>>({});
+  const [configDraftValues, setConfigDraftValues] = useState<Record<string, string | boolean>>({});
 
   const logContainerRef = useRef<HTMLPreElement | null>(null);
   const terminalBufferRef = useRef('');
@@ -165,6 +173,9 @@ export default function SoftwaresClient() {
   const serialMonitorPortRef = useRef<unknown | null>(null);
   const serialMonitorOpenedLocallyRef = useRef(false);
   const serialMonitorStopRequestedRef = useRef(false);
+  const openPortInFlightRef = useRef(false);
+  const releasePortInFlightRef = useRef(false);
+  const flashStartInFlightRef = useRef(false);
 
   const firmwareSoftwares = useMemo(
     () => softwaresCatalog.filter((software): software is FirmwareSoftware => software.kind === 'firmware'),
@@ -217,12 +228,110 @@ export default function SoftwaresClient() {
     setSerialMonitorLogs((previous) => [...previous, `[${timestamp}] ${message}`].slice(-400));
   }
 
+  useEffect(() => {
+    if (!isModalOpen || !selectedFirmware?.configTemplatePath) {
+      setIsConfigTemplateLoading(false);
+      setConfigFieldOrder([]);
+      setConfigFieldTypes({});
+      setConfigDraftValues({});
+      return;
+    }
+
+    let isCancelled = false;
+    setIsConfigTemplateLoading(true);
+    appendFlashLog(t('modal.logs.loadingConfigTemplate'));
+
+    const templateUrl = `${selectedFirmware.configTemplatePath}?ts=${Date.now()}`;
+    void (async () => {
+      try {
+        const template = await loadConfigTemplate(templateUrl);
+        if (isCancelled) {
+          return;
+        }
+
+        const draft = buildConfigDraftFromTemplate(template);
+        setConfigFieldOrder(draft.order);
+        setConfigFieldTypes(draft.types);
+        setConfigDraftValues(draft.values);
+        appendFlashLog(t('modal.logs.configTemplateLoaded'));
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        setConfigFieldOrder([]);
+        setConfigFieldTypes({});
+        setConfigDraftValues({});
+        appendFlashLog(
+          t('modal.logs.configTemplateLoadFailed', { error: normalizePortErrorMessage(error) })
+        );
+      } finally {
+        if (!isCancelled) {
+          setIsConfigTemplateLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isModalOpen, selectedFirmware?.id, selectedFirmware?.configTemplatePath]);
+
   function asSerialPort(port: unknown): SerialPortLike | null {
     if (!port || typeof port !== 'object') {
       return null;
     }
 
     return port as SerialPortLike;
+  }
+
+  function isPortOpen(port: unknown): boolean {
+    const serialPort = asSerialPort(port);
+    return Boolean(serialPort?.readable || serialPort?.writable);
+  }
+
+  async function getGrantedPorts(): Promise<unknown[]> {
+    const serialApi = (navigator as SerialNavigator).serial;
+    if (!serialApi?.getPorts) {
+      return [];
+    }
+
+    try {
+      return await serialApi.getPorts();
+    } catch {
+      return [];
+    }
+  }
+
+  async function getFirstOpenGrantedPort(): Promise<unknown | null> {
+    const ports = await getGrantedPorts();
+    return ports.find((port) => isPortOpen(port)) ?? null;
+  }
+
+  async function closeOpenGrantedPorts(excludedPorts: unknown[] = []): Promise<number> {
+    const excluded = new Set(excludedPorts);
+    const ports = await getGrantedPorts();
+    let closedCount = 0;
+
+    for (const port of ports) {
+      if (excluded.has(port)) {
+        continue;
+      }
+
+      const serialPort = asSerialPort(port);
+      if (!serialPort?.close || !isPortOpen(port)) {
+        continue;
+      }
+
+      try {
+        await serialPort.close();
+        closedCount += 1;
+      } catch {
+        // Ignore close failures for already-closing ports.
+      }
+    }
+
+    return closedCount;
   }
 
   function sleep(ms: number): Promise<void> {
@@ -273,6 +382,99 @@ export default function SoftwaresClient() {
     return message;
   }
 
+  function detectConfigFieldType(value: unknown): ConfigFieldType {
+    if (typeof value === 'boolean') {
+      return 'boolean';
+    }
+    if (typeof value === 'number') {
+      return 'number';
+    }
+    if (typeof value === 'string') {
+      return 'string';
+    }
+    return 'json';
+  }
+
+  function buildConfigDraftFromTemplate(template: Record<string, unknown>): {
+    order: string[];
+    types: Record<string, ConfigFieldType>;
+    values: Record<string, string | boolean>;
+  } {
+    const order = Object.keys(template);
+    const types: Record<string, ConfigFieldType> = {};
+    const values: Record<string, string | boolean> = {};
+
+    for (const key of order) {
+      const value = template[key];
+      const fieldType = detectConfigFieldType(value);
+      types[key] = fieldType;
+
+      if (fieldType === 'boolean') {
+        values[key] = Boolean(value);
+        continue;
+      }
+
+      if (fieldType === 'number') {
+        values[key] =
+          typeof value === 'number' && Number.isFinite(value) ? String(value) : '0';
+        continue;
+      }
+
+      if (fieldType === 'string') {
+        values[key] = typeof value === 'string' ? value : '';
+        continue;
+      }
+
+      try {
+        values[key] = JSON.stringify(value ?? null, null, 2);
+      } catch {
+        values[key] = 'null';
+      }
+    }
+
+    return { order, types, values };
+  }
+
+  function buildSerialConfigPayload(): Record<string, unknown> | null {
+    if (!selectedFirmware?.configTemplatePath || configFieldOrder.length === 0) {
+      return null;
+    }
+
+    const payload: Record<string, unknown> = {};
+    for (const key of configFieldOrder) {
+      const fieldType = configFieldTypes[key];
+      const rawValue = configDraftValues[key];
+
+      if (fieldType === 'boolean') {
+        payload[key] = Boolean(rawValue);
+        continue;
+      }
+
+      const normalizedRaw = typeof rawValue === 'string' ? rawValue : '';
+      if (fieldType === 'number') {
+        const parsed = Number(normalizedRaw);
+        if (!Number.isFinite(parsed)) {
+          throw new Error(t('errors.invalidNumberField', { field: key }));
+        }
+        payload[key] = parsed;
+        continue;
+      }
+
+      if (fieldType === 'string') {
+        payload[key] = normalizedRaw;
+        continue;
+      }
+
+      try {
+        payload[key] = JSON.parse(normalizedRaw);
+      } catch {
+        throw new Error(t('errors.invalidJsonField', { field: key }));
+      }
+    }
+
+    return payload;
+  }
+
   function shouldIgnoreTerminalLine(line: string): boolean {
     const normalized = line.trim().toLowerCase();
     return normalized.startsWith('writing at 0x') || normalized.includes('esp32');
@@ -297,7 +499,7 @@ export default function SoftwaresClient() {
       return;
     }
 
-    if (serialPort.readable) {
+    if (isPortOpen(serialPort)) {
       throw new Error(t('modal.logs.portBusy'));
     }
 
@@ -342,7 +544,7 @@ export default function SoftwaresClient() {
     serialMonitorBufferRef.current = '';
 
     const serialPort = asSerialPort(monitorPort);
-    const shouldAttemptClose = Boolean(serialPort?.close) && (openedLocally || Boolean(serialPort?.readable));
+    const shouldAttemptClose = Boolean(serialPort?.close) && (openedLocally || isPortOpen(serialPort));
     if (shouldAttemptClose && serialPort?.close) {
       try {
         await serialPort.close();
@@ -354,7 +556,7 @@ export default function SoftwaresClient() {
 
   async function closePortIfOpen(port: unknown): Promise<boolean> {
     const serialPort = asSerialPort(port);
-    if (!serialPort?.close || !serialPort.readable) {
+    if (!serialPort?.close) {
       return false;
     }
 
@@ -366,13 +568,19 @@ export default function SoftwaresClient() {
     }
   }
 
-  async function releaseSelectedPort(options?: { silent?: boolean; keepSelection?: boolean }) {
-    const silent = options?.silent ?? false;
-    const keepSelection = options?.keepSelection ?? false;
-    const currentPort = selectedSerialPort;
-    if (!currentPort && !isSerialMonitoring && !isSerialMonitorStarting) {
+  async function releaseSelectedPort(options?: {
+    silent?: boolean;
+    keepSelection?: boolean;
+    port?: unknown;
+  }) {
+    if (releasePortInFlightRef.current) {
       return;
     }
+
+    releasePortInFlightRef.current = true;
+    const silent = options?.silent ?? false;
+    const keepSelection = options?.keepSelection ?? false;
+    const currentPort = options?.port ?? selectedSerialPort ?? serialMonitorPortRef.current;
 
     setIsPortReleasing(true);
     try {
@@ -380,8 +588,22 @@ export default function SoftwaresClient() {
         await stopSerialMonitor({ silent: true, switchToFlashLogs: false });
       }
 
-      const wasReleased = await closePortIfOpen(currentPort);
-      if (!silent && (wasReleased || Boolean(currentPort))) {
+      const wasReleased = currentPort ? await closePortIfOpen(currentPort) : false;
+      const additionalReleased = await closeOpenGrantedPorts(currentPort ? [currentPort] : []);
+      const releasedCount = (wasReleased ? 1 : 0) + additionalReleased;
+
+      const remainingOpenPort = await getFirstOpenGrantedPort();
+      if (remainingOpenPort) {
+        setSelectedSerialPort(remainingOpenPort);
+        setShowFlashConfirm(false);
+        setFlashStatus('error');
+        if (!silent) {
+          appendFlashLog(t('modal.logs.portReleaseFailed'));
+        }
+        return;
+      }
+
+      if (!silent && releasedCount > 0) {
         appendFlashLog(t('modal.logs.portReleased'));
       }
 
@@ -391,6 +613,7 @@ export default function SoftwaresClient() {
       }
     } finally {
       setIsPortReleasing(false);
+      releasePortInFlightRef.current = false;
     }
   }
 
@@ -441,6 +664,152 @@ export default function SoftwaresClient() {
     }
   }
 
+  function serialConfigDebug(message: string) {
+    appendFlashLog(t('modal.logs.serialConfigDebug', { message }));
+  }
+
+  async function sendFirstBootSerialConfig(
+    port: unknown,
+    payload: Record<string, unknown>
+  ): Promise<void> {
+    if (!selectedFirmware?.configTemplatePath) {
+      return;
+    }
+
+    const serialPort = asSerialPort(port);
+    if (!serialPort?.open) {
+      appendFlashLog(t('modal.logs.serialConfigUnsupported'));
+      return;
+    }
+
+    appendFlashLog(t('modal.logs.serialConfigHandshakeMode'));
+
+    const prefix = selectedFirmware.serialConfigPrefix ?? 'WEBCFG:';
+    const readyMarker = 'WEBCFG:READY';
+    const baudRate = selectedFirmware.serialConfigBaudRate ?? 115200;
+    const payloadLine = `${prefix}${JSON.stringify(payload)}\n`;
+    const waitReadyTimeoutMs = 25000;
+    const debugIntervalMs = 2000;
+    let openedLocally = false;
+
+    try {
+      serialConfigDebug(`isPortOpen=${isPortOpen(serialPort)}`);
+      if (!isPortOpen(serialPort)) {
+        serialConfigDebug(`Opening port at ${baudRate} baud...`);
+        await serialPort.open({ baudRate });
+        openedLocally = true;
+        serialConfigDebug('Port opened.');
+      }
+
+      const readable = serialPort.readable;
+      serialConfigDebug(`readable stream: ${readable ? 'yes' : 'no'}`);
+      if (!readable) {
+        appendFlashLog(t('modal.logs.serialConfigNoReadable'));
+        return;
+      }
+
+      const reader = readable.getReader();
+      appendFlashLog(
+        t('modal.logs.serialConfigWaitingReadyLong', { seconds: String(waitReadyTimeoutMs / 1000) })
+      );
+      serialConfigDebug(`Listening for "${readyMarker}" then will reset board...`);
+
+      if (serialPort.setSignals) {
+        appendFlashLog(t('modal.logs.resetStart'));
+        await serialPort.setSignals({ dataTerminalReady: false, requestToSend: true });
+        await sleep(120);
+        await serialPort.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await sleep(120);
+        appendFlashLog(t('modal.logs.resetDone'));
+        serialConfigDebug('Reset pulse sent. Board is booting.');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const deadline = Date.now() + waitReadyTimeoutMs;
+      let readySeen = false;
+      let lastDebugLog = Date.now();
+
+      try {
+        while (Date.now() < deadline) {
+          const { value, done } = await reader.read();
+          if (done) {
+            serialConfigDebug('Read stream ended (done=true).');
+            break;
+          }
+          if (value?.length) {
+            buffer += decoder.decode(value, { stream: true });
+            if (buffer.length > 1024) buffer = buffer.slice(-512);
+            if (buffer.includes(readyMarker)) {
+              readySeen = true;
+              serialConfigDebug(`Found "${readyMarker}" in buffer (${buffer.length} chars).`);
+              break;
+            }
+          }
+          if (Date.now() - lastDebugLog >= debugIntervalMs) {
+            lastDebugLog = Date.now();
+            const preview =
+              buffer.length > 0
+                ? buffer.slice(-120).replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+                : '(empty)';
+            serialConfigDebug(`Still waiting. Buffer ${buffer.length} chars. Last: "${preview}"`);
+          }
+          await sleep(20);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      if (!readySeen) {
+        const tail = buffer.slice(-200).replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+        serialConfigDebug(`Timeout. Buffer had ${buffer.length} chars. Tail: "${tail}"`);
+        appendFlashLog(t('modal.logs.serialConfigReadyTimeout'));
+        return;
+      }
+
+      appendFlashLog(t('modal.logs.serialConfigReadyReceived'));
+      const writable = serialPort.writable;
+      serialConfigDebug(`writable stream: ${writable ? 'yes' : 'no'}`);
+      if (!writable) {
+        appendFlashLog(t('modal.logs.serialConfigNoWritable'));
+        return;
+      }
+
+      appendFlashLog(t('modal.logs.serialConfigSending'));
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
+      const maxEchoLen = 500;
+      const echoLine =
+        payloadLine.length <= maxEchoLen
+          ? payloadLine.trim()
+          : payloadLine.slice(0, maxEchoLen).trim() + '...';
+      appendFlashLog(`${t('modal.logs.sentToBoard')} ${echoLine}`);
+      try {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          await writer.write(encoder.encode(payloadLine));
+          await sleep(140);
+        }
+      } finally {
+        writer.releaseLock();
+      }
+
+      appendFlashLog(t('modal.logs.serialConfigSent'));
+    } catch (error) {
+      appendFlashLog(
+        t('modal.logs.serialConfigSendFailed', { error: normalizePortErrorMessage(error) })
+      );
+      serialConfigDebug(`Exception: ${normalizePortErrorMessage(error)}`);
+    } finally {
+      if (openedLocally && serialPort.close) {
+        try {
+          await serialPort.close();
+        } catch {
+          // Ignore close failures after config transmission.
+        }
+      }
+    }
+  }
+
   function teardownFlashSession(updateUiState: boolean) {
     if (updateUiState) {
       setIsDialogMounted(false);
@@ -476,6 +845,10 @@ export default function SoftwaresClient() {
     setFlashLogs([]);
     setSerialMonitorLogs([]);
     setActiveLogView('flash');
+    setIsConfigTemplateLoading(false);
+    setConfigFieldOrder([]);
+    setConfigFieldTypes({});
+    setConfigDraftValues({});
     terminalBufferRef.current = '';
     serialMonitorBufferRef.current = '';
     lastProgressPercentRef.current = -1;
@@ -500,6 +873,10 @@ export default function SoftwaresClient() {
     setIsPortPicking(false);
     setSelectedSerialPort(null);
     setActiveLogView('flash');
+    setIsConfigTemplateLoading(false);
+    setConfigFieldOrder([]);
+    setConfigFieldTypes({});
+    setConfigDraftValues({});
     terminalBufferRef.current = '';
     serialMonitorBufferRef.current = '';
     lastProgressPercentRef.current = -1;
@@ -533,6 +910,20 @@ export default function SoftwaresClient() {
     }
 
     return (await response.json()) as FirmwareManifest;
+  }
+
+  async function loadConfigTemplate(templatePath: string): Promise<Record<string, unknown>> {
+    const response = await fetch(templatePath, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Config template fetch failed (${response.status})`);
+    }
+
+    const parsed = (await response.json()) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error(t('errors.invalidConfigFormat'));
+    }
+
+    return parsed as Record<string, unknown>;
   }
 
   function buildTerminalLogger(): EsptoolTerminal {
@@ -593,6 +984,10 @@ export default function SoftwaresClient() {
       return;
     }
 
+    if (openPortInFlightRef.current) {
+      return;
+    }
+
     if (isPortReleasing) {
       return;
     }
@@ -609,10 +1004,23 @@ export default function SoftwaresClient() {
       return;
     }
 
-    if (selectedSerialPort && asSerialPort(selectedSerialPort)?.readable) {
-      await releaseSelectedPort({ silent: true, keepSelection: true });
+    if (selectedSerialPort) {
+      setFlashStatus('dialog_ready');
+      setShowFlashConfirm(true);
+      appendFlashLog(t('modal.logs.portAlreadySelected'));
+      return;
     }
 
+    const alreadyOpenPort = await getFirstOpenGrantedPort();
+    if (alreadyOpenPort) {
+      setSelectedSerialPort(alreadyOpenPort);
+      setFlashStatus('error');
+      setShowFlashConfirm(false);
+      appendFlashLog(t('modal.logs.portAlreadyOpen'));
+      return;
+    }
+
+    openPortInFlightRef.current = true;
     setIsPortPicking(true);
     setShowFlashConfirm(false);
     setSelectedSerialPort(null);
@@ -646,11 +1054,16 @@ export default function SoftwaresClient() {
       appendFlashLog(t('modal.logs.flashError', { error: message }));
     } finally {
       setIsPortPicking(false);
+      openPortInFlightRef.current = false;
     }
   }
 
   async function startIntegratedFlasher() {
     if (!selectedFirmware) {
+      return;
+    }
+
+    if (flashStartInFlightRef.current) {
       return;
     }
 
@@ -675,29 +1088,46 @@ export default function SoftwaresClient() {
       return;
     }
 
-    if (isSerialMonitoring || isSerialMonitorStarting) {
-      await stopSerialMonitor({ silent: true, switchToFlashLogs: true });
+    if (selectedFirmware.configTemplatePath && isConfigTemplateLoading) {
+      setFlashStatus('error');
+      appendFlashLog(t('modal.logs.configTemplateStillLoading'));
+      return;
     }
 
-    teardownFlashSession(true);
-    setIsFlashing(true);
-    setIsDialogMounted(true);
-    setShowFlashConfirm(false);
-    setFlashProgress(null);
-    setManifestToken(Date.now());
-    setFlashStatus('installing');
-    setActiveLogView('flash');
-    lastProgressPercentRef.current = -1;
-    partProgressByIndexRef.current = {};
-    lastProgressBytesRef.current = 0;
-    lastProgressAddressRef.current = 0;
-    terminalBufferRef.current = '';
-    appendFlashLog(t('modal.logs.flashConfirmed'));
-
-    let transport: EsptoolTransport | null = null;
-    let flashSucceeded = false;
-
+    let serialConfigPayload: Record<string, unknown> | null = null;
     try {
+      serialConfigPayload = buildSerialConfigPayload();
+    } catch (error) {
+      setFlashStatus('error');
+      appendFlashLog(t('modal.logs.flashError', { error: normalizePortErrorMessage(error) }));
+      return;
+    }
+
+    flashStartInFlightRef.current = true;
+    try {
+      if (isSerialMonitoring || isSerialMonitorStarting) {
+        await stopSerialMonitor({ silent: true, switchToFlashLogs: true });
+      }
+
+      teardownFlashSession(true);
+      setIsFlashing(true);
+      setIsDialogMounted(true);
+      setShowFlashConfirm(false);
+      setFlashProgress(null);
+      setManifestToken(Date.now());
+      setFlashStatus('installing');
+      setActiveLogView('flash');
+      lastProgressPercentRef.current = -1;
+      partProgressByIndexRef.current = {};
+      lastProgressBytesRef.current = 0;
+      lastProgressAddressRef.current = 0;
+      terminalBufferRef.current = '';
+      appendFlashLog(t('modal.logs.flashConfirmed'));
+
+      let transport: EsptoolTransport | null = null;
+      let flashSucceeded = false;
+
+      try {
       appendFlashLog(t('modal.logs.loadingFlasherLib'));
 
       const dynamicImport = new Function(
@@ -871,30 +1301,38 @@ export default function SoftwaresClient() {
 
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.flashError', { error: message }));
+      } finally {
+        if (transport) {
+          try {
+            await transport.disconnect();
+          } catch {
+            // Ignore disconnect errors; port may already be closed.
+          }
+        }
+        if (selectedSerialPort) {
+          await closePortIfOpen(selectedSerialPort);
+        }
+        if (flashSucceeded && selectedSerialPort) {
+          if (serialConfigPayload) {
+            appendFlashLog(t('modal.logs.serialConfigHandshakeMode'));
+            await sendFirstBootSerialConfig(selectedSerialPort, serialConfigPayload);
+          } else {
+            appendFlashLog(t('modal.logs.resetStart'));
+            try {
+              const hasReset = await pulseBoardReset(selectedSerialPort);
+              appendFlashLog(hasReset ? t('modal.logs.resetDone') : t('modal.logs.resetSkipped'));
+            } catch (error) {
+              appendFlashLog(t('modal.logs.resetFailed', { error: normalizePortErrorMessage(error) }));
+            }
+          }
+        }
+        setIsFlashing(false);
+        if (flashSucceeded) {
+          void startSerialMonitor({ ignoreFlashingGuard: true });
+        }
+      }
     } finally {
-      if (transport) {
-        try {
-          await transport.disconnect();
-        } catch {
-          // Ignore disconnect errors; port may already be closed.
-        }
-      }
-      if (selectedSerialPort) {
-        await closePortIfOpen(selectedSerialPort);
-      }
-      if (flashSucceeded && selectedSerialPort) {
-        appendFlashLog(t('modal.logs.resetStart'));
-        try {
-          const hasReset = await pulseBoardReset(selectedSerialPort);
-          appendFlashLog(hasReset ? t('modal.logs.resetDone') : t('modal.logs.resetSkipped'));
-        } catch (error) {
-          appendFlashLog(t('modal.logs.resetFailed', { error: normalizePortErrorMessage(error) }));
-        }
-      }
-      setIsFlashing(false);
-      if (flashSucceeded) {
-        void startSerialMonitor({ ignoreFlashingGuard: true });
-      }
+      flashStartInFlightRef.current = false;
     }
   }
 
@@ -969,6 +1407,12 @@ export default function SoftwaresClient() {
 
     try {
       let monitorPort = selectedSerialPort;
+      const alreadyOpenPort = await getFirstOpenGrantedPort();
+      if (!monitorPort && alreadyOpenPort) {
+        monitorPort = alreadyOpenPort;
+        setSelectedSerialPort(alreadyOpenPort);
+      }
+
       if (!monitorPort) {
         appendSerialMonitorLog(t('modal.logs.serialMonitorRequestingPort'));
         const serialApi = (navigator as SerialNavigator).serial;
@@ -1057,11 +1501,13 @@ export default function SoftwaresClient() {
   const manifestUrl = selectedFirmware
     ? `${selectedFirmware.manifestPath}?ts=${manifestToken}`
     : '';
+  const hasSelectedPort = Boolean(selectedSerialPort);
   const isSelectedPortOpen =
-    Boolean(selectedSerialPort && asSerialPort(selectedSerialPort)?.readable) ||
+    Boolean(selectedSerialPort && isPortOpen(selectedSerialPort)) ||
     isSerialMonitoring ||
     isSerialMonitorStarting ||
     isFlashing;
+  const isPortSessionReserved = hasSelectedPort || isSelectedPortOpen;
   const flashProgressValue =
     flashProgress === null ? 0 : Math.max(0, Math.min(100, Math.round(flashProgress)));
   const visibleLogs =
@@ -1155,12 +1601,84 @@ export default function SoftwaresClient() {
               ))}
             </div>
 
+            {selectedFirmware.configTemplatePath && (
+              <div className={styles.configSection}>
+                <div className={styles.configSectionHeader}>
+                  <h4 className={styles.liveLogsTitle}>{t('modal.configTitle')}</h4>
+                  {isConfigTemplateLoading && (
+                    <span className={styles.cardMeta}>{t('states.loadingConfig')}</span>
+                  )}
+                </div>
+                {!isConfigTemplateLoading && configFieldOrder.length > 0 && (
+                  <>
+                    <p className={styles.cardMeta}>{t('modal.configHint')}</p>
+                    <div className={styles.formGrid}>
+                      {configFieldOrder.map((fieldKey) => {
+                        const fieldType = configFieldTypes[fieldKey];
+                        const fieldValue = configDraftValues[fieldKey];
+
+                        return (
+                          <div key={fieldKey} className={styles.field}>
+                            <span className={styles.fieldLabel}>{fieldKey}</span>
+                            {fieldType === 'boolean' ? (
+                              <label className={styles.checkboxField}>
+                                <input
+                                  type="checkbox"
+                                  className={styles.checkboxInput}
+                                  checked={Boolean(fieldValue)}
+                                  onChange={(event) => {
+                                    const nextValue = event.currentTarget.checked;
+                                    setConfigDraftValues((previous) => ({
+                                      ...previous,
+                                      [fieldKey]: nextValue,
+                                    }));
+                                  }}
+                                />
+                                <span className={styles.cardMeta}>
+                                  {Boolean(fieldValue) ? 'true' : 'false'}
+                                </span>
+                              </label>
+                            ) : fieldType === 'json' ? (
+                              <textarea
+                                className={styles.textarea}
+                                value={typeof fieldValue === 'string' ? fieldValue : ''}
+                                onChange={(event) => {
+                                  const nextValue = event.currentTarget.value;
+                                  setConfigDraftValues((previous) => ({
+                                    ...previous,
+                                    [fieldKey]: nextValue,
+                                  }));
+                                }}
+                              />
+                            ) : (
+                              <input
+                                type={fieldType === 'number' ? 'number' : 'text'}
+                                className={styles.input}
+                                value={typeof fieldValue === 'string' ? fieldValue : ''}
+                                onChange={(event) => {
+                                  const nextValue = event.currentTarget.value;
+                                  setConfigDraftValues((previous) => ({
+                                    ...previous,
+                                    [fieldKey]: nextValue,
+                                  }));
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className={styles.modalActions}>
               <button
                 type="button"
-                className={isSelectedPortOpen ? styles.secondaryButton : styles.flashButton}
+                className={isPortSessionReserved ? styles.secondaryButton : styles.flashButton}
                 onClick={() => {
-                  if (isSelectedPortOpen) {
+                  if (isPortSessionReserved) {
                     void releaseSelectedPort();
                     return;
                   }
@@ -1177,7 +1695,7 @@ export default function SoftwaresClient() {
               >
                 {isPortReleasing
                   ? t('modal.releasingPort')
-                  : isSelectedPortOpen
+                  : isPortSessionReserved
                     ? t('modal.releasePort')
                     : isPortPicking
                       ? t('modal.openingPort')
@@ -1195,6 +1713,7 @@ export default function SoftwaresClient() {
                       !isGoogleChrome ||
                       !isWebSerialSupported ||
                       isFlashing ||
+                      isConfigTemplateLoading ||
                       isSerialMonitoring ||
                       isSerialMonitorStarting ||
                       isPortReleasing

@@ -226,6 +226,21 @@
   gap: 14px;
 }
 
+.configSection {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.configSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -253,6 +268,18 @@
   resize: vertical;
   min-height: 110px;
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.checkboxField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkboxInput {
+  width: 16px;
+  height: 16px;
+  accent-color: #ffffff;
 }
 
 .modalActions {

@@ -19,6 +19,9 @@ export type FirmwareSoftware = SoftwareBase & {
   board: string;
   chipFamily: 'ESP32';
   manifestPath: string;
+  configTemplatePath?: string;
+  serialConfigPrefix?: string;
+  serialConfigBaudRate?: number;
   includesFilesystemData: boolean;
   parts: FirmwarePart[];
 };
@@ -46,6 +49,9 @@ export const softwaresCatalog: PublicSoftware[] = [
     board: 'Ways To Silence',
     chipFamily: 'ESP32',
     manifestPath: '/firmwares/i2s-esp32-sd/manifest.json',
+    configTemplatePath: '/firmwares/i2s-esp32-sd/data-template.json',
+    serialConfigPrefix: 'WEBCFG:',
+    serialConfigBaudRate: 115200,
     includesFilesystemData: true,
     parts: [
       {
