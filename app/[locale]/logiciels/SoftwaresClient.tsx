@@ -146,6 +146,7 @@ export default function SoftwaresClient() {
   const [eraseBeforeFlash, setEraseBeforeFlash] = useState(true);
   const [showFlashConfirm, setShowFlashConfirm] = useState(false);
   const [isCopyingLogs, setIsCopyingLogs] = useState(false);
+  const [isPortReleasing, setIsPortReleasing] = useState(false);
   const [isDialogMounted, setIsDialogMounted] = useState(false);
   const [selectedSerialPort, setSelectedSerialPort] = useState<unknown | null>(null);
   const [serialMonitorLogs, setSerialMonitorLogs] = useState<string[]>([]);
@@ -274,7 +275,7 @@ export default function SoftwaresClient() {
 
   function shouldIgnoreTerminalLine(line: string): boolean {
     const normalized = line.trim().toLowerCase();
-    return normalized.startsWith('writing at 0x');
+    return normalized.startsWith('writing at 0x') || normalized.includes('esp32');
   }
 
   function getPartDisplayName(partPath: string, fileIndex: number): string {
@@ -340,15 +341,56 @@ export default function SoftwaresClient() {
     serialMonitorOpenedLocallyRef.current = false;
     serialMonitorBufferRef.current = '';
 
-    if (openedLocally) {
-      const serialPort = asSerialPort(monitorPort);
-      if (serialPort?.close) {
-        try {
-          await serialPort.close();
-        } catch {
-          // Ignore close failures on monitor shutdown.
-        }
+    const serialPort = asSerialPort(monitorPort);
+    const shouldAttemptClose = Boolean(serialPort?.close) && (openedLocally || Boolean(serialPort?.readable));
+    if (shouldAttemptClose && serialPort?.close) {
+      try {
+        await serialPort.close();
+      } catch {
+        // Ignore close failures on monitor shutdown.
       }
+    }
+  }
+
+  async function closePortIfOpen(port: unknown): Promise<boolean> {
+    const serialPort = asSerialPort(port);
+    if (!serialPort?.close || !serialPort.readable) {
+      return false;
+    }
+
+    try {
+      await serialPort.close();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function releaseSelectedPort(options?: { silent?: boolean; keepSelection?: boolean }) {
+    const silent = options?.silent ?? false;
+    const keepSelection = options?.keepSelection ?? false;
+    const currentPort = selectedSerialPort;
+    if (!currentPort && !isSerialMonitoring && !isSerialMonitorStarting) {
+      return;
+    }
+
+    setIsPortReleasing(true);
+    try {
+      if (isSerialMonitoring || isSerialMonitorStarting) {
+        await stopSerialMonitor({ silent: true, switchToFlashLogs: false });
+      }
+
+      const wasReleased = await closePortIfOpen(currentPort);
+      if (!silent && (wasReleased || Boolean(currentPort))) {
+        appendFlashLog(t('modal.logs.portReleased'));
+      }
+
+      if (!keepSelection) {
+        setSelectedSerialPort(null);
+        setShowFlashConfirm(false);
+      }
+    } finally {
+      setIsPortReleasing(false);
     }
   }
 
@@ -419,7 +461,7 @@ export default function SoftwaresClient() {
   }, []);
 
   function openFirmwareModal(firmware: FirmwareSoftware) {
-    void stopSerialMonitor({ silent: true, switchToFlashLogs: true });
+    void releaseSelectedPort({ silent: true });
     teardownFlashSession(true);
     setSelectedFirmware(firmware);
     setIsModalOpen(true);
@@ -427,6 +469,7 @@ export default function SoftwaresClient() {
     setEraseBeforeFlash(true);
     setShowFlashConfirm(false);
     setIsCopyingLogs(false);
+    setIsPortReleasing(false);
     setIsPortPicking(false);
     setSelectedSerialPort(null);
     setFlashStatus('idle');
@@ -442,7 +485,7 @@ export default function SoftwaresClient() {
   }
 
   function closeFirmwareModal() {
-    void stopSerialMonitor({ silent: true, switchToFlashLogs: true });
+    void releaseSelectedPort({ silent: true });
     teardownFlashSession(true);
     setIsModalOpen(false);
     setSelectedFirmware(null);
@@ -453,6 +496,7 @@ export default function SoftwaresClient() {
     setEraseBeforeFlash(true);
     setShowFlashConfirm(false);
     setIsCopyingLogs(false);
+    setIsPortReleasing(false);
     setIsPortPicking(false);
     setSelectedSerialPort(null);
     setActiveLogView('flash');
@@ -549,6 +593,10 @@ export default function SoftwaresClient() {
       return;
     }
 
+    if (isPortReleasing) {
+      return;
+    }
+
     if (!isGoogleChrome || !isWebSerialSupported) {
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.chromeRequired'));
@@ -559,6 +607,10 @@ export default function SoftwaresClient() {
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.notSecureContext'));
       return;
+    }
+
+    if (selectedSerialPort && asSerialPort(selectedSerialPort)?.readable) {
+      await releaseSelectedPort({ silent: true, keepSelection: true });
     }
 
     setIsPortPicking(true);
@@ -599,6 +651,10 @@ export default function SoftwaresClient() {
 
   async function startIntegratedFlasher() {
     if (!selectedFirmware) {
+      return;
+    }
+
+    if (isPortReleasing) {
       return;
     }
 
@@ -675,7 +731,8 @@ export default function SoftwaresClient() {
       }
 
       const terminal = buildTerminalLogger();
-      transport = new esptoolModule.Transport(selectedSerialPort, true);
+      // Disable low-level transport tracing to avoid noisy timeout errors in console.
+      transport = new esptoolModule.Transport(selectedSerialPort, false);
 
       appendFlashLog(t('modal.logs.connectingBootloader'));
       const loader = new esptoolModule.ESPLoader({
@@ -716,6 +773,7 @@ export default function SoftwaresClient() {
       for (const part of build.parts) {
         const resolvedPath = resolvePartUrl(manifestUrl, part.path);
         const bytes = await fetchBinary(resolvedPath);
+        const partName = getPartDisplayName(part.path, binaries.length);
         binaries.push({
           address: part.offset,
           bytes,
@@ -723,7 +781,7 @@ export default function SoftwaresClient() {
           path: part.path,
         });
         appendFlashLog(
-          t('modal.logs.fileDownloaded', { path: part.path, size: String(bytes.byteLength) })
+          t('modal.logs.fileDownloaded', { path: partName, size: String(bytes.byteLength) })
         );
       }
 
@@ -758,9 +816,15 @@ export default function SoftwaresClient() {
           const fileOffset = currentBinary?.address ?? 0;
           const boundedTotal = Math.max(1, total);
           const boundedWritten = Math.max(0, Math.min(written, boundedTotal));
+          const partTotalBytes = currentBinary?.bytes.byteLength ?? boundedTotal;
+          const partRatio = Math.min(1, boundedWritten / boundedTotal);
+          const estimatedPartWritten = Math.min(
+            partTotalBytes,
+            Math.floor(partTotalBytes * partRatio)
+          );
           const globalWritten = Math.min(
             globalTotal,
-            (prefixTotals[fileIndex] ?? 0) + boundedWritten
+            (prefixTotals[fileIndex] ?? 0) + estimatedPartWritten
           );
           const stableGlobalWritten = Math.max(lastProgressBytesRef.current, globalWritten);
           lastProgressBytesRef.current = stableGlobalWritten;
@@ -768,7 +832,10 @@ export default function SoftwaresClient() {
           const percentage =
             globalTotal > 0 ? Math.floor((stableGlobalWritten / globalTotal) * 100) : 0;
           const stablePercentage = Math.max(lastProgressPercentRef.current, percentage);
-          const stableAddress = Math.max(lastProgressAddressRef.current, fileOffset + boundedWritten);
+          const stableAddress = Math.max(
+            lastProgressAddressRef.current,
+            fileOffset + estimatedPartWritten
+          );
           lastProgressAddressRef.current = stableAddress;
           setFlashProgress(stablePercentage);
 
@@ -776,7 +843,7 @@ export default function SoftwaresClient() {
             lastProgressPercentRef.current = stablePercentage;
           }
 
-          const partProgressPercent = Math.floor((boundedWritten / boundedTotal) * 100);
+          const partProgressPercent = Math.floor(partRatio * 100);
           const previousPartProgress = partProgressByIndexRef.current[fileIndex] ?? -1;
           const stablePartProgress = Math.max(previousPartProgress, partProgressPercent);
           if (stablePartProgress !== previousPartProgress) {
@@ -786,7 +853,7 @@ export default function SoftwaresClient() {
               t('modal.logs.partWriteProgress', {
                 name: partName,
                 address: formatHexAddress(fileOffset),
-                current: formatHexAddress(fileOffset + boundedWritten),
+                current: formatHexAddress(fileOffset + estimatedPartWritten),
                 value: String(stablePartProgress),
               })
             );
@@ -811,6 +878,9 @@ export default function SoftwaresClient() {
         } catch {
           // Ignore disconnect errors; port may already be closed.
         }
+      }
+      if (selectedSerialPort) {
+        await closePortIfOpen(selectedSerialPort);
       }
       if (flashSucceeded && selectedSerialPort) {
         appendFlashLog(t('modal.logs.resetStart'));
@@ -871,7 +941,12 @@ export default function SoftwaresClient() {
 
   async function startSerialMonitor(options?: { ignoreFlashingGuard?: boolean }) {
     const ignoreFlashingGuard = options?.ignoreFlashingGuard ?? false;
-    if ((!ignoreFlashingGuard && isFlashing) || isSerialMonitorStarting || isSerialMonitoring) {
+    if (
+      (!ignoreFlashingGuard && isFlashing) ||
+      isSerialMonitorStarting ||
+      isSerialMonitoring ||
+      isPortReleasing
+    ) {
       return;
     }
 
@@ -982,6 +1057,13 @@ export default function SoftwaresClient() {
   const manifestUrl = selectedFirmware
     ? `${selectedFirmware.manifestPath}?ts=${manifestToken}`
     : '';
+  const isSelectedPortOpen =
+    Boolean(selectedSerialPort && asSerialPort(selectedSerialPort)?.readable) ||
+    isSerialMonitoring ||
+    isSerialMonitorStarting ||
+    isFlashing;
+  const flashProgressValue =
+    flashProgress === null ? 0 : Math.max(0, Math.min(100, Math.round(flashProgress)));
   const visibleLogs =
     activeLogView === 'serial' ? [...flashLogs, ...serialMonitorLogs] : flashLogs;
 
@@ -1076,8 +1158,12 @@ export default function SoftwaresClient() {
             <div className={styles.modalActions}>
               <button
                 type="button"
-                className={styles.flashButton}
+                className={isSelectedPortOpen ? styles.secondaryButton : styles.flashButton}
                 onClick={() => {
+                  if (isSelectedPortOpen) {
+                    void releaseSelectedPort();
+                    return;
+                  }
                   void openPortForFlashing();
                 }}
                 disabled={
@@ -1085,11 +1171,17 @@ export default function SoftwaresClient() {
                   !isWebSerialSupported ||
                   isFlashing ||
                   isPortPicking ||
-                  isSerialMonitoring ||
-                  isSerialMonitorStarting
+                  isSerialMonitorStarting ||
+                  isPortReleasing
                 }
               >
-                {isPortPicking ? t('modal.openingPort') : t('modal.openPort')}
+                {isPortReleasing
+                  ? t('modal.releasingPort')
+                  : isSelectedPortOpen
+                    ? t('modal.releasePort')
+                    : isPortPicking
+                      ? t('modal.openingPort')
+                      : t('modal.openPort')}
               </button>
               {showFlashConfirm && (
                 <>
@@ -1104,7 +1196,8 @@ export default function SoftwaresClient() {
                       !isWebSerialSupported ||
                       isFlashing ||
                       isSerialMonitoring ||
-                      isSerialMonitorStarting
+                      isSerialMonitorStarting ||
+                      isPortReleasing
                     }
                   >
                     {t('modal.confirmFlash')}
@@ -1113,12 +1206,11 @@ export default function SoftwaresClient() {
                     type="button"
                     className={styles.secondaryButton}
                     onClick={() => {
-                      setShowFlashConfirm(false);
-                      setSelectedSerialPort(null);
+                      void releaseSelectedPort({ silent: true });
                       setFlashStatus('idle');
                       appendFlashLog(t('modal.logs.portReset'));
                     }}
-                    disabled={isFlashing}
+                    disabled={isFlashing || isPortReleasing}
                   >
                     {t('modal.cancelFlash')}
                   </button>
@@ -1134,7 +1226,7 @@ export default function SoftwaresClient() {
                   }
                   void startSerialMonitor();
                 }}
-                disabled={isFlashing || isPortPicking}
+                disabled={isFlashing || isPortPicking || isPortReleasing}
               >
                 {isSerialMonitoring
                   ? t('modal.stopSerialMonitor')
@@ -1146,21 +1238,35 @@ export default function SoftwaresClient() {
 
             <div className={styles.flashPanel}>
               <div className={styles.flashPanelHeader}>
-                <span className={styles.fieldLabel}>{t('modal.flashPanelTitle')}</span>
+                {!isDialogMounted && (
+                  <p className={`${styles.infoText} ${styles.flashPanelHint}`}>
+                    {t('modal.dialogPlaceholder')}
+                  </p>
+                )}
                 <span className={`${styles.flashStatusBadge} ${statusClassName(flashStatus)}`}>
                   {t(`modal.status.${flashStatus}`)}
                 </span>
               </div>
               {flashProgress !== null && (
-                <p className={styles.cardMeta}>
-                  {t('modal.progressLabel', { value: Math.round(flashProgress) })}
-                </p>
+                <>
+                  <p className={styles.cardMeta}>
+                    {t('modal.progressLabel', { value: flashProgressValue })}
+                  </p>
+                  <div
+                    className={styles.progressBar}
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={flashProgressValue}
+                    aria-label={t('modal.progressLabel', { value: flashProgressValue })}
+                  >
+                    <span
+                      className={styles.progressBarFill}
+                      style={{ width: `${flashProgressValue}%` }}
+                    />
+                  </div>
+                </>
               )}
-              <p className={styles.infoText}>{t('modal.integratedHint')}</p>
-              {!isDialogMounted && (
-                <p className={styles.infoText}>{t('modal.dialogPlaceholder')}</p>
-              )}
-
               <div className={styles.liveLogs}>
                 <div className={styles.liveLogsHeader}>
                   <p className={styles.liveLogsTitle}>

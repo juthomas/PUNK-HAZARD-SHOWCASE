@@ -271,7 +271,7 @@
 
 .flashPanelHeader {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 8px;
 }
@@ -285,6 +285,12 @@
   font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--border);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.flashPanelHint {
+  margin: 0;
 }
 
 .flashStatusIdle {
@@ -314,6 +320,23 @@
 .flashStatusError {
   color: #ff7a7a;
   border-color: rgba(255, 122, 122, 0.5);
+}
+
+.progressBar {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.progressBarFill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #ffffff;
+  transition: width 0.2s ease;
 }
 
 .liveLogs {
