@@ -309,8 +309,10 @@
         "idle": "En attente",
         "waiting_for_port": "Attente port serie",
         "dialog_ready": "Pret a flasher",
+        "loading": "Chargement",
         "erasing": "Effacement en cours",
         "installing": "Installation en cours",
+        "configuring": "Configuration",
         "finished": "Installation terminee",
         "error": "Erreur"
       },

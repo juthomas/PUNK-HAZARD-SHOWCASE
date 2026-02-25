@@ -9,7 +9,7 @@ import styles from './page.module.css';
 
 type Locale = 'fr' | 'en';
 type DesktopSoftware = Extract<PublicSoftware, { kind: 'desktop' }>;
-type FlashStatus = 'idle' | 'waiting_for_port' | 'dialog_ready' | 'erasing' | 'installing' | 'finished' | 'error';
+type FlashStatus = 'idle' | 'waiting_for_port' | 'dialog_ready' | 'loading' | 'erasing' | 'installing' | 'configuring' | 'finished' | 'error';
 
 type FirmwareManifest = {
   builds: Array<{
@@ -189,8 +189,10 @@ function statusClassName(status: FlashStatus): string {
       return styles.flashStatusWaiting;
     case 'dialog_ready':
       return styles.flashStatusReady;
+    case 'loading':
     case 'erasing':
     case 'installing':
+    case 'configuring':
       return styles.flashStatusInstalling;
     case 'finished':
       return styles.flashStatusFinished;
@@ -1334,11 +1336,11 @@ export default function SoftwaresClient() {
       setShowFlashConfirm(false);
       setFlashProgress(0);
       setManifestToken(Date.now());
-      setFlashStatus('installing');
+      setFlashStatus('loading');
       flashSession.setFlashState({
         isFlashing: true,
         flashProgress: 0,
-        flashStatus: 'installing',
+        flashStatus: 'loading',
         showFlashConfirm: false,
       });
       setActiveLogView('flash');
@@ -1421,11 +1423,10 @@ export default function SoftwaresClient() {
         );
       }
 
-      setFlashStatus('dialog_ready');
       flashSession.setFlashState({
         isFlashing: true,
         flashProgress: flashSession.getState().flashProgress,
-        flashStatus: 'dialog_ready',
+        flashStatus: 'loading',
         showFlashConfirm: false,
       });
       appendFlashLog(t('modal.logs.downloadingBinaries'));
@@ -1585,6 +1586,13 @@ export default function SoftwaresClient() {
         }
         if (flashSucceeded && selectedSerialPort) {
           if (serialConfigPayload) {
+            setFlashStatus('configuring');
+            flashSession.setFlashState({
+              isFlashing: true,
+              flashProgress: 100,
+              flashStatus: 'configuring',
+              showFlashConfirm: false,
+            });
             appendFlashLog(t('modal.logs.serialConfigHandshakeMode'));
             await sendFirstBootSerialConfig(selectedSerialPort, serialConfigPayload);
           } else {
@@ -1605,7 +1613,7 @@ export default function SoftwaresClient() {
         flashSession.setFlashState({
           isFlashing: false,
           flashProgress: flashSucceeded ? 100 : null,
-          flashStatus: flashSucceeded ? 'finished' : 'error',
+          flashStatus: flashSucceeded ? (serialConfigPayload ? 'configuring' : 'finished') : 'error',
           showFlashConfirm: false,
         });
         if (flashSucceeded) {
@@ -1721,6 +1729,15 @@ export default function SoftwaresClient() {
         throw new Error(t('modal.logs.serialMonitorUnsupported'));
       }
 
+      if (!flashSession.getState().reader && (serialPort.readable || serialPort.writable) && serialPort.close) {
+        try {
+          await serialPort.close();
+          await sleep(250);
+        } catch {
+          // Ignore; we will try open() next.
+        }
+      }
+
       if (!serialPort.readable) {
         await serialPort.open({ baudRate: 115200 });
         serialMonitorOpenedLocallyRef.current = true;
@@ -1744,6 +1761,13 @@ export default function SoftwaresClient() {
       setIsSerialMonitoring(true);
       setIsSerialMonitorStarting(false);
       appendSerialMonitorLog(t('modal.logs.serialMonitorStarted'));
+      setFlashStatus('finished');
+      flashSession.setFlashState({
+        isFlashing: false,
+        flashProgress: flashSession.getState().flashProgress,
+        flashStatus: 'finished',
+        showFlashConfirm: false,
+      });
 
       let resolveLoopExited: () => void;
       serialMonitorLoopExitedPromiseRef.current = new Promise<void>((resolve) => {
@@ -2171,7 +2195,7 @@ export default function SoftwaresClient() {
                   </p>
                 )}
                 <div className={styles.flashPanelHeaderRight}>
-                  {(flashStatus === 'erasing' || (isFlashing && flashStatus === 'installing')) && (
+                  {(flashStatus === 'loading' || flashStatus === 'erasing' || flashStatus === 'configuring' || (isFlashing && flashStatus === 'installing')) && (
                     <span className={styles.flashLoader} aria-hidden="true" />
                   )}
                   <span className={`${styles.flashStatusBadge} ${statusClassName(flashStatus)}`}>

@@ -309,8 +309,10 @@
         "idle": "Idle",
         "waiting_for_port": "Waiting serial port",
         "dialog_ready": "Ready to flash",
+        "loading": "Loading",
         "erasing": "Erasing",
         "installing": "Installing",
+        "configuring": "Configuring",
         "finished": "Finished",
         "error": "Error"
       },

@@ -26,8 +26,10 @@ export type FlashStatus =
   | 'idle'
   | 'waiting_for_port'
   | 'dialog_ready'
+  | 'loading'
   | 'erasing'
   | 'installing'
+  | 'configuring'
   | 'finished'
   | 'error';
 let isFlashing = false;
