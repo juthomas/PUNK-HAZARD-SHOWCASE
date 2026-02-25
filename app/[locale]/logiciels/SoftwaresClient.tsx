@@ -82,6 +82,36 @@ type SerialPortLike = {
 
 type ConfigFieldType = 'boolean' | 'number' | 'string' | 'json';
 
+const FLASH_CONFIG_STORAGE_KEY_PREFIX = 'punkhazard:flash-config:';
+
+function getPersistedConfigDraft(firmwareId: string): Record<string, string | boolean> | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const raw = localStorage.getItem(FLASH_CONFIG_STORAGE_KEY_PREFIX + firmwareId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const result: Record<string, string | boolean> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'boolean' || typeof value === 'string') {
+        result[key] = value;
+      }
+    }
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function persistConfigDraft(firmwareId: string, values: Record<string, string | boolean>): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    localStorage.setItem(FLASH_CONFIG_STORAGE_KEY_PREFIX + firmwareId, JSON.stringify(values));
+  } catch {
+    // Ignore quota exceeded or private mode
+  }
+}
+
 function uint8ToBinaryString(bytes: Uint8Array): string {
   // Keep byte-perfect conversion (0x00-0xFF) for esptool-js string input.
   // Do not use TextDecoder("latin1") because browsers map it to windows-1252.
@@ -144,7 +174,9 @@ export default function SoftwaresClient() {
   const [manifestToken, setManifestToken] = useState(0);
   const [flashStatus, setFlashStatus] = useState<FlashStatus>('idle');
   const [flashProgress, setFlashProgress] = useState<number | null>(null);
-  const [flashLogs, setFlashLogs] = useState<string[]>([]);
+  type LogEntryType = 'build' | 'serial_out' | 'serial_in';
+  type LogEntry = { text: string; type: LogEntryType };
+  const [flashLogs, setFlashLogs] = useState<LogEntry[]>([]);
   const [isFlashing, setIsFlashing] = useState(false);
   const [isPortPicking, setIsPortPicking] = useState(false);
   const [eraseBeforeFlash, setEraseBeforeFlash] = useState(true);
@@ -153,7 +185,7 @@ export default function SoftwaresClient() {
   const [isPortReleasing, setIsPortReleasing] = useState(false);
   const [isDialogMounted, setIsDialogMounted] = useState(false);
   const [selectedSerialPort, setSelectedSerialPort] = useState<unknown | null>(null);
-  const [serialMonitorLogs, setSerialMonitorLogs] = useState<string[]>([]);
+  const [serialMonitorLogs, setSerialMonitorLogs] = useState<LogEntry[]>([]);
   const [isSerialMonitoring, setIsSerialMonitoring] = useState(false);
   const [isSerialMonitorStarting, setIsSerialMonitorStarting] = useState(false);
   const [activeLogView, setActiveLogView] = useState<'flash' | 'serial'>('flash');
@@ -176,6 +208,8 @@ export default function SoftwaresClient() {
   const openPortInFlightRef = useRef(false);
   const releasePortInFlightRef = useRef(false);
   const flashStartInFlightRef = useRef(false);
+  const flashSessionClosedRef = useRef(false);
+  const flashingFirmwareIdRef = useRef<string | null>(null);
 
   const firmwareSoftwares = useMemo(
     () => softwaresCatalog.filter((software): software is FirmwareSoftware => software.kind === 'firmware'),
@@ -208,14 +242,15 @@ export default function SoftwaresClient() {
     node.scrollTop = node.scrollHeight;
   }, [flashLogs, serialMonitorLogs, activeLogView]);
 
-  function appendFlashLog(message: string) {
+  function appendFlashLog(message: string, entryType: LogEntryType = 'build') {
     const timestamp = new Date().toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
     });
-
-    setFlashLogs((previous) => [...previous, `[${timestamp}] ${message}`].slice(-250));
+    const text = `[${timestamp}] ${message}`;
+    const entry: LogEntry = { text, type: entryType };
+    setFlashLogs((previous): LogEntry[] => [...previous, entry].slice(-250));
   }
 
   function appendSerialMonitorLog(message: string) {
@@ -224,8 +259,9 @@ export default function SoftwaresClient() {
       minute: '2-digit',
       second: '2-digit',
     });
-
-    setSerialMonitorLogs((previous) => [...previous, `[${timestamp}] ${message}`].slice(-400));
+    const text = `[${timestamp}] ${message}`;
+    const entry: LogEntry = { text, type: 'serial_in' };
+    setSerialMonitorLogs((previous): LogEntry[] => [...previous, entry].slice(-400));
   }
 
   useEffect(() => {
@@ -252,7 +288,22 @@ export default function SoftwaresClient() {
         const draft = buildConfigDraftFromTemplate(template);
         setConfigFieldOrder(draft.order);
         setConfigFieldTypes(draft.types);
-        setConfigDraftValues(draft.values);
+        const saved = selectedFirmware?.id ? getPersistedConfigDraft(selectedFirmware.id) : null;
+        const merged = { ...draft.values };
+        if (saved) {
+          for (const key of draft.order) {
+            if (!(key in saved)) continue;
+            const wantType = draft.types[key];
+            const savedVal = saved[key];
+            if (wantType === 'boolean' && typeof savedVal === 'boolean') merged[key] = savedVal;
+            else if (
+              (wantType === 'string' || wantType === 'number' || wantType === 'json') &&
+              typeof savedVal === 'string'
+            )
+              merged[key] = savedVal;
+          }
+        }
+        setConfigDraftValues(merged);
         appendFlashLog(t('modal.logs.configTemplateLoaded'));
       } catch (error) {
         if (isCancelled) {
@@ -596,6 +647,7 @@ export default function SoftwaresClient() {
       if (remainingOpenPort) {
         setSelectedSerialPort(remainingOpenPort);
         setShowFlashConfirm(false);
+        setFlashProgress(null);
         setFlashStatus('error');
         if (!silent) {
           appendFlashLog(t('modal.logs.portReleaseFailed'));
@@ -664,10 +716,6 @@ export default function SoftwaresClient() {
     }
   }
 
-  function serialConfigDebug(message: string) {
-    appendFlashLog(t('modal.logs.serialConfigDebug', { message }));
-  }
-
   async function sendFirstBootSerialConfig(
     port: unknown,
     payload: Record<string, unknown>
@@ -682,27 +730,20 @@ export default function SoftwaresClient() {
       return;
     }
 
-    appendFlashLog(t('modal.logs.serialConfigHandshakeMode'));
-
     const prefix = selectedFirmware.serialConfigPrefix ?? 'WEBCFG:';
     const readyMarker = 'WEBCFG:READY';
     const baudRate = selectedFirmware.serialConfigBaudRate ?? 115200;
     const payloadLine = `${prefix}${JSON.stringify(payload)}\n`;
     const waitReadyTimeoutMs = 25000;
-    const debugIntervalMs = 2000;
     let openedLocally = false;
 
     try {
-      serialConfigDebug(`isPortOpen=${isPortOpen(serialPort)}`);
       if (!isPortOpen(serialPort)) {
-        serialConfigDebug(`Opening port at ${baudRate} baud...`);
         await serialPort.open({ baudRate });
         openedLocally = true;
-        serialConfigDebug('Port opened.');
       }
 
       const readable = serialPort.readable;
-      serialConfigDebug(`readable stream: ${readable ? 'yes' : 'no'}`);
       if (!readable) {
         appendFlashLog(t('modal.logs.serialConfigNoReadable'));
         return;
@@ -712,7 +753,6 @@ export default function SoftwaresClient() {
       appendFlashLog(
         t('modal.logs.serialConfigWaitingReadyLong', { seconds: String(waitReadyTimeoutMs / 1000) })
       );
-      serialConfigDebug(`Listening for "${readyMarker}" then will reset board...`);
 
       if (serialPort.setSignals) {
         appendFlashLog(t('modal.logs.resetStart'));
@@ -721,38 +761,24 @@ export default function SoftwaresClient() {
         await serialPort.setSignals({ dataTerminalReady: false, requestToSend: false });
         await sleep(120);
         appendFlashLog(t('modal.logs.resetDone'));
-        serialConfigDebug('Reset pulse sent. Board is booting.');
       }
 
       const decoder = new TextDecoder();
       let buffer = '';
       const deadline = Date.now() + waitReadyTimeoutMs;
       let readySeen = false;
-      let lastDebugLog = Date.now();
 
       try {
         while (Date.now() < deadline) {
           const { value, done } = await reader.read();
-          if (done) {
-            serialConfigDebug('Read stream ended (done=true).');
-            break;
-          }
+          if (done) break;
           if (value?.length) {
             buffer += decoder.decode(value, { stream: true });
             if (buffer.length > 1024) buffer = buffer.slice(-512);
             if (buffer.includes(readyMarker)) {
               readySeen = true;
-              serialConfigDebug(`Found "${readyMarker}" in buffer (${buffer.length} chars).`);
               break;
             }
-          }
-          if (Date.now() - lastDebugLog >= debugIntervalMs) {
-            lastDebugLog = Date.now();
-            const preview =
-              buffer.length > 0
-                ? buffer.slice(-120).replace(/\n/g, '\\n').replace(/\r/g, '\\r')
-                : '(empty)';
-            serialConfigDebug(`Still waiting. Buffer ${buffer.length} chars. Last: "${preview}"`);
           }
           await sleep(20);
         }
@@ -761,15 +787,12 @@ export default function SoftwaresClient() {
       }
 
       if (!readySeen) {
-        const tail = buffer.slice(-200).replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-        serialConfigDebug(`Timeout. Buffer had ${buffer.length} chars. Tail: "${tail}"`);
         appendFlashLog(t('modal.logs.serialConfigReadyTimeout'));
         return;
       }
 
       appendFlashLog(t('modal.logs.serialConfigReadyReceived'));
       const writable = serialPort.writable;
-      serialConfigDebug(`writable stream: ${writable ? 'yes' : 'no'}`);
       if (!writable) {
         appendFlashLog(t('modal.logs.serialConfigNoWritable'));
         return;
@@ -783,7 +806,7 @@ export default function SoftwaresClient() {
         payloadLine.length <= maxEchoLen
           ? payloadLine.trim()
           : payloadLine.slice(0, maxEchoLen).trim() + '...';
-      appendFlashLog(`${t('modal.logs.sentToBoard')} ${echoLine}`);
+      appendFlashLog(`${t('modal.logs.sentToBoard')} ${echoLine}`, 'serial_out');
       try {
         for (let attempt = 0; attempt < 3; attempt += 1) {
           await writer.write(encoder.encode(payloadLine));
@@ -798,7 +821,6 @@ export default function SoftwaresClient() {
       appendFlashLog(
         t('modal.logs.serialConfigSendFailed', { error: normalizePortErrorMessage(error) })
       );
-      serialConfigDebug(`Exception: ${normalizePortErrorMessage(error)}`);
     } finally {
       if (openedLocally && serialPort.close) {
         try {
@@ -830,6 +852,14 @@ export default function SoftwaresClient() {
   }, []);
 
   function openFirmwareModal(firmware: FirmwareSoftware) {
+    if (
+      firmware.id === flashingFirmwareIdRef.current &&
+      isFlashing
+    ) {
+      setIsModalOpen(true);
+      return;
+    }
+    flashSessionClosedRef.current = false;
     void releaseSelectedPort({ silent: true });
     teardownFlashSession(true);
     setSelectedFirmware(firmware);
@@ -858,6 +888,11 @@ export default function SoftwaresClient() {
   }
 
   function closeFirmwareModal() {
+    if (isFlashing) {
+      setIsModalOpen(false);
+      return;
+    }
+    flashSessionClosedRef.current = true;
     void releaseSelectedPort({ silent: true });
     teardownFlashSession(true);
     setIsModalOpen(false);
@@ -993,12 +1028,14 @@ export default function SoftwaresClient() {
     }
 
     if (!isGoogleChrome || !isWebSerialSupported) {
+      setFlashProgress(null);
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.chromeRequired'));
       return;
     }
 
     if (!window.isSecureContext) {
+      setFlashProgress(null);
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.notSecureContext'));
       return;
@@ -1014,6 +1051,7 @@ export default function SoftwaresClient() {
     const alreadyOpenPort = await getFirstOpenGrantedPort();
     if (alreadyOpenPort) {
       setSelectedSerialPort(alreadyOpenPort);
+      setFlashProgress(null);
       setFlashStatus('error');
       setShowFlashConfirm(false);
       appendFlashLog(t('modal.logs.portAlreadyOpen'));
@@ -1049,8 +1087,12 @@ export default function SoftwaresClient() {
       appendFlashLog(t('modal.logs.readyToConfirm'));
     } catch (error) {
       const message = normalizePortErrorMessage(error);
-
-      setFlashStatus(message === t('modal.logs.userCancelled') ? 'idle' : 'error');
+      if (message === t('modal.logs.userCancelled')) {
+        setFlashStatus('idle');
+      } else {
+        setFlashProgress(null);
+        setFlashStatus('error');
+      }
       appendFlashLog(t('modal.logs.flashError', { error: message }));
     } finally {
       setIsPortPicking(false);
@@ -1077,18 +1119,21 @@ export default function SoftwaresClient() {
     }
 
     if (!isGoogleChrome || !isWebSerialSupported) {
+      setFlashProgress(null);
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.chromeRequired'));
       return;
     }
 
     if (!window.isSecureContext) {
+      setFlashProgress(null);
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.notSecureContext'));
       return;
     }
 
     if (selectedFirmware.configTemplatePath && isConfigTemplateLoading) {
+      setFlashProgress(null);
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.configTemplateStillLoading'));
       return;
@@ -1098,12 +1143,15 @@ export default function SoftwaresClient() {
     try {
       serialConfigPayload = buildSerialConfigPayload();
     } catch (error) {
+      setFlashProgress(null);
       setFlashStatus('error');
       appendFlashLog(t('modal.logs.flashError', { error: normalizePortErrorMessage(error) }));
       return;
     }
 
     flashStartInFlightRef.current = true;
+    flashSessionClosedRef.current = false;
+    flashingFirmwareIdRef.current = selectedFirmware?.id ?? null;
     try {
       if (isSerialMonitoring || isSerialMonitorStarting) {
         await stopSerialMonitor({ silent: true, switchToFlashLogs: true });
@@ -1293,13 +1341,17 @@ export default function SoftwaresClient() {
 
       await loader.after();
       setFlashProgress(100);
-      setFlashStatus('finished');
+      if (!flashSessionClosedRef.current) {
+        setFlashStatus('finished');
+      }
       appendFlashLog(t('modal.logs.finished'));
       flashSucceeded = true;
     } catch (error) {
       const message = normalizePortErrorMessage(error);
-
-      setFlashStatus('error');
+      if (!flashSessionClosedRef.current) {
+        setFlashProgress(null);
+        setFlashStatus('error');
+      }
       appendFlashLog(t('modal.logs.flashError', { error: message }));
       } finally {
         if (transport) {
@@ -1333,6 +1385,7 @@ export default function SoftwaresClient() {
       }
     } finally {
       flashStartInFlightRef.current = false;
+      flashingFirmwareIdRef.current = null;
     }
   }
 
@@ -1344,7 +1397,7 @@ export default function SoftwaresClient() {
     }
 
     setIsCopyingLogs(true);
-    const text = logsToCopy.join('\n');
+    const text = logsToCopy.map((e) => e.text).join('\n');
     const appendCopyMessage = (success: boolean) => {
       const message = success ? t('modal.logs.logsCopied') : t('modal.logs.logsCopyFailed');
       if (activeLogView === 'serial') {
@@ -1628,10 +1681,11 @@ export default function SoftwaresClient() {
                                   checked={Boolean(fieldValue)}
                                   onChange={(event) => {
                                     const nextValue = event.currentTarget.checked;
-                                    setConfigDraftValues((previous) => ({
-                                      ...previous,
-                                      [fieldKey]: nextValue,
-                                    }));
+                                    setConfigDraftValues((previous) => {
+                                      const next = { ...previous, [fieldKey]: nextValue };
+                                      if (selectedFirmware?.id) persistConfigDraft(selectedFirmware.id, next);
+                                      return next;
+                                    });
                                   }}
                                 />
                                 <span className={styles.cardMeta}>
@@ -1644,10 +1698,11 @@ export default function SoftwaresClient() {
                                 value={typeof fieldValue === 'string' ? fieldValue : ''}
                                 onChange={(event) => {
                                   const nextValue = event.currentTarget.value;
-                                  setConfigDraftValues((previous) => ({
-                                    ...previous,
-                                    [fieldKey]: nextValue,
-                                  }));
+                                  setConfigDraftValues((previous) => {
+                                    const next = { ...previous, [fieldKey]: nextValue };
+                                    if (selectedFirmware?.id) persistConfigDraft(selectedFirmware.id, next);
+                                    return next;
+                                  });
                                 }}
                               />
                             ) : (
@@ -1657,10 +1712,11 @@ export default function SoftwaresClient() {
                                 value={typeof fieldValue === 'string' ? fieldValue : ''}
                                 onChange={(event) => {
                                   const nextValue = event.currentTarget.value;
-                                  setConfigDraftValues((previous) => ({
-                                    ...previous,
-                                    [fieldKey]: nextValue,
-                                  }));
+                                  setConfigDraftValues((previous) => {
+                                    const next = { ...previous, [fieldKey]: nextValue };
+                                    if (selectedFirmware?.id) persistConfigDraft(selectedFirmware.id, next);
+                                    return next;
+                                  });
                                 }}
                               />
                             )}
@@ -1766,7 +1822,7 @@ export default function SoftwaresClient() {
                   {t(`modal.status.${flashStatus}`)}
                 </span>
               </div>
-              {flashProgress !== null && (
+              {flashProgress !== null && flashStatus !== 'error' && (
                 <>
                   <p className={styles.cardMeta}>
                     {t('modal.progressLabel', { value: flashProgressValue })}
@@ -1814,8 +1870,19 @@ export default function SoftwaresClient() {
                     </button>
                   </div>
                 </div>
-                <pre ref={logContainerRef}>
-                  {visibleLogs.length > 0 ? visibleLogs.join('\n') : t('modal.liveLogsEmpty')}
+                <pre ref={logContainerRef} className={styles.logPre}>
+                  {visibleLogs.length > 0
+                    ? visibleLogs.map((entry, i) => (
+                        <span
+                          key={i}
+                          className={styles.logLine}
+                          data-log-type={entry.type}
+                        >
+                          {entry.text}
+                          {'\n'}
+                        </span>
+                      ))
+                    : t('modal.liveLogsEmpty')}
                 </pre>
               </div>
             </div>
