@@ -234,6 +234,34 @@
   gap: 10px;
 }
 
+.configTabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.configTab {
+  padding: 8px 14px;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--foreground);
+  opacity: 0.7;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.configTab:hover {
+  opacity: 1;
+}
+
+.configTabActive {
+  opacity: 1;
+  border-bottom-color: var(--foreground);
+}
+
 .configSectionHeader {
   display: flex;
   align-items: center;
@@ -303,6 +331,33 @@
   gap: 8px;
 }
 
+.flashPanelHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.flashLoader {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: flashLoaderSpin 0.7s linear infinite;
+  flex-shrink: 0;
+  color: var(--foreground);
+  opacity: 0.9;
+}
+
+@keyframes flashLoaderSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .flashStatusBadge {
   display: inline-flex;
   align-items: center;
@@ -312,7 +367,6 @@
   font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--border);
-  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -429,7 +483,7 @@
 }
 
 .logPre .logLine[data-log-type="build"] {
-  color: rgba(253, 204, 130, 0.92);
+  color: rgba(250, 238, 126, 0.92);
 }
 
 .logPre .logLine[data-log-type="serial_out"] {

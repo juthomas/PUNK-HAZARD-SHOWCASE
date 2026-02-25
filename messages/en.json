@@ -268,10 +268,48 @@
       "liveLogsTitle": "Live log",
       "serialMonitorTitle": "Serial monitor",
       "liveLogsEmpty": "No events yet.",
+      "configTabs": {
+        "general": "General",
+        "network": "Network",
+        "buttons": "Buttons"
+      },
+      "configFields": {
+        "loop_file": "Loop audio",
+        "auto_play": "Auto play",
+        "note": "Notes",
+        "udp_port": "UDP port",
+        "volume": "Volume",
+        "device_mode": "Device mode",
+        "mesh_ttl": "Mesh TTL",
+        "ap_safety_timeout_s": "AP safety timeout (s)",
+        "ap_name": "AP name",
+        "ap_password": "AP password",
+        "ap_ip_config": "AP IP config",
+        "esp_now_channel": "ESP-NOW channel",
+        "ap_enabled": "AP enabled",
+        "button_gpio13_track": "Button GPIO 13 track",
+        "button_gpio13_pull_mode": "GPIO 13 pull mode",
+        "button_gpio13_active_level": "GPIO 13 active level",
+        "button_gpio16_track": "Button GPIO 16 track",
+        "button_gpio16_pull_mode": "GPIO 16 pull mode",
+        "button_gpio16_active_level": "GPIO 16 active level"
+      },
+      "configOptions": {
+        "device_mode_0": "Current",
+        "device_mode_1": "Mesh",
+        "device_mode_2": "AP off",
+        "device_mode_3": "Relay only",
+        "pull_mode_0": "Up",
+        "pull_mode_1": "Down",
+        "pull_mode_2": "None",
+        "active_level_0": "Low",
+        "active_level_1": "High"
+      },
       "status": {
         "idle": "Idle",
         "waiting_for_port": "Waiting serial port",
         "dialog_ready": "Ready to flash",
+        "erasing": "Erasing",
         "installing": "Installing",
         "finished": "Finished",
         "error": "Error"

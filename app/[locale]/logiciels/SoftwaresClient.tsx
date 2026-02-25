@@ -4,11 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { softwaresCatalog } from '@/lib/softwares';
 import type { FirmwareSoftware, LocalizedText, PublicSoftware } from '@/lib/softwares';
+import * as flashSession from '@/lib/flashSerialSession';
 import styles from './page.module.css';
 
 type Locale = 'fr' | 'en';
 type DesktopSoftware = Extract<PublicSoftware, { kind: 'desktop' }>;
-type FlashStatus = 'idle' | 'waiting_for_port' | 'dialog_ready' | 'installing' | 'finished' | 'error';
+type FlashStatus = 'idle' | 'waiting_for_port' | 'dialog_ready' | 'erasing' | 'installing' | 'finished' | 'error';
 
 type FirmwareManifest = {
   builds: Array<{
@@ -82,6 +83,42 @@ type SerialPortLike = {
 
 type ConfigFieldType = 'boolean' | 'number' | 'string' | 'json';
 
+const CONFIG_UI_HIDDEN_KEYS = new Set<string>(['track_assignation']);
+
+const CONFIG_TAB_ORDER = ['general', 'network', 'buttons'] as const;
+const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> = {
+  general: ['loop_file', 'auto_play', 'note', 'udp_port', 'volume'],
+  network: [
+    'device_mode',
+    'mesh_ttl',
+    'ap_safety_timeout_s',
+    'ap_name',
+    'ap_password',
+    'ap_ip_config',
+    'esp_now_channel',
+    'ap_enabled',
+  ],
+  buttons: [
+    'button_gpio13_track',
+    'button_gpio13_pull_mode',
+    'button_gpio13_active_level',
+    'button_gpio16_track',
+    'button_gpio16_pull_mode',
+    'button_gpio16_active_level',
+  ],
+};
+
+const CONFIG_SELECT_FIELDS: Record<
+  string,
+  { values: number[]; optionPrefix: string }
+> = {
+  device_mode: { values: [0, 1, 2, 3], optionPrefix: 'device_mode' },
+  button_gpio13_pull_mode: { values: [0, 1, 2], optionPrefix: 'pull_mode' },
+  button_gpio16_pull_mode: { values: [0, 1, 2], optionPrefix: 'pull_mode' },
+  button_gpio13_active_level: { values: [0, 1], optionPrefix: 'active_level' },
+  button_gpio16_active_level: { values: [0, 1], optionPrefix: 'active_level' },
+};
+
 const FLASH_CONFIG_STORAGE_KEY_PREFIX = 'punkhazard:flash-config:';
 
 function getPersistedConfigDraft(firmwareId: string): Record<string, string | boolean> | null {
@@ -152,6 +189,7 @@ function statusClassName(status: FlashStatus): string {
       return styles.flashStatusWaiting;
     case 'dialog_ready':
       return styles.flashStatusReady;
+    case 'erasing':
     case 'installing':
       return styles.flashStatusInstalling;
     case 'finished':
@@ -172,27 +210,49 @@ export default function SoftwaresClient() {
   const [isGoogleChrome, setIsGoogleChrome] = useState(false);
   const [isWebSerialSupported, setIsWebSerialSupported] = useState(false);
   const [manifestToken, setManifestToken] = useState(0);
-  const [flashStatus, setFlashStatus] = useState<FlashStatus>('idle');
-  const [flashProgress, setFlashProgress] = useState<number | null>(null);
+  // Initialise from persistent session so first paint after locale change shows real flash state
+  const [flashStatus, setFlashStatus] = useState<FlashStatus>(() =>
+    flashSession.hasSession() ? flashSession.getState().flashStatus : 'idle'
+  );
+  const [flashProgress, setFlashProgress] = useState<number | null>(() =>
+    flashSession.hasSession() ? flashSession.getState().flashProgress : null
+  );
   type LogEntryType = 'build' | 'serial_out' | 'serial_in';
   type LogEntry = { text: string; type: LogEntryType };
-  const [flashLogs, setFlashLogs] = useState<LogEntry[]>([]);
-  const [isFlashing, setIsFlashing] = useState(false);
+  const [flashLogs, setFlashLogs] = useState<LogEntry[]>(() =>
+    flashSession.hasSession() ? flashSession.getState().flashLogs : []
+  );
+  const [isFlashing, setIsFlashing] = useState(() =>
+    flashSession.hasSession() ? flashSession.getState().isFlashing : false
+  );
   const [isPortPicking, setIsPortPicking] = useState(false);
   const [eraseBeforeFlash, setEraseBeforeFlash] = useState(true);
-  const [showFlashConfirm, setShowFlashConfirm] = useState(false);
+  const [showFlashConfirm, setShowFlashConfirm] = useState(() =>
+    flashSession.hasSession() ? flashSession.getState().showFlashConfirm : false
+  );
   const [isCopyingLogs, setIsCopyingLogs] = useState(false);
   const [isPortReleasing, setIsPortReleasing] = useState(false);
   const [isDialogMounted, setIsDialogMounted] = useState(false);
-  const [selectedSerialPort, setSelectedSerialPort] = useState<unknown | null>(null);
-  const [serialMonitorLogs, setSerialMonitorLogs] = useState<LogEntry[]>([]);
-  const [isSerialMonitoring, setIsSerialMonitoring] = useState(false);
+  const [selectedSerialPort, setSelectedSerialPort] = useState<unknown | null>(() =>
+    flashSession.hasSession() ? flashSession.getState().port : null
+  );
+  const [serialMonitorLogs, setSerialMonitorLogs] = useState<LogEntry[]>(() =>
+    flashSession.hasSession() ? flashSession.getState().serialMonitorLogs : []
+  );
+  const [isSerialMonitoring, setIsSerialMonitoring] = useState(() =>
+    flashSession.hasSession() ? flashSession.getState().isMonitoring : false
+  );
   const [isSerialMonitorStarting, setIsSerialMonitorStarting] = useState(false);
-  const [activeLogView, setActiveLogView] = useState<'flash' | 'serial'>('flash');
+  const [activeLogView, setActiveLogView] = useState<'flash' | 'serial'>(() => {
+    if (!flashSession.hasSession()) return 'flash';
+    const s = flashSession.getState();
+    return s.isFlashing ? 'flash' : s.activeLogView;
+  });
   const [isConfigTemplateLoading, setIsConfigTemplateLoading] = useState(false);
   const [configFieldOrder, setConfigFieldOrder] = useState<string[]>([]);
   const [configFieldTypes, setConfigFieldTypes] = useState<Record<string, ConfigFieldType>>({});
   const [configDraftValues, setConfigDraftValues] = useState<Record<string, string | boolean>>({});
+  const [configTab, setConfigTab] = useState<(typeof CONFIG_TAB_ORDER)[number]>('general');
 
   const logContainerRef = useRef<HTMLPreElement | null>(null);
   const terminalBufferRef = useRef('');
@@ -205,11 +265,15 @@ export default function SoftwaresClient() {
   const serialMonitorPortRef = useRef<unknown | null>(null);
   const serialMonitorOpenedLocallyRef = useRef(false);
   const serialMonitorStopRequestedRef = useRef(false);
+  const serialMonitorLoopExitedPromiseRef = useRef<Promise<void> | null>(null);
+  const serialMonitorLoopExitedResolveRef = useRef<(() => void) | null>(null);
   const openPortInFlightRef = useRef(false);
   const releasePortInFlightRef = useRef(false);
+  const copyLogsInFlightRef = useRef(false);
   const flashStartInFlightRef = useRef(false);
   const flashSessionClosedRef = useRef(false);
   const flashingFirmwareIdRef = useRef<string | null>(null);
+  const suppressSerialConsoleErrorsRef = useRef(false);
 
   const firmwareSoftwares = useMemo(
     () => softwaresCatalog.filter((software): software is FirmwareSoftware => software.kind === 'firmware'),
@@ -219,6 +283,25 @@ export default function SoftwaresClient() {
     () => softwaresCatalog.filter((software): software is DesktopSoftware => software.kind === 'desktop'),
     []
   );
+
+  useEffect(() => {
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      if (suppressSerialConsoleErrorsRef.current && args.length > 0) {
+        const msg = String(args[0]);
+        if (
+          msg.includes('Read timeout exceeded') ||
+          msg.includes('Error reading from serial port')
+        ) {
+          return;
+        }
+      }
+      originalError.apply(console, args);
+    };
+    return () => {
+      console.error = originalError;
+    };
+  }, []);
 
   useEffect(() => {
     const hasWebSerial = typeof navigator !== 'undefined' && 'serial' in navigator;
@@ -242,6 +325,61 @@ export default function SoftwaresClient() {
     node.scrollTop = node.scrollHeight;
   }, [flashLogs, serialMonitorLogs, activeLogView]);
 
+  // Hydrate from persistent session on mount (e.g. after locale change) and subscribe to log updates
+  useEffect(() => {
+    if (flashSession.hasSession()) {
+      const state = flashSession.getState();
+      setSelectedSerialPort(state.port);
+      setFlashLogs(state.flashLogs);
+      setSerialMonitorLogs(state.serialMonitorLogs);
+      setIsSerialMonitoring(!!state.reader);
+      setIsFlashing(state.isFlashing);
+      setFlashProgress(state.flashProgress);
+      setFlashStatus(state.flashStatus);
+      setShowFlashConfirm(state.showFlashConfirm);
+      setActiveLogView(state.isFlashing ? 'flash' : state.activeLogView);
+      serialMonitorPortRef.current = state.port;
+      serialMonitorReaderRef.current = state.reader;
+      serialMonitorOpenedLocallyRef.current = state.openedLocally;
+      serialMonitorBufferRef.current = state.monitorBuffer;
+    }
+    const unsub = flashSession.subscribe(() => {
+      const state = flashSession.getState();
+      setFlashLogs(state.flashLogs);
+      setSerialMonitorLogs(state.serialMonitorLogs);
+      setIsSerialMonitoring(!!state.reader);
+      if (state.isFlashing) {
+        setIsFlashing(state.isFlashing);
+        setFlashProgress(state.flashProgress);
+        setFlashStatus(state.flashStatus);
+        setShowFlashConfirm(state.showFlashConfirm);
+        setActiveLogView('flash');
+      } else {
+        setActiveLogView(state.activeLogView);
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Keep session in sync with flash state so closing/reopening modal during flash shows correct progress
+  useEffect(() => {
+    if (flashSession.hasSession()) {
+      flashSession.setFlashState({
+        isFlashing,
+        flashProgress,
+        flashStatus,
+        showFlashConfirm,
+      });
+    }
+  }, [isFlashing, flashProgress, flashStatus, showFlashConfirm]);
+
+  // Persist log tab (flash vs serial) so green monitor messages stay visible after locale change + close/reopen
+  useEffect(() => {
+    if (flashSession.hasSession()) {
+      flashSession.setActiveLogView(activeLogView);
+    }
+  }, [activeLogView]);
+
   function appendFlashLog(message: string, entryType: LogEntryType = 'build') {
     const timestamp = new Date().toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
       hour: '2-digit',
@@ -250,7 +388,7 @@ export default function SoftwaresClient() {
     });
     const text = `[${timestamp}] ${message}`;
     const entry: LogEntry = { text, type: entryType };
-    setFlashLogs((previous): LogEntry[] => [...previous, entry].slice(-250));
+    flashSession.appendFlashLog(entry);
   }
 
   function appendSerialMonitorLog(message: string) {
@@ -261,7 +399,7 @@ export default function SoftwaresClient() {
     });
     const text = `[${timestamp}] ${message}`;
     const entry: LogEntry = { text, type: 'serial_in' };
-    setSerialMonitorLogs((previous): LogEntry[] => [...previous, entry].slice(-400));
+    flashSession.appendSerialMonitorLog(entry);
   }
 
   useEffect(() => {
@@ -275,7 +413,6 @@ export default function SoftwaresClient() {
 
     let isCancelled = false;
     setIsConfigTemplateLoading(true);
-    appendFlashLog(t('modal.logs.loadingConfigTemplate'));
 
     const templateUrl = `${selectedFirmware.configTemplatePath}?ts=${Date.now()}`;
     void (async () => {
@@ -304,7 +441,6 @@ export default function SoftwaresClient() {
           }
         }
         setConfigDraftValues(merged);
-        appendFlashLog(t('modal.logs.configTemplateLoaded'));
       } catch (error) {
         if (isCancelled) {
           return;
@@ -571,7 +707,7 @@ export default function SoftwaresClient() {
     }
   }
 
-  async function cleanupSerialMonitorConnection(): Promise<void> {
+  async function cancelSerialMonitorReaderOnly(): Promise<void> {
     const reader = serialMonitorReaderRef.current;
     serialMonitorReaderRef.current = null;
     if (reader) {
@@ -580,23 +716,24 @@ export default function SoftwaresClient() {
       } catch {
         // Reader may already be closed.
       }
-
       try {
         reader.releaseLock();
       } catch {
         // Ignore lock release errors.
       }
     }
+  }
+
+  async function cleanupSerialMonitorConnection(): Promise<void> {
+    await cancelSerialMonitorReaderOnly();
 
     const monitorPort = serialMonitorPortRef.current;
-    const openedLocally = serialMonitorOpenedLocallyRef.current;
     serialMonitorPortRef.current = null;
     serialMonitorOpenedLocallyRef.current = false;
     serialMonitorBufferRef.current = '';
 
     const serialPort = asSerialPort(monitorPort);
-    const shouldAttemptClose = Boolean(serialPort?.close) && (openedLocally || isPortOpen(serialPort));
-    if (shouldAttemptClose && serialPort?.close) {
+    if (monitorPort && serialPort?.close) {
       try {
         await serialPort.close();
       } catch {
@@ -646,6 +783,7 @@ export default function SoftwaresClient() {
       const remainingOpenPort = await getFirstOpenGrantedPort();
       if (remainingOpenPort) {
         setSelectedSerialPort(remainingOpenPort);
+        flashSession.setPort(remainingOpenPort);
         setShowFlashConfirm(false);
         setFlashProgress(null);
         setFlashStatus('error');
@@ -662,6 +800,7 @@ export default function SoftwaresClient() {
       if (!keepSelection) {
         setSelectedSerialPort(null);
         setShowFlashConfirm(false);
+        flashSession.clearSession();
       }
     } finally {
       setIsPortReleasing(false);
@@ -673,8 +812,20 @@ export default function SoftwaresClient() {
     const silent = options?.silent ?? false;
     const switchToFlashLogs = options?.switchToFlashLogs ?? false;
     serialMonitorStopRequestedRef.current = true;
+    flashSession.requestStopMonitor();
 
-    await cleanupSerialMonitorConnection();
+    await cancelSerialMonitorReaderOnly();
+    const exitedPromise = serialMonitorLoopExitedPromiseRef.current;
+    if (exitedPromise) {
+      await Promise.race([
+        exitedPromise,
+        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    }
+    flashSession.setReader(null);
+    flashSession.setMonitoring(false);
+    flashSession.setMonitorBuffer('');
+    flashSession.clearStopRequested();
     setIsSerialMonitoring(false);
     setIsSerialMonitorStarting(false);
 
@@ -718,7 +869,8 @@ export default function SoftwaresClient() {
 
   async function sendFirstBootSerialConfig(
     port: unknown,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown>,
+    options?: { keepPortOpenForMonitor?: boolean }
   ): Promise<void> {
     if (!selectedFirmware?.configTemplatePath) {
       return;
@@ -822,7 +974,8 @@ export default function SoftwaresClient() {
         t('modal.logs.serialConfigSendFailed', { error: normalizePortErrorMessage(error) })
       );
     } finally {
-      if (openedLocally && serialPort.close) {
+      const keepOpen = options?.keepPortOpenForMonitor === true;
+      if (openedLocally && serialPort.close && !keepOpen) {
         try {
           await serialPort.close();
         } catch {
@@ -848,6 +1001,8 @@ export default function SoftwaresClient() {
       if (reader) {
         void reader.cancel();
       }
+      flashSession.setMonitoring(false);
+      flashSession.setReader(null);
     };
   }, []);
 
@@ -860,31 +1015,47 @@ export default function SoftwaresClient() {
       return;
     }
     flashSessionClosedRef.current = false;
-    void releaseSelectedPort({ silent: true });
-    teardownFlashSession(true);
+    if (flashSession.hasSession()) {
+      const state = flashSession.getState();
+      setSelectedSerialPort(state.port);
+      setFlashLogs(state.flashLogs);
+      setSerialMonitorLogs(state.serialMonitorLogs);
+      setIsSerialMonitoring(!!state.reader);
+      setIsFlashing(state.isFlashing);
+      setFlashProgress(state.flashProgress);
+      setFlashStatus(state.flashStatus);
+      setShowFlashConfirm(state.showFlashConfirm);
+      setActiveLogView(state.isFlashing ? 'flash' : state.activeLogView);
+      serialMonitorPortRef.current = state.port;
+      serialMonitorReaderRef.current = state.reader;
+      serialMonitorOpenedLocallyRef.current = state.openedLocally;
+      serialMonitorBufferRef.current = state.monitorBuffer;
+    } else {
+      teardownFlashSession(true);
+      setSelectedSerialPort(null);
+      setFlashStatus('idle');
+      setFlashLogs([]);
+      setSerialMonitorLogs([]);
+      setShowFlashConfirm(false);
+      terminalBufferRef.current = '';
+      serialMonitorBufferRef.current = '';
+      lastProgressPercentRef.current = -1;
+      partProgressByIndexRef.current = {};
+      lastProgressBytesRef.current = 0;
+      lastProgressAddressRef.current = 0;
+      setActiveLogView('flash');
+    }
     setSelectedFirmware(firmware);
     setIsModalOpen(true);
     setManifestToken(Date.now());
     setEraseBeforeFlash(true);
-    setShowFlashConfirm(false);
     setIsCopyingLogs(false);
     setIsPortReleasing(false);
     setIsPortPicking(false);
-    setSelectedSerialPort(null);
-    setFlashStatus('idle');
-    setFlashLogs([]);
-    setSerialMonitorLogs([]);
-    setActiveLogView('flash');
     setIsConfigTemplateLoading(false);
     setConfigFieldOrder([]);
     setConfigFieldTypes({});
     setConfigDraftValues({});
-    terminalBufferRef.current = '';
-    serialMonitorBufferRef.current = '';
-    lastProgressPercentRef.current = -1;
-    partProgressByIndexRef.current = {};
-    lastProgressBytesRef.current = 0;
-    lastProgressAddressRef.current = 0;
   }
 
   function closeFirmwareModal() {
@@ -893,31 +1064,27 @@ export default function SoftwaresClient() {
       return;
     }
     flashSessionClosedRef.current = true;
-    void releaseSelectedPort({ silent: true });
     teardownFlashSession(true);
     setIsModalOpen(false);
     setSelectedFirmware(null);
     setManifestToken(0);
     setFlashStatus('idle');
-    setFlashLogs([]);
-    setSerialMonitorLogs([]);
     setEraseBeforeFlash(true);
     setShowFlashConfirm(false);
     setIsCopyingLogs(false);
     setIsPortReleasing(false);
     setIsPortPicking(false);
-    setSelectedSerialPort(null);
     setActiveLogView('flash');
     setIsConfigTemplateLoading(false);
     setConfigFieldOrder([]);
     setConfigFieldTypes({});
     setConfigDraftValues({});
     terminalBufferRef.current = '';
-    serialMonitorBufferRef.current = '';
     lastProgressPercentRef.current = -1;
     partProgressByIndexRef.current = {};
     lastProgressBytesRef.current = 0;
     lastProgressAddressRef.current = 0;
+    // Keep port, flashLogs, serialMonitorLogs and selectedSerialPort in session so reopening or locale change resumes
   }
 
   function resolvePartUrl(manifestPath: string, partPath: string): string {
@@ -969,7 +1136,7 @@ export default function SoftwaresClient() {
       writeLine(data: string) {
         const trimmed = data.trim();
         if (trimmed.length > 0 && !shouldIgnoreTerminalLine(trimmed)) {
-          appendFlashLog(trimmed);
+          appendFlashLog(trimmed, 'build');
         }
       },
       write(data: string) {
@@ -980,7 +1147,7 @@ export default function SoftwaresClient() {
         for (const line of lines) {
           const trimmed = line.trim();
           if (trimmed.length > 0 && !shouldIgnoreTerminalLine(trimmed)) {
-            appendFlashLog(trimmed);
+            appendFlashLog(trimmed, 'build');
           }
         }
       },
@@ -1051,6 +1218,7 @@ export default function SoftwaresClient() {
     const alreadyOpenPort = await getFirstOpenGrantedPort();
     if (alreadyOpenPort) {
       setSelectedSerialPort(alreadyOpenPort);
+      flashSession.setPort(alreadyOpenPort);
       setFlashProgress(null);
       setFlashStatus('error');
       setShowFlashConfirm(false);
@@ -1076,6 +1244,7 @@ export default function SoftwaresClient() {
       appendFlashLog(t('modal.logs.checkingPort'));
       await probePortAvailability(pickedPort);
       setSelectedSerialPort(pickedPort);
+      flashSession.setPort(pickedPort);
       setShowFlashConfirm(true);
       setFlashStatus('dialog_ready');
       appendFlashLog(t('modal.logs.portSelected'));
@@ -1151,19 +1320,27 @@ export default function SoftwaresClient() {
 
     flashStartInFlightRef.current = true;
     flashSessionClosedRef.current = false;
+    suppressSerialConsoleErrorsRef.current = true;
     flashingFirmwareIdRef.current = selectedFirmware?.id ?? null;
     try {
-      if (isSerialMonitoring || isSerialMonitorStarting) {
+      if (flashSession.getState().reader != null || isSerialMonitoring || isSerialMonitorStarting) {
         await stopSerialMonitor({ silent: true, switchToFlashLogs: true });
+        await sleep(300);
       }
 
       teardownFlashSession(true);
       setIsFlashing(true);
       setIsDialogMounted(true);
       setShowFlashConfirm(false);
-      setFlashProgress(null);
+      setFlashProgress(0);
       setManifestToken(Date.now());
       setFlashStatus('installing');
+      flashSession.setFlashState({
+        isFlashing: true,
+        flashProgress: 0,
+        flashStatus: 'installing',
+        showFlashConfirm: false,
+      });
       setActiveLogView('flash');
       lastProgressPercentRef.current = -1;
       partProgressByIndexRef.current = {};
@@ -1208,6 +1385,11 @@ export default function SoftwaresClient() {
           : new Error('Unable to load esptool-js');
       }
 
+      if (selectedSerialPort) {
+        await closePortIfOpen(selectedSerialPort);
+        await sleep(600);
+      }
+
       const terminal = buildTerminalLogger();
       // Disable low-level transport tracing to avoid noisy timeout errors in console.
       transport = new esptoolModule.Transport(selectedSerialPort, false);
@@ -1240,6 +1422,12 @@ export default function SoftwaresClient() {
       }
 
       setFlashStatus('dialog_ready');
+      flashSession.setFlashState({
+        isFlashing: true,
+        flashProgress: flashSession.getState().flashProgress,
+        flashStatus: 'dialog_ready',
+        showFlashConfirm: false,
+      });
       appendFlashLog(t('modal.logs.downloadingBinaries'));
 
       const binaries: Array<{
@@ -1271,12 +1459,25 @@ export default function SoftwaresClient() {
       }
 
       if (eraseBeforeFlash) {
+        setFlashStatus('erasing');
+        flashSession.setFlashState({
+          isFlashing: true,
+          flashProgress: flashSession.getState().flashProgress,
+          flashStatus: 'erasing',
+          showFlashConfirm: false,
+        });
         appendFlashLog(t('modal.logs.eraseStart'));
         await loader.eraseFlash();
         appendFlashLog(t('modal.logs.eraseDone'));
       }
 
       setFlashStatus('installing');
+      flashSession.setFlashState({
+        isFlashing: true,
+        flashProgress: flashSession.getState().flashProgress,
+        flashStatus: 'installing',
+        showFlashConfirm: false,
+      });
       appendFlashLog(t('modal.logs.startWrite'));
 
       await loader.writeFlash({
@@ -1316,6 +1517,12 @@ export default function SoftwaresClient() {
           );
           lastProgressAddressRef.current = stableAddress;
           setFlashProgress(stablePercentage);
+          flashSession.setFlashState({
+            isFlashing: true,
+            flashProgress: stablePercentage,
+            flashStatus: 'installing',
+            showFlashConfirm: false,
+          });
 
           if (stablePercentage !== lastProgressPercentRef.current) {
             lastProgressPercentRef.current = stablePercentage;
@@ -1344,6 +1551,12 @@ export default function SoftwaresClient() {
       if (!flashSessionClosedRef.current) {
         setFlashStatus('finished');
       }
+      flashSession.setFlashState({
+        isFlashing: !flashSessionClosedRef.current,
+        flashProgress: 100,
+        flashStatus: flashSessionClosedRef.current ? 'error' : 'finished',
+        showFlashConfirm: false,
+      });
       appendFlashLog(t('modal.logs.finished'));
       flashSucceeded = true;
     } catch (error) {
@@ -1351,6 +1564,12 @@ export default function SoftwaresClient() {
       if (!flashSessionClosedRef.current) {
         setFlashProgress(null);
         setFlashStatus('error');
+        flashSession.setFlashState({
+          isFlashing: false,
+          flashProgress: null,
+          flashStatus: 'error',
+          showFlashConfirm: false,
+        });
       }
       appendFlashLog(t('modal.logs.flashError', { error: message }));
       } finally {
@@ -1378,24 +1597,39 @@ export default function SoftwaresClient() {
             }
           }
         }
+        if (flashSucceeded) {
+          flashSession.setActiveLogView('serial');
+          setActiveLogView('serial');
+        }
         setIsFlashing(false);
+        flashSession.setFlashState({
+          isFlashing: false,
+          flashProgress: flashSucceeded ? 100 : null,
+          flashStatus: flashSucceeded ? 'finished' : 'error',
+          showFlashConfirm: false,
+        });
         if (flashSucceeded) {
           void startSerialMonitor({ ignoreFlashingGuard: true });
+        } else if (selectedSerialPort) {
+          await closePortIfOpen(selectedSerialPort);
         }
       }
     } finally {
       flashStartInFlightRef.current = false;
       flashingFirmwareIdRef.current = null;
+      setTimeout(() => {
+        suppressSerialConsoleErrorsRef.current = false;
+      }, 1500);
     }
   }
 
   async function copyLogsToClipboard() {
     const logsToCopy =
       activeLogView === 'serial' ? [...flashLogs, ...serialMonitorLogs] : flashLogs;
-    if (logsToCopy.length === 0 || isCopyingLogs) {
+    if (logsToCopy.length === 0 || isCopyingLogs || copyLogsInFlightRef.current) {
       return;
     }
-
+    copyLogsInFlightRef.current = true;
     setIsCopyingLogs(true);
     const text = logsToCopy.map((e) => e.text).join('\n');
     const appendCopyMessage = (success: boolean) => {
@@ -1427,15 +1661,17 @@ export default function SoftwaresClient() {
       }
     } finally {
       setIsCopyingLogs(false);
+      copyLogsInFlightRef.current = false;
     }
   }
 
   async function startSerialMonitor(options?: { ignoreFlashingGuard?: boolean }) {
     const ignoreFlashingGuard = options?.ignoreFlashingGuard ?? false;
+    const hasActiveReader = flashSession.getState().reader != null;
     if (
       (!ignoreFlashingGuard && isFlashing) ||
       isSerialMonitorStarting ||
-      isSerialMonitoring ||
+      hasActiveReader ||
       isPortReleasing
     ) {
       return;
@@ -1454,6 +1690,7 @@ export default function SoftwaresClient() {
     }
 
     setIsSerialMonitorStarting(true);
+    flashSession.setActiveLogView('serial');
     setActiveLogView('serial');
     serialMonitorStopRequestedRef.current = false;
     appendSerialMonitorLog(t('modal.logs.serialMonitorStarting'));
@@ -1464,6 +1701,7 @@ export default function SoftwaresClient() {
       if (!monitorPort && alreadyOpenPort) {
         monitorPort = alreadyOpenPort;
         setSelectedSerialPort(alreadyOpenPort);
+        flashSession.setPort(alreadyOpenPort);
       }
 
       if (!monitorPort) {
@@ -1474,6 +1712,7 @@ export default function SoftwaresClient() {
         }
         monitorPort = await serialApi.requestPort({});
         setSelectedSerialPort(monitorPort);
+        flashSession.setPort(monitorPort);
         appendSerialMonitorLog(t('modal.logs.portSelected'));
       }
 
@@ -1497,12 +1736,23 @@ export default function SoftwaresClient() {
       serialMonitorBufferRef.current = '';
       const reader = serialPort.readable.getReader();
       serialMonitorReaderRef.current = reader;
+      flashSession.setPort(monitorPort);
+      flashSession.setReader(reader);
+      flashSession.setOpenedLocally(serialMonitorOpenedLocallyRef.current);
+      flashSession.setMonitoring(true);
+      flashSession.clearStopRequested();
       setIsSerialMonitoring(true);
       setIsSerialMonitorStarting(false);
       appendSerialMonitorLog(t('modal.logs.serialMonitorStarted'));
 
+      let resolveLoopExited: () => void;
+      serialMonitorLoopExitedPromiseRef.current = new Promise<void>((resolve) => {
+        resolveLoopExited = resolve;
+      });
+      serialMonitorLoopExitedResolveRef.current = () => resolveLoopExited();
+
       const decoder = new TextDecoder();
-      while (!serialMonitorStopRequestedRef.current) {
+      while (!serialMonitorStopRequestedRef.current && !flashSession.isStopRequested()) {
         const { value, done } = await reader.read();
         if (done) {
           break;
@@ -1513,8 +1763,10 @@ export default function SoftwaresClient() {
         }
 
         serialMonitorBufferRef.current += decoder.decode(value, { stream: true });
+        flashSession.setMonitorBuffer(serialMonitorBufferRef.current);
         const lines = serialMonitorBufferRef.current.split(/\r?\n/);
         serialMonitorBufferRef.current = lines.pop() ?? '';
+        flashSession.setMonitorBuffer(serialMonitorBufferRef.current);
         for (const line of lines) {
           if (line.length > 0) {
             appendSerialMonitorLog(line);
@@ -1531,11 +1783,18 @@ export default function SoftwaresClient() {
         t('modal.logs.serialMonitorError', { error: normalizePortErrorMessage(error) })
       );
     } finally {
-      const stoppedByUser = serialMonitorStopRequestedRef.current;
+      const stoppedByUser = serialMonitorStopRequestedRef.current || flashSession.isStopRequested();
       await cleanupSerialMonitorConnection();
+      flashSession.setReader(null);
+      flashSession.setMonitoring(false);
+      flashSession.setMonitorBuffer('');
+      flashSession.clearStopRequested();
       setIsSerialMonitoring(false);
       setIsSerialMonitorStarting(false);
       serialMonitorStopRequestedRef.current = false;
+      serialMonitorLoopExitedResolveRef.current?.();
+      serialMonitorLoopExitedResolveRef.current = null;
+      serialMonitorLoopExitedPromiseRef.current = null;
       if (!stoppedByUser) {
         appendSerialMonitorLog(t('modal.logs.serialMonitorStopped'));
       }
@@ -1544,11 +1803,10 @@ export default function SoftwaresClient() {
 
   function clearActiveLogs() {
     if (activeLogView === 'serial') {
-      setFlashLogs([]);
-      setSerialMonitorLogs([]);
+      flashSession.clearLogs('serial');
       return;
     }
-    setFlashLogs([]);
+    flashSession.clearLogs('flash');
   }
 
   const manifestUrl = selectedFirmware
@@ -1582,9 +1840,6 @@ export default function SoftwaresClient() {
                 <p className={styles.cardMeta}>
                   <strong>{t('cards.boardLabel')}:</strong> {software.board}
                 </p>
-                {software.includesFilesystemData && (
-                  <p className={styles.successText}>{t('cards.includesData')}</p>
-                )}
                 <button
                   type="button"
                   className={styles.primaryButton}
@@ -1632,7 +1887,6 @@ export default function SoftwaresClient() {
             </button>
 
             <h3 className={styles.modalTitle}>{localize(selectedFirmware.name, locale)}</h3>
-            <p className={styles.modalSubtitle}>{localize(selectedFirmware.description, locale)}</p>
 
             {!isGoogleChrome || !isWebSerialSupported ? (
               <p className={styles.warningText}>{t('modal.chromeOnly')}</p>
@@ -1640,89 +1894,187 @@ export default function SoftwaresClient() {
               <p className={styles.infoText}>{t('modal.chromeReady')}</p>
             )}
 
-            <p className={styles.infoText}>{t('modal.staticNotice')}</p>
-            <p className={styles.infoText}>{t('modal.staticDataNotice')}</p>
-
-            <div className={styles.formGrid}>
-              {selectedFirmware.parts.map((part) => (
-                <div key={part.id} className={styles.field}>
-                  <span className={styles.fieldLabel}>{localize(part.label, locale)}</span>
-                  <span className={styles.cardMeta}>
-                    {t('modal.offsetLabel')}: 0x{part.offset.toString(16).toUpperCase()}
-                  </span>
-                </div>
-              ))}
-            </div>
-
             {selectedFirmware.configTemplatePath && (
               <div className={styles.configSection}>
-                <div className={styles.configSectionHeader}>
-                  <h4 className={styles.liveLogsTitle}>{t('modal.configTitle')}</h4>
-                  {isConfigTemplateLoading && (
+                {isConfigTemplateLoading && (
+                  <div className={styles.configSectionHeader}>
                     <span className={styles.cardMeta}>{t('states.loadingConfig')}</span>
-                  )}
-                </div>
+                  </div>
+                )}
                 {!isConfigTemplateLoading && configFieldOrder.length > 0 && (
                   <>
-                    <p className={styles.cardMeta}>{t('modal.configHint')}</p>
+                    <div className={styles.configTabs}>
+                      {CONFIG_TAB_ORDER.map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          className={
+                            configTab === tab
+                              ? `${styles.configTab} ${styles.configTabActive}`
+                              : styles.configTab
+                          }
+                          onClick={() => setConfigTab(tab)}
+                        >
+                          {t(`modal.configTabs.${tab}`)}
+                        </button>
+                      ))}
+                    </div>
                     <div className={styles.formGrid}>
-                      {configFieldOrder.map((fieldKey) => {
-                        const fieldType = configFieldTypes[fieldKey];
-                        const fieldValue = configDraftValues[fieldKey];
+                      {(() => {
+                        const allTabKeysSet = new Set(
+                          CONFIG_TAB_ORDER.flatMap(
+                            (t) => CONFIG_FIELDS_BY_TAB[t]
+                          )
+                        );
+                        const baseForTab = (
+                          CONFIG_FIELDS_BY_TAB[configTab] ?? []
+                        ).filter(
+                          (key) =>
+                            configFieldOrder.includes(key) &&
+                            !CONFIG_UI_HIDDEN_KEYS.has(key)
+                        );
+                        const extraGeneral =
+                          configTab === 'general'
+                            ? configFieldOrder.filter(
+                                (key) =>
+                                  !CONFIG_UI_HIDDEN_KEYS.has(key) &&
+                                  !allTabKeysSet.has(key)
+                              )
+                            : [];
+                        const fieldKeysForTab = [
+                          ...baseForTab,
+                          ...extraGeneral,
+                        ];
+                        return fieldKeysForTab;
+                      })().map((fieldKey) => {
+                          const fieldType = configFieldTypes[fieldKey];
+                          const fieldValue = configDraftValues[fieldKey];
+                          const selectSpec = CONFIG_SELECT_FIELDS[fieldKey];
+                          const fieldLabel =
+                            t(`modal.configFields.${fieldKey}` as any) || fieldKey;
 
-                        return (
-                          <div key={fieldKey} className={styles.field}>
-                            <span className={styles.fieldLabel}>{fieldKey}</span>
-                            {fieldType === 'boolean' ? (
-                              <label className={styles.checkboxField}>
-                                <input
-                                  type="checkbox"
-                                  className={styles.checkboxInput}
-                                  checked={Boolean(fieldValue)}
+                          return (
+                            <div key={fieldKey} className={styles.field}>
+                              <span className={styles.fieldLabel}>
+                                {fieldLabel}
+                              </span>
+                              {fieldType === 'boolean' ? (
+                                <label className={styles.checkboxField}>
+                                  <input
+                                    type="checkbox"
+                                    className={styles.checkboxInput}
+                                    checked={Boolean(fieldValue)}
+                                    onChange={(event) => {
+                                      const nextValue =
+                                        event.currentTarget.checked;
+                                      setConfigDraftValues((previous) => {
+                                        const next = {
+                                          ...previous,
+                                          [fieldKey]: nextValue,
+                                        };
+                                        if (selectedFirmware?.id)
+                                          persistConfigDraft(
+                                            selectedFirmware.id,
+                                            next
+                                          );
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                  <span className={styles.cardMeta}>
+                                    {Boolean(fieldValue) ? 'true' : 'false'}
+                                  </span>
+                                </label>
+                              ) : selectSpec ? (
+                                <select
+                                  className={styles.input}
+                                  value={
+                                    typeof fieldValue === 'string'
+                                      ? fieldValue
+                                      : String(fieldValue ?? '')
+                                  }
                                   onChange={(event) => {
-                                    const nextValue = event.currentTarget.checked;
+                                    const nextValue =
+                                      event.currentTarget.value;
                                     setConfigDraftValues((previous) => {
-                                      const next = { ...previous, [fieldKey]: nextValue };
-                                      if (selectedFirmware?.id) persistConfigDraft(selectedFirmware.id, next);
+                                      const next = {
+                                        ...previous,
+                                        [fieldKey]: nextValue,
+                                      };
+                                      if (selectedFirmware?.id)
+                                        persistConfigDraft(
+                                          selectedFirmware.id,
+                                          next
+                                        );
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  {selectSpec.values.map((v) => (
+                                    <option key={v} value={String(v)}>
+                                      {t(
+                                        `modal.configOptions.${selectSpec.optionPrefix}_${v}` as any
+                                      )}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : fieldType === 'json' ? (
+                                <textarea
+                                  className={styles.textarea}
+                                  value={
+                                    typeof fieldValue === 'string'
+                                      ? fieldValue
+                                      : ''
+                                  }
+                                  onChange={(event) => {
+                                    const nextValue =
+                                      event.currentTarget.value;
+                                    setConfigDraftValues((previous) => {
+                                      const next = {
+                                        ...previous,
+                                        [fieldKey]: nextValue,
+                                      };
+                                      if (selectedFirmware?.id)
+                                        persistConfigDraft(
+                                          selectedFirmware.id,
+                                          next
+                                        );
                                       return next;
                                     });
                                   }}
                                 />
-                                <span className={styles.cardMeta}>
-                                  {Boolean(fieldValue) ? 'true' : 'false'}
-                                </span>
-                              </label>
-                            ) : fieldType === 'json' ? (
-                              <textarea
-                                className={styles.textarea}
-                                value={typeof fieldValue === 'string' ? fieldValue : ''}
-                                onChange={(event) => {
-                                  const nextValue = event.currentTarget.value;
-                                  setConfigDraftValues((previous) => {
-                                    const next = { ...previous, [fieldKey]: nextValue };
-                                    if (selectedFirmware?.id) persistConfigDraft(selectedFirmware.id, next);
-                                    return next;
-                                  });
-                                }}
-                              />
-                            ) : (
-                              <input
-                                type={fieldType === 'number' ? 'number' : 'text'}
-                                className={styles.input}
-                                value={typeof fieldValue === 'string' ? fieldValue : ''}
-                                onChange={(event) => {
-                                  const nextValue = event.currentTarget.value;
-                                  setConfigDraftValues((previous) => {
-                                    const next = { ...previous, [fieldKey]: nextValue };
-                                    if (selectedFirmware?.id) persistConfigDraft(selectedFirmware.id, next);
-                                    return next;
-                                  });
-                                }}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
+                              ) : (
+                                <input
+                                  type={
+                                    fieldType === 'number' ? 'number' : 'text'
+                                  }
+                                  className={styles.input}
+                                  value={
+                                    typeof fieldValue === 'string'
+                                      ? fieldValue
+                                      : ''
+                                  }
+                                  onChange={(event) => {
+                                    const nextValue =
+                                      event.currentTarget.value;
+                                    setConfigDraftValues((previous) => {
+                                      const next = {
+                                        ...previous,
+                                        [fieldKey]: nextValue,
+                                      };
+                                      if (selectedFirmware?.id)
+                                        persistConfigDraft(
+                                          selectedFirmware.id,
+                                          next
+                                        );
+                                      return next;
+                                    });
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   </>
                 )}
@@ -1813,14 +2165,19 @@ export default function SoftwaresClient() {
 
             <div className={styles.flashPanel}>
               <div className={styles.flashPanelHeader}>
-                {!isDialogMounted && (
+                {!isDialogMounted && !flashSession.hasSession() && (
                   <p className={`${styles.infoText} ${styles.flashPanelHint}`}>
                     {t('modal.dialogPlaceholder')}
                   </p>
                 )}
-                <span className={`${styles.flashStatusBadge} ${statusClassName(flashStatus)}`}>
-                  {t(`modal.status.${flashStatus}`)}
-                </span>
+                <div className={styles.flashPanelHeaderRight}>
+                  {(flashStatus === 'erasing' || (isFlashing && flashStatus === 'installing')) && (
+                    <span className={styles.flashLoader} aria-hidden="true" />
+                  )}
+                  <span className={`${styles.flashStatusBadge} ${statusClassName(flashStatus)}`}>
+                    {t(`modal.status.${flashStatus}`)}
+                  </span>
+                </div>
               </div>
               {flashProgress !== null && flashStatus !== 'error' && (
                 <>

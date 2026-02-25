@@ -268,10 +268,48 @@
       "liveLogsTitle": "Journal live",
       "serialMonitorTitle": "Moniteur serie",
       "liveLogsEmpty": "Aucun evenement pour le moment.",
+      "configTabs": {
+        "general": "General",
+        "network": "Reseau",
+        "buttons": "Boutons"
+      },
+      "configFields": {
+        "loop_file": "Boucle audio",
+        "auto_play": "Lecture auto",
+        "note": "Notes",
+        "udp_port": "Port UDP",
+        "volume": "Volume",
+        "device_mode": "Mode appareil",
+        "mesh_ttl": "Mesh TTL",
+        "ap_safety_timeout_s": "Timeout AP (s)",
+        "ap_name": "Nom AP",
+        "ap_password": "Mot de passe AP",
+        "ap_ip_config": "Config IP AP",
+        "esp_now_channel": "Canal ESP-NOW",
+        "ap_enabled": "AP active",
+        "button_gpio13_track": "Piste bouton GPIO 13",
+        "button_gpio13_pull_mode": "Mode pull GPIO 13",
+        "button_gpio13_active_level": "Niveau actif GPIO 13",
+        "button_gpio16_track": "Piste bouton GPIO 16",
+        "button_gpio16_pull_mode": "Mode pull GPIO 16",
+        "button_gpio16_active_level": "Niveau actif GPIO 16"
+      },
+      "configOptions": {
+        "device_mode_0": "Courant",
+        "device_mode_1": "Mesh",
+        "device_mode_2": "AP off",
+        "device_mode_3": "Relais seul",
+        "pull_mode_0": "Up",
+        "pull_mode_1": "Down",
+        "pull_mode_2": "Aucun",
+        "active_level_0": "Bas",
+        "active_level_1": "Haut"
+      },
       "status": {
         "idle": "En attente",
         "waiting_for_port": "Attente port serie",
         "dialog_ready": "Pret a flasher",
+        "erasing": "Effacement en cours",
         "installing": "Installation en cours",
         "finished": "Installation terminee",
         "error": "Erreur"
