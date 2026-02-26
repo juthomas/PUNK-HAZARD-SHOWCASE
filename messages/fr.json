@@ -256,6 +256,7 @@
       "startSerialMonitor": "Demarrer le moniteur serie",
       "startingSerialMonitor": "Ouverture du moniteur...",
       "stopSerialMonitor": "Arreter le moniteur serie",
+      "flashAgain": "Reflasher",
       "clearLiveLogs": "Vider le journal",
       "copyLogs": "Copier les logs",
       "copyingLogs": "Copie...",

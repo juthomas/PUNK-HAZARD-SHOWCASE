@@ -256,6 +256,7 @@
       "startSerialMonitor": "Start serial monitor",
       "startingSerialMonitor": "Opening monitor...",
       "stopSerialMonitor": "Stop serial monitor",
+      "flashAgain": "Flash again",
       "clearLiveLogs": "Clear logs",
       "copyLogs": "Copy logs",
       "copyingLogs": "Copying...",

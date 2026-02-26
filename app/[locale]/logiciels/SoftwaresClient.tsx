@@ -1821,6 +1821,8 @@ export default function SoftwaresClient() {
       serialMonitorLoopExitedPromiseRef.current = null;
       if (!stoppedByUser) {
         appendSerialMonitorLog(t('modal.logs.serialMonitorStopped'));
+        setSelectedSerialPort(null);
+        flashSession.clearSession();
       }
     }
   }
@@ -2185,6 +2187,29 @@ export default function SoftwaresClient() {
                     : isSerialMonitorStarting
                       ? t('modal.startingSerialMonitor')
                       : t('modal.startSerialMonitor')}
+                </button>
+              ) : null}
+              {(flashStatus === 'finished' || isSerialMonitoring) &&
+              selectedSerialPort &&
+              !showFlashConfirm &&
+              !isFlashing ? (
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={async () => {
+                    if (isSerialMonitoring || isSerialMonitorStarting) {
+                      await stopSerialMonitor({ silent: true, switchToFlashLogs: true });
+                    }
+                    setActiveLogView('flash');
+                    setShowFlashConfirm(true);
+                    flashSession.setFlashState({
+                      ...flashSession.getState(),
+                      showFlashConfirm: true,
+                    });
+                  }}
+                  disabled={isPortPicking || isPortReleasing}
+                >
+                  {t('modal.flashAgain')}
                 </button>
               ) : null}
             </div>
