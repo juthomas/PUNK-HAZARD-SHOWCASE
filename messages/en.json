@@ -295,10 +295,10 @@
         "button_gpio16_active_level": "GPIO 16 active level"
       },
       "configOptions": {
-        "device_mode_0": "Current",
-        "device_mode_1": "Mesh",
-        "device_mode_2": "AP off",
-        "device_mode_3": "Relay only",
+        "device_mode_0": "Broadcast",
+        "device_mode_1": "Broadcast + mesh",
+        "device_mode_2": "Broadcast + AP off",
+        "device_mode_3": "Broadcast + mesh + AP off",
         "pull_mode_0": "Up",
         "pull_mode_1": "Down",
         "pull_mode_2": "None",

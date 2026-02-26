@@ -83,27 +83,27 @@ type SerialPortLike = {
 
 type ConfigFieldType = 'boolean' | 'number' | 'string' | 'json';
 
-const CONFIG_UI_HIDDEN_KEYS = new Set<string>(['track_assignation']);
+const CONFIG_UI_HIDDEN_KEYS = new Set<string>(['track_assignation', 'ap_enabled']);
 
 const CONFIG_TAB_ORDER = ['general', 'network', 'buttons'] as const;
 const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> = {
-  general: ['loop_file', 'auto_play', 'note', 'udp_port', 'volume'],
+  general: ['loop_file', 'auto_play', 'note', 'volume'],
   network: [
     'device_mode',
+    'udp_port',
     'mesh_ttl',
     'ap_safety_timeout_s',
     'ap_name',
     'ap_password',
     'ap_ip_config',
     'esp_now_channel',
-    'ap_enabled',
   ],
   buttons: [
     'button_gpio13_track',
-    'button_gpio13_pull_mode',
-    'button_gpio13_active_level',
     'button_gpio16_track',
+    'button_gpio13_pull_mode',
     'button_gpio16_pull_mode',
+    'button_gpio13_active_level',
     'button_gpio16_active_level',
   ],
 };
@@ -1550,12 +1550,12 @@ export default function SoftwaresClient() {
       await loader.after();
       setFlashProgress(100);
       if (!flashSessionClosedRef.current) {
-        setFlashStatus('finished');
+        setFlashStatus(serialConfigPayload ? 'installing' : 'finished');
       }
       flashSession.setFlashState({
         isFlashing: !flashSessionClosedRef.current,
         flashProgress: 100,
-        flashStatus: flashSessionClosedRef.current ? 'error' : 'finished',
+        flashStatus: flashSessionClosedRef.current ? 'error' : serialConfigPayload ? 'installing' : 'finished',
         showFlashConfirm: false,
       });
       appendFlashLog(t('modal.logs.finished'));
@@ -2167,24 +2167,26 @@ export default function SoftwaresClient() {
                   </button>
                 </>
               )}
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => {
-                  if (isSerialMonitoring || isSerialMonitorStarting) {
-                    void stopSerialMonitor({ switchToFlashLogs: false });
-                    return;
-                  }
-                  void startSerialMonitor();
-                }}
-                disabled={isFlashing || isPortPicking || isPortReleasing}
-              >
-                {isSerialMonitoring
-                  ? t('modal.stopSerialMonitor')
-                  : isSerialMonitorStarting
-                    ? t('modal.startingSerialMonitor')
-                    : t('modal.startSerialMonitor')}
-              </button>
+              {selectedSerialPort && (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => {
+                    if (isSerialMonitoring || isSerialMonitorStarting) {
+                      void stopSerialMonitor({ switchToFlashLogs: false });
+                      return;
+                    }
+                    void startSerialMonitor();
+                  }}
+                  disabled={isFlashing || isPortPicking || isPortReleasing}
+                >
+                  {isSerialMonitoring
+                    ? t('modal.stopSerialMonitor')
+                    : isSerialMonitorStarting
+                      ? t('modal.startingSerialMonitor')
+                      : t('modal.startSerialMonitor')}
+                </button>
+              )}
             </div>
 
             <div className={styles.flashPanel}>

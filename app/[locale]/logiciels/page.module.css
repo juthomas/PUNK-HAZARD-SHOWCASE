@@ -222,44 +222,51 @@
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 20px;
+  min-height: 300px;
+  align-content: start;
 }
 
 .configSection {
   border-top: 1px solid var(--border);
-  padding-top: 12px;
+  padding-top: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .configTabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 4px;
+  padding-bottom: 0;
 }
 
 .configTab {
-  padding: 8px 14px;
+  padding: 10px 16px;
   font-size: 13px;
+  font-weight: 500;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--foreground);
-  opacity: 0.7;
+  opacity: 0.65;
   cursor: pointer;
   margin-bottom: -1px;
+  border-radius: 6px 6px 0 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
 }
 
 .configTab:hover {
-  opacity: 1;
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .configTabActive {
   opacity: 1;
   border-bottom-color: var(--foreground);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .configSectionHeader {
@@ -272,42 +279,58 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .fieldLabel {
   font-size: 12px;
-  opacity: 0.8;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 500;
+  opacity: 0.85;
+  letter-spacing: 0.01em;
 }
 
 .input,
 .textarea {
-  background: rgba(255, 255, 255, 0.03);
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--foreground);
   padding: 10px 12px;
   font-size: 14px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .textarea {
   resize: vertical;
-  min-height: 110px;
+  min-height: 100px;
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .checkboxField {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 8px 0;
+  cursor: pointer;
+  user-select: none;
 }
 
 .checkboxInput {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   accent-color: #ffffff;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .modalActions {
