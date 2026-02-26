@@ -2167,7 +2167,7 @@ export default function SoftwaresClient() {
                   </button>
                 </>
               )}
-              {selectedSerialPort && (
+              {selectedSerialPort ? (
                 <button
                   type="button"
                   className={styles.secondaryButton}
@@ -2186,7 +2186,7 @@ export default function SoftwaresClient() {
                       ? t('modal.startingSerialMonitor')
                       : t('modal.startSerialMonitor')}
                 </button>
-              )}
+              ) : null}
             </div>
 
             <div className={styles.flashPanel}>
