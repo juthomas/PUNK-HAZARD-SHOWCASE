@@ -276,6 +276,7 @@
       "configFields": {
         "loop_file": "Loop audio",
         "auto_play": "Auto play",
+        "allow_play_over_playing": "Allow starting a track while one is playing",
         "note": "Notes",
         "udp_port": "UDP port",
         "volume": "Volume",

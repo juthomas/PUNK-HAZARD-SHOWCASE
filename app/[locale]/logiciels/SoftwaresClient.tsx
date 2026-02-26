@@ -87,7 +87,7 @@ const CONFIG_UI_HIDDEN_KEYS = new Set<string>(['track_assignation', 'ap_enabled'
 
 const CONFIG_TAB_ORDER = ['general', 'network', 'buttons'] as const;
 const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> = {
-  general: ['loop_file', 'auto_play', 'note', 'volume'],
+  general: ['note', 'volume', 'loop_file', 'auto_play', 'allow_play_over_playing' ],
   network: [
     'device_mode',
     'udp_port',
