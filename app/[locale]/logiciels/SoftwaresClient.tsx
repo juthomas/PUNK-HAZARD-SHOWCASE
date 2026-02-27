@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale, useTranslations } from 'next-intl';
 import { softwaresCatalog } from '@/lib/softwares';
 import type { FirmwareSoftware, LocalizedText, PublicSoftware } from '@/lib/softwares';
@@ -60,7 +61,7 @@ type EsptoolModule = {
 
 type SerialNavigator = Navigator & {
   serial?: {
-    requestPort: (options?: unknown) => Promise<unknown>;
+    requestPort: (options?: { filters?: Array<{ usbVendorId?: number; usbProductId?: number }> }) => Promise<unknown>;
     getPorts?: () => Promise<unknown[]>;
   };
 };
@@ -84,6 +85,9 @@ type SerialPortLike = {
 type ConfigFieldType = 'boolean' | 'number' | 'string' | 'json';
 
 const CONFIG_UI_HIDDEN_KEYS = new Set<string>(['track_assignation', 'ap_enabled']);
+
+/** USB serial filter: CP2102 (Silicon Labs) so the port picker shows only USB serial, not Bluetooth (e.g. on Android). */
+const SERIAL_USB_FILTERS = [{ usbVendorId: 0x10c4 }]; // Silicon Labs CP210x
 
 const CONFIG_TAB_ORDER = ['general', 'network', 'buttons'] as const;
 const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> = {
@@ -235,6 +239,11 @@ export default function SoftwaresClient() {
   const [isCopyingLogs, setIsCopyingLogs] = useState(false);
   const [isPortReleasing, setIsPortReleasing] = useState(false);
   const [isDialogMounted, setIsDialogMounted] = useState(false);
+  const [portalMounted, setPortalMounted] = useState(false);
+
+  useEffect(() => {
+    setPortalMounted(true);
+  }, []);
   const [selectedSerialPort, setSelectedSerialPort] = useState<unknown | null>(() =>
     flashSession.hasSession() ? flashSession.getState().port : null
   );
@@ -381,6 +390,27 @@ export default function SoftwaresClient() {
       flashSession.setActiveLogView(activeLogView);
     }
   }, [activeLogView]);
+
+  // Lock body scroll when firmware modal is open (and ensure modal is above navbar)
+  useEffect(() => {
+    if (!isModalOpen || !portalMounted) return;
+    const scrollY = window.scrollY;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const supportsStableGutter = typeof CSS !== 'undefined' && CSS.supports('scrollbar-gutter: stable');
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = supportsStableGutter ? '0px' : `${scrollbarWidth}px`;
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      window.scrollTo(0, scrollY);
+    };
+  }, [isModalOpen, portalMounted]);
 
   function appendFlashLog(message: string, entryType: LogEntryType = 'build') {
     const timestamp = new Date().toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
@@ -1242,7 +1272,7 @@ export default function SoftwaresClient() {
         throw new Error(t('modal.logs.chromeRequired'));
       }
 
-      const pickedPort = await serialApi.requestPort({});
+      const pickedPort = await serialApi.requestPort({ filters: SERIAL_USB_FILTERS });
       appendFlashLog(t('modal.logs.checkingPort'));
       await probePortAvailability(pickedPort);
       setSelectedSerialPort(pickedPort);
@@ -1718,7 +1748,7 @@ export default function SoftwaresClient() {
         if (!serialApi) {
           throw new Error(t('modal.logs.chromeRequired'));
         }
-        monitorPort = await serialApi.requestPort({});
+        monitorPort = await serialApi.requestPort({ filters: SERIAL_USB_FILTERS });
         setSelectedSerialPort(monitorPort);
         flashSession.setPort(monitorPort);
         appendSerialMonitorLog(t('modal.logs.portSelected'));
@@ -1900,7 +1930,7 @@ export default function SoftwaresClient() {
         )}
       </section>
 
-      {isModalOpen && selectedFirmware && (
+      {isModalOpen && selectedFirmware && portalMounted && createPortal(
         <div className={styles.modalOverlay} onClick={closeFirmwareModal}>
           <div className={styles.modal} onClick={(event) => event.stopPropagation()}>
             <button
@@ -2295,7 +2325,8 @@ export default function SoftwaresClient() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
