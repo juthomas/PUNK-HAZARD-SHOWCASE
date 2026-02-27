@@ -28,7 +28,7 @@ export default function ProfilePage() {
 
   if (status === 'loading') {
     return (
-      <div className={styles.page}>
+      <div className={`page ${styles.page}`}>
         <Header />
         <main className={styles.main}>
           <div className={styles.container}>
@@ -71,7 +71,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className={styles.page}>
+    <div className={`page ${styles.page}`}>
       <Header />
       <main className={styles.main}>
         <div className={styles.container}>

@@ -25,7 +25,7 @@ export default function AboutPage() {
   const t = useTranslations('about');
 
   return (
-    <div className={styles.page}>
+    <div className={`page ${styles.page}`}>
       <Header />
       <main className={styles.main}>
         <div className={styles.container}>

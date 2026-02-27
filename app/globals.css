@@ -49,13 +49,13 @@ header:not([class*="Header"]) {
   flex-direction: column;
 }
 
-/* S'assurer que le main prend au moins la hauteur de l'écran moins le header */
+/* Contenu principal (main) = au moins 100vh pour que le footer soit sous le pli (header en fixed donc hors flux) */
 .page > main {
   flex: 1;
-  min-height: calc(100vh - 64px); /* 64px = hauteur du header */
+  min-height: 100vh;
   position: relative;
-  z-index: 10; /* Z-index supérieur au footer */
-  background: var(--background); /* Fond opaque pour cacher le footer */
+  z-index: 10;
+  background: var(--background);
 }
 
 /* Base typography */

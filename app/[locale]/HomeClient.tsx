@@ -121,7 +121,7 @@ export default function HomeClient() {
   }, []);
 
   return (
-    <div className={styles.page}>
+    <div className={`page ${styles.page}`}>
       <Header />
       {glitchIntensity === 'crazy' && (
         <div className={styles.glitchOverlay} aria-hidden="true">

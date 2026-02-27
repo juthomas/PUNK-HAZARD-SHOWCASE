@@ -25,7 +25,7 @@ export default function MentionsLegalesPage() {
   const t = useTranslations('legal');
 
   return (
-    <div className={styles.page}>
+    <div className={`page ${styles.page}`}>
       <Header />
       <main className={styles.main}>
         <div className={styles.container}>
