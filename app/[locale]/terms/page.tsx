@@ -15,7 +15,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: 'cgv' });
   return buildPageMetadata({
     locale,
-    pathSegment: 'cgv',
+    pathSegment: 'terms',
     title: t('title'),
     description: t('metaDescription'),
   });

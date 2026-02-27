@@ -247,7 +247,7 @@ export default function HomeClient() {
             {t('subtitle')}
           </p>
           <div className={styles.heroSplit}>
-            <Link href="/boutique" className={styles.splitCard}>
+            <Link href="/shop" className={styles.splitCard}>
               <div className={styles.splitImage}>
                 <Image
                   src="/products/placeholder.svg"
@@ -286,7 +286,7 @@ export default function HomeClient() {
       </header>
 
       <main>
-        <section id="boutique" className={styles.section}>
+        <section id="shop" className={styles.section}>
           <div className={styles.container}>
             <h2 className={styles.sectionTitle}>{t('sections.shop.title')}</h2>
             <p className={styles.sectionSubtitle}>{t('sections.shop.subtitle')}</p>

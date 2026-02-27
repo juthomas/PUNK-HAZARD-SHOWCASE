@@ -24,10 +24,10 @@ export default function Footer() {
             <h4 className={styles.footerHeading}>{tFooter('navigation')}</h4>
             <ul className={styles.footerLinks}>
               <li><Link href="/">{tNav('home')}</Link></li>
-              <li><Link href="/boutique">{tNav('shop')}</Link></li>
+              <li><Link href="/shop">{tNav('shop')}</Link></li>
               <li><Link href="/services">{tNav('services')}</Link></li>
-              <li><Link href="/projets">{tNav('projects')}</Link></li>
-              <li><Link href="/logiciels">{tNav('softwares')}</Link></li>
+              <li><Link href="/projects">{tNav('projects')}</Link></li>
+              <li><Link href="/softwares">{tNav('softwares')}</Link></li>
             </ul>
           </div>
           
@@ -35,9 +35,9 @@ export default function Footer() {
             <h4 className={styles.footerHeading}>{tFooter('information')}</h4>
             <ul className={styles.footerLinks}>
               <li><Link href="/contact">{tNav('contact')}</Link></li>
-              <li><Link href="/a-propos">{t('about')}</Link></li>
-              <li><Link href="/cgv">{t('cgv')}</Link></li>
-              <li><Link href="/mentions-legales">{t('legal')}</Link></li>
+              <li><Link href="/about">{t('about')}</Link></li>
+              <li><Link href="/terms">{t('cgv')}</Link></li>
+              <li><Link href="/legal">{t('legal')}</Link></li>
             </ul>
           </div>
         </div>

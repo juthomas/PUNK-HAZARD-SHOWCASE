@@ -12,7 +12,7 @@ export async function generateMetadata({
 
   return buildPageMetadata({
     locale,
-    pathSegment: 'profil',
+    pathSegment: 'profile',
     title: t('title'),
     description: t('subtitle'),
     noIndex: true,

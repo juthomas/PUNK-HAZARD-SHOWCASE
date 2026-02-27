@@ -19,7 +19,7 @@ export default function UserMenu() {
 
   return (
     <div className={styles.userMenu}>
-      <Link href="/profil" className={styles.profileLink}>
+      <Link href="/profile" className={styles.profileLink}>
         {t('profile')}
       </Link>
       <button onClick={() => signOut()} className={styles.logoutButton}>

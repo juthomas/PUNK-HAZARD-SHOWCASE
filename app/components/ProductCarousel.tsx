@@ -165,7 +165,7 @@ export default function ProductCarousel({ products }: ProductCarouselProps) {
       </div>
 
       <div className={styles.carouselFooter}>
-        <Link href="/boutique" className={styles.viewAllLink}>
+        <Link href="/shop" className={styles.viewAllLink}>
           {t('viewAll')} →
         </Link>
         {products.length > itemsPerView && (

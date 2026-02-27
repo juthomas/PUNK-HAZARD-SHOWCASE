@@ -2,17 +2,17 @@ import type { MetadataRoute } from 'next';
 import { locales } from '@/i18n/config';
 import { baseUrl, buildAlternates } from '@/lib/seo';
 
-// Pages publiques à inclure (hors login, profil, shutdown)
+// Pages publiques à inclure (paths en anglais)
 const publicPaths = [
   '',
-  'a-propos',
-  'boutique',
-  'cgv',
+  'about',
   'contact',
-  'logiciels',
-  'mentions-legales',
-  'projets',
+  'legal',
+  'projects',
   'services',
+  'shop',
+  'softwares',
+  'terms',
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -4,6 +4,34 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    const localePrefixes = ['/fr', '/en'];
+    const pathMap: [string, string][] = [
+      ['logiciels', 'softwares'],
+      ['boutique', 'shop'],
+      ['projets', 'projects'],
+      ['a-propos', 'about'],
+      ['mentions-legales', 'legal'],
+      ['profil', 'profile'],
+      ['cgv', 'terms'],
+    ];
+    const redirects: { source: string; destination: string; permanent: true }[] = [];
+    for (const prefix of localePrefixes) {
+      for (const [oldPath, newPath] of pathMap) {
+        redirects.push({
+          source: `${prefix}/${oldPath}`,
+          destination: `${prefix}/${newPath}`,
+          permanent: true,
+        });
+        redirects.push({
+          source: `${prefix}/${oldPath}/:path*`,
+          destination: `${prefix}/${newPath}/:path*`,
+          permanent: true,
+        });
+      }
+    }
+    return redirects;
+  },
   async headers() {
     return [
       {

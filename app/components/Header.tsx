@@ -111,8 +111,8 @@ export default function Header() {
             {t('home')}
           </Link>
           <Link 
-            href="/boutique" 
-            className={`${styles.navLink} ${isActive('/boutique') ? styles.active : ''}`}
+            href="/shop" 
+            className={`${styles.navLink} ${isActive('/shop') ? styles.active : ''}`}
             onClick={() => setIsMobileMenuOpen(false)}
           >
             {t('shop')}
@@ -125,15 +125,15 @@ export default function Header() {
             {t('services')}
           </Link>
           <Link 
-            href="/projets" 
-            className={`${styles.navLink} ${isActive('/projets') ? styles.active : ''}`}
+            href="/projects" 
+            className={`${styles.navLink} ${isActive('/projects') ? styles.active : ''}`}
             onClick={() => setIsMobileMenuOpen(false)}
           >
             {t('projects')}
           </Link>
           <Link 
-            href="/logiciels" 
-            className={`${styles.navLink} ${isActive('/logiciels') ? styles.active : ''}`}
+            href="/softwares" 
+            className={`${styles.navLink} ${isActive('/softwares') ? styles.active : ''}`}
             onClick={() => setIsMobileMenuOpen(false)}
           >
             {t('softwares')}

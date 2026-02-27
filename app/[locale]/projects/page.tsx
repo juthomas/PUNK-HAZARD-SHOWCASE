@@ -15,7 +15,7 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: 'projects' });
   return buildPageMetadata({
     locale,
-    pathSegment: 'projets',
+    pathSegment: 'projects',
     title: t('title'),
     description: t('subtitle'),
   });
