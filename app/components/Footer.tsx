@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import styles from "./Footer.module.css";
@@ -8,9 +9,39 @@ export default function Footer() {
   const t = useTranslations('common');
   const tNav = useTranslations('common.nav');
   const tFooter = useTranslations('common.footer');
+  const footerRef = useRef<HTMLElement>(null);
+  const spacerRef = useRef<HTMLDivElement>(null);
+  const [spacerHeight, setSpacerHeight] = useState(400);
+
+  useEffect(() => {
+    const updateSpacerHeight = () => {
+      if (footerRef.current && spacerRef.current) {
+        const footerHeight = footerRef.current.offsetHeight;
+        setSpacerHeight(footerHeight);
+      }
+    };
+
+    updateSpacerHeight();
+    window.addEventListener('resize', updateSpacerHeight);
+    const resizeObserver = new ResizeObserver(updateSpacerHeight);
+    if (footerRef.current) {
+      resizeObserver.observe(footerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateSpacerHeight);
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   return (
-    <footer className={styles.footer}>
+    <>
+      <div
+        ref={spacerRef}
+        className={styles.footerSpacer}
+        style={{ height: `${spacerHeight}px` }}
+      />
+      <footer ref={footerRef} className={styles.footer}>
       <div className={styles.container}>
         <div className={styles.footerContent}>
           <div className={styles.footerSection}>
@@ -47,5 +78,6 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+    </>
   );
 }

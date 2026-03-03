@@ -1,12 +1,37 @@
+.footerSpacer {
+  position: relative;
+  z-index: 11;
+  pointer-events: none;
+}
+
+/* Divider exactly at the page/footer junction */
+.footerSpacer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(230, 231, 238, 0.191);
+  z-index: 1;
+}
+
 .footer {
-  border-top: 1px solid var(--border);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   padding: 64px 0 32px;
   background: var(--background);
+  z-index: 1;
   backdrop-filter: blur(8px);
   background: rgba(10, 11, 15, 0.95);
 }
 
 @media (max-width: 768px) {
+  .footerSpacer {
+    min-height: 300px;
+  }
   .footer {
     padding: 48px 0 24px;
   }
