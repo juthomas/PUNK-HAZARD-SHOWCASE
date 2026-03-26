@@ -82,6 +82,52 @@ export const softwaresCatalog: PublicSoftware[] = [
     ],
   },
   {
+    id: 'pigeons-i2s-esp32-sd',
+    kind: 'firmware',
+    name: {
+      fr: 'Pigeons',
+      en: 'Pigeons',
+    },
+    description: {
+      fr: 'Firmware de la carte Pigeons (base I2S ESP32 SD) flashable et configurable en ligne.',
+      en: 'Online flashable and configurable firmware for the Pigeons board (I2S ESP32 SD base).',
+    },
+    board: 'Pigeons',
+    chipFamily: 'ESP32',
+    manifestPath: '/firmwares/pigeons/manifest.json',
+    configTemplatePath: '/firmwares/pigeons/data-template.json',
+    serialConfigPrefix: 'WEBCFG:',
+    serialConfigBaudRate: 115200,
+    includesFilesystemData: true,
+    parts: [
+      {
+        id: 'bootloader',
+        label: { fr: 'Bootloader', en: 'Bootloader' },
+        offset: 0x1000,
+      },
+      {
+        id: 'partitions',
+        label: { fr: 'Table de partitions', en: 'Partition table' },
+        offset: 0x8000,
+      },
+      {
+        id: 'boot_app0',
+        label: { fr: 'Boot app', en: 'Boot app' },
+        offset: 0xe000,
+      },
+      {
+        id: 'firmware',
+        label: { fr: 'Application firmware', en: 'Firmware application' },
+        offset: 0x10000,
+      },
+      {
+        id: 'spiffs',
+        label: { fr: 'SPIFFS (data incluses)', en: 'SPIFFS (embedded data)' },
+        offset: 0x310000,
+      },
+    ],
+  },
+  {
     id: 'as-simt-desktop',
     kind: 'desktop',
     name: {

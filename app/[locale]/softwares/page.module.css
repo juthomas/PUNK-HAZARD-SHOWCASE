@@ -51,6 +51,12 @@
   gap: 20px;
 }
 
+.firmwareList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .card {
   border: 1px solid var(--border);
   border-radius: 12px;

@@ -89,7 +89,7 @@ const CONFIG_UI_HIDDEN_KEYS = new Set<string>(['track_assignation', 'ap_enabled'
 /** USB serial filter: CP2102 (Silicon Labs) so the port picker shows only USB serial, not Bluetooth (e.g. on Android). */
 const SERIAL_USB_FILTERS = [{ usbVendorId: 0x10c4 }]; // Silicon Labs CP210x
 
-const CONFIG_TAB_ORDER = ['general', 'network', 'buttons'] as const;
+const CONFIG_TAB_ORDER = ['general', 'network', 'buttons', 'pcf'] as const;
 const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> = {
   general: ['note', 'volume', 'loop_file', 'auto_play', 'allow_play_over_playing' ],
   network: [
@@ -110,6 +110,11 @@ const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> 
     'button_gpio13_active_level',
     'button_gpio16_active_level',
   ],
+  pcf: [
+    'pcf_pull_mode',
+    'pcf_active_level',
+    'pcf_track_map',
+  ],
 };
 
 const CONFIG_SELECT_FIELDS: Record<
@@ -121,6 +126,8 @@ const CONFIG_SELECT_FIELDS: Record<
   button_gpio16_pull_mode: { values: [0, 1, 2], optionPrefix: 'pull_mode' },
   button_gpio13_active_level: { values: [0, 1], optionPrefix: 'active_level' },
   button_gpio16_active_level: { values: [0, 1], optionPrefix: 'active_level' },
+  pcf_pull_mode: { values: [0, 1], optionPrefix: 'pull_mode' },
+  pcf_active_level: { values: [0, 1], optionPrefix: 'active_level' },
 };
 
 const FLASH_CONFIG_STORAGE_KEY_PREFIX = 'punkhazard:flash-config:';
@@ -264,6 +271,14 @@ export default function SoftwaresClient() {
   const [configFieldTypes, setConfigFieldTypes] = useState<Record<string, ConfigFieldType>>({});
   const [configDraftValues, setConfigDraftValues] = useState<Record<string, string | boolean>>({});
   const [configTab, setConfigTab] = useState<(typeof CONFIG_TAB_ORDER)[number]>('general');
+  const availableConfigTabs = useMemo<(typeof CONFIG_TAB_ORDER)[number][]>(() => {
+    const visibleTabs = CONFIG_TAB_ORDER.filter((tab) =>
+      (CONFIG_FIELDS_BY_TAB[tab] ?? []).some(
+        (key) => configFieldOrder.includes(key) && !CONFIG_UI_HIDDEN_KEYS.has(key)
+      )
+    );
+    return visibleTabs.length > 0 ? visibleTabs : ['general'];
+  }, [configFieldOrder]);
 
   const logContainerRef = useRef<HTMLPreElement | null>(null);
   const terminalBufferRef = useRef('');
@@ -335,6 +350,12 @@ export default function SoftwaresClient() {
     }
     node.scrollTop = node.scrollHeight;
   }, [flashLogs, serialMonitorLogs, activeLogView]);
+
+  useEffect(() => {
+    if (!availableConfigTabs.includes(configTab)) {
+      setConfigTab(availableConfigTabs[0]);
+    }
+  }, [availableConfigTabs, configTab]);
 
   // Hydrate from persistent session on mount (e.g. after locale change) and subscribe to log updates
   useEffect(() => {
@@ -1886,7 +1907,7 @@ export default function SoftwaresClient() {
         <h2 className={styles.sectionTitle}>{t('sections.firmwares')}</h2>
         {firmwareSoftwares.length === 0 && <p className={styles.infoText}>{t('states.noFirmware')}</p>}
         {firmwareSoftwares.length > 0 && (
-          <div className={styles.grid}>
+          <div className={styles.firmwareList}>
             {firmwareSoftwares.map((software) => (
               <article key={software.id} className={styles.card}>
                 <div>
@@ -1960,7 +1981,7 @@ export default function SoftwaresClient() {
                 {!isConfigTemplateLoading && configFieldOrder.length > 0 && (
                   <>
                     <div className={styles.configTabs}>
-                      {CONFIG_TAB_ORDER.map((tab) => (
+                      {availableConfigTabs.map((tab) => (
                         <button
                           key={tab}
                           type="button"

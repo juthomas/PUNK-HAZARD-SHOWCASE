@@ -272,7 +272,8 @@
       "configTabs": {
         "general": "General",
         "network": "Reseau",
-        "buttons": "Boutons"
+        "buttons": "Boutons",
+        "pcf": "PCF8575"
       },
       "configFields": {
         "loop_file": "Boucle audio",
@@ -294,7 +295,10 @@
         "button_gpio13_active_level": "Niveau actif GPIO 13",
         "button_gpio16_track": "Piste bouton GPIO 16",
         "button_gpio16_pull_mode": "Mode pull GPIO 16",
-        "button_gpio16_active_level": "Niveau actif GPIO 16"
+        "button_gpio16_active_level": "Niveau actif GPIO 16",
+        "pcf_pull_mode": "Mode pull PCF",
+        "pcf_active_level": "Niveau actif PCF",
+        "pcf_track_map": "Mapping pistes PCF (JSON)"
       },
       "configOptions": {
         "device_mode_0": "Broadcast",
