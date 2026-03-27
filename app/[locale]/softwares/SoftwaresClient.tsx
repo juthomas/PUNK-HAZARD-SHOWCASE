@@ -160,18 +160,6 @@ function persistConfigDraft(firmwareId: string, values: Record<string, string | 
   }
 }
 
-function uint8ToBinaryString(bytes: Uint8Array): string {
-  // Keep byte-perfect conversion (0x00-0xFF) for esptool-js string input.
-  // Do not use TextDecoder("latin1") because browsers map it to windows-1252.
-  const chunkSize = 0x8000;
-  let output = '';
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    output += String.fromCharCode(...chunk);
-  }
-  return output;
-}
-
 function normalizeChipFamily(chipDescription: string): string {
   const normalized = chipDescription.trim().toUpperCase();
 
@@ -1413,9 +1401,11 @@ export default function SoftwaresClient() {
         'return import(modulePath);'
       ) as (modulePath: string) => Promise<unknown>;
 
+      // Pin version to keep behavior deterministic across dev/prod/CDN caches.
+      const esptoolVersion = '0.6.0';
       const moduleCandidates = [
-        'https://cdn.jsdelivr.net/npm/esptool-js/+esm',
-        'https://esm.sh/esptool-js?bundle',
+        `https://cdn.jsdelivr.net/npm/esptool-js@${esptoolVersion}/+esm`,
+        `https://esm.sh/esptool-js@${esptoolVersion}?bundle`,
       ];
 
       let esptoolModule: EsptoolModule | null = null;
@@ -1485,7 +1475,6 @@ export default function SoftwaresClient() {
       const binaries: Array<{
         address: number;
         bytes: Uint8Array;
-        binaryString: string;
         path: string;
       }> = [];
       for (const part of build.parts) {
@@ -1495,7 +1484,6 @@ export default function SoftwaresClient() {
         binaries.push({
           address: part.offset,
           bytes,
-          binaryString: uint8ToBinaryString(bytes),
           path: part.path,
         });
         appendFlashLog(
@@ -1534,7 +1522,7 @@ export default function SoftwaresClient() {
 
       await loader.writeFlash({
         fileArray: binaries.map((binary) => ({
-          data: binary.binaryString,
+          data: binary.bytes,
           address: binary.address,
         })),
         eraseAll: false,
