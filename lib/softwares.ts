@@ -128,6 +128,52 @@ export const softwaresCatalog: PublicSoftware[] = [
     ],
   },
   {
+    id: 'pigeons-bt',
+    kind: 'firmware',
+    name: {
+      fr: 'Pigeons — enceinte Bluetooth',
+      en: 'Pigeons — Bluetooth speaker',
+    },
+    description: {
+      fr: 'Variante Pigeons : réception audio A2DP, flash et config en ligne comme les autres firmwares.',
+      en: 'Pigeons variant : A2DP audio sink, online flash and config like the other firmwares.',
+    },
+    board: 'Pigeons',
+    chipFamily: 'ESP32',
+    manifestPath: '/firmwares/pigeons-bt/manifest.json',
+    configTemplatePath: '/firmwares/pigeons-bt/data-template.json',
+    serialConfigPrefix: 'WEBCFG:',
+    serialConfigBaudRate: 115200,
+    includesFilesystemData: true,
+    parts: [
+      {
+        id: 'bootloader',
+        label: { fr: 'Bootloader', en: 'Bootloader' },
+        offset: 0x1000,
+      },
+      {
+        id: 'partitions',
+        label: { fr: 'Table de partitions', en: 'Partition table' },
+        offset: 0x8000,
+      },
+      {
+        id: 'boot_app0',
+        label: { fr: 'Boot app', en: 'Boot app' },
+        offset: 0xe000,
+      },
+      {
+        id: 'firmware',
+        label: { fr: 'Application firmware', en: 'Application firmware' },
+        offset: 0x10000,
+      },
+      {
+        id: 'spiffs',
+        label: { fr: 'SPIFFS (data incluses)', en: 'SPIFFS (embedded data)' },
+        offset: 0x310000,
+      },
+    ],
+  },
+  {
     id: 'as-simt-desktop',
     kind: 'desktop',
     name: {

@@ -278,6 +278,7 @@
       "configFields": {
         "loop_file": "Boucle audio",
         "auto_play": "Lecture auto",
+        "bt_mode": "Mode enceinte Bluetooth",
         "allow_play_over_playing": "Autoriser lancer une piste alors qu'une est déjà en lecture",
         "note": "Notes",
         "udp_port": "Port UDP",
