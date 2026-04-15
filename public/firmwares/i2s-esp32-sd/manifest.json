@@ -1,6 +1,6 @@
 {
   "name": "I2S ESP32 SD",
-  "version": "2026-02-24-static",
+  "version": "2026-04-15-vincent-cd95c99",
   "new_install_prompt_erase": true,
   "builds": [
     {

@@ -105,6 +105,8 @@ const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> 
   buttons: [
     'button_gpio13_track',
     'button_gpio16_track',
+    'button_gpio13_cycle',
+    'button_gpio16_cycle',
     'button_gpio13_pull_mode',
     'button_gpio16_pull_mode',
     'button_gpio13_active_level',
