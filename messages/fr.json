@@ -464,6 +464,8 @@
       "tabFactoryTitle": "Creation d'onglet",
       "newTabType": "Type de nouvel onglet",
       "createTab": "Creer dans le groupe actif",
+      "tabFactoryHint": "Cliquez pour ajouter ou glissez pour splitter.",
+      "dragTemplateHint": "Glisser ce type d'onglet vers un groupe",
       "activeGroup": "Groupe actif: {id}",
       "noActiveGroup": "Aucun groupe actif (selection automatique).",
       "closeTab": "Fermer l'onglet",

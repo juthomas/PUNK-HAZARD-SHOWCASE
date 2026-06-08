@@ -49,6 +49,7 @@ const GRAPH_COLORS = ['#79d9cf', '#9fc6ff', '#ffcf6a', '#ff9ac6', '#b7ff9a', '#c
 const CHART_WIDTH = 560;
 const CHART_HEIGHT = 190;
 const VIEWS: ViewType[] = ['terminal', 'hexdump', 'json', 'graph', 'logic'];
+const TAB_TEMPLATE_MIME = 'text/x-monitor-tab-template-view';
 
 function asSerialPort(port: unknown): SerialPortLike | null {
   return port && typeof port === 'object' ? (port as SerialPortLike) : null;
@@ -243,8 +244,8 @@ export default function MonitorClient() {
 
   const [layoutRoot, setLayoutRoot] = useState<LayoutNode>(() => createLeaf('terminal'));
   const [activeLeafId, setActiveLeafId] = useState<string | null>(null);
-  const [sidebarNewTabType, setSidebarNewTabType] = useState<ViewType>('terminal');
   const [dragPreview, setDragPreview] = useState<{ leafId: string; side: DropSide } | null>(null);
+  const [dragSourceLeafId, setDragSourceLeafId] = useState<string | null>(null);
 
   useEffect(() => {
     const hasWebSerial = typeof navigator !== 'undefined' && 'serial' in navigator;
@@ -630,6 +631,42 @@ export default function MonitorClient() {
     moveTabWithDrop(tabId, targetLeafId, 'center');
   }
 
+  function createTabWithDrop(view: ViewType, targetLeafId: string, dropSide: DropSide) {
+    let nextActiveLeaf: string | null = null;
+    setLayoutRoot((previous) => {
+      const createdTab = createTab(view);
+      if (dropSide === 'center') {
+        const resolvedTargetLeaf = findLeaf(previous, targetLeafId) ?? findFirstLeaf(previous);
+        nextActiveLeaf = resolvedTargetLeaf.id;
+        return mapLeaf(previous, resolvedTargetLeaf.id, (current) => ({
+          ...current,
+          tabs: [...current.tabs, createdTab],
+          activeTabId: createdTab.id,
+        }));
+      }
+
+      const resolvedTargetLeaf = findLeaf(previous, targetLeafId) ?? findFirstLeaf(previous);
+      const newLeaf: LeafNode = {
+        kind: 'leaf',
+        id: makeId('leaf'),
+        tabs: [createdTab],
+        activeTabId: createdTab.id,
+      };
+      const direction: SplitDirection = dropSide === 'left' || dropSide === 'right' ? 'vertical' : 'horizontal';
+      const insertion: 'before' | 'after' = dropSide === 'left' || dropSide === 'top' ? 'before' : 'after';
+      nextActiveLeaf = newLeaf.id;
+      return splitLeafWithSibling(
+        previous,
+        resolvedTargetLeaf.id,
+        direction,
+        insertion,
+        newLeaf,
+        () => makeId('split')
+      );
+    });
+    setActiveLeafId(nextActiveLeaf);
+  }
+
   function moveTabWithDrop(tabId: string, targetLeafId: string, dropSide: DropSide) {
     let nextActiveLeaf: string | null = null;
     setLayoutRoot((previous) => {
@@ -705,12 +742,15 @@ export default function MonitorClient() {
     setActiveLeafId(nextActiveLeaf);
   }
 
-  function getDropSide(event: React.DragEvent<HTMLElement>): DropSide {
+  function getDropSide(event: React.DragEvent<HTMLElement>, targetLeafId: string): DropSide {
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return 'center';
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const edgeThreshold = Math.max(30, Math.min(120, Math.min(rect.width, rect.height) * 0.35));
+    const isSameSourceGroup = dragSourceLeafId !== null && dragSourceLeafId === targetLeafId;
+    const edgeThreshold = isSameSourceGroup
+      ? Math.max(44, Math.min(180, Math.min(rect.width, rect.height) * 0.45))
+      : Math.max(18, Math.min(86, Math.min(rect.width, rect.height) * 0.24));
     const distances = [
       { side: 'left' as const, distance: x },
       { side: 'right' as const, distance: rect.width - x },
@@ -719,6 +759,18 @@ export default function MonitorClient() {
     ].sort((a, b) => a.distance - b.distance);
     if (distances[0].distance > edgeThreshold) return 'center';
     return distances[0].side;
+  }
+
+  function handleDropIntoLeaf(event: React.DragEvent<HTMLElement>, leafId: string, dropSide: DropSide) {
+    const tabId = event.dataTransfer.getData('text/x-monitor-tab-id');
+    const templateView = event.dataTransfer.getData(TAB_TEMPLATE_MIME) as ViewType;
+    setActiveLeafId(leafId);
+    setDragPreview(null);
+    if (tabId) {
+      moveTabWithDrop(tabId, leafId, dropSide);
+      return;
+    }
+    if (VIEWS.includes(templateView)) createTabWithDrop(templateView, leafId, dropSide);
   }
 
   function startResize(splitId: string, direction: SplitDirection, event: React.PointerEvent<HTMLDivElement>) {
@@ -974,7 +1026,7 @@ export default function MonitorClient() {
         onDragOver={(event) => {
           event.preventDefault();
           event.dataTransfer.dropEffect = 'move';
-          setDragPreview({ leafId: leaf.id, side: getDropSide(event) });
+          setDragPreview({ leafId: leaf.id, side: getDropSide(event, leaf.id) });
         }}
         onDragLeave={(event) => {
           const nextTarget = event.relatedTarget as Node | null;
@@ -984,11 +1036,8 @@ export default function MonitorClient() {
         }}
         onDrop={(event) => {
           event.preventDefault();
-          const dropSide = getDropSide(event);
-          const tabId = event.dataTransfer.getData('text/x-monitor-tab-id');
-          setActiveLeafId(leaf.id);
-          setDragPreview(null);
-          if (tabId) moveTabWithDrop(tabId, leaf.id, dropSide);
+          const dropSide = getDropSide(event, leaf.id);
+          handleDropIntoLeaf(event, leaf.id, dropSide);
         }}
       >
         {previewSide && (
@@ -1001,7 +1050,20 @@ export default function MonitorClient() {
             aria-hidden="true"
           />
         )}
-        <div className={styles.tabStrip}>
+        <div
+          className={styles.tabStrip}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = 'move';
+            setDragPreview({ leafId: leaf.id, side: 'center' });
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleDropIntoLeaf(event, leaf.id, 'center');
+          }}
+        >
           <div className={styles.tabList}>
             {leaf.tabs.map((tab) => (
               <div
@@ -1011,8 +1073,12 @@ export default function MonitorClient() {
                 onDragStart={(event) => {
                   event.dataTransfer.setData('text/x-monitor-tab-id', tab.id);
                   event.dataTransfer.effectAllowed = 'move';
+                  setDragSourceLeafId(leaf.id);
                 }}
-                onDragEnd={() => setDragPreview(null)}
+                onDragEnd={() => {
+                  setDragPreview(null);
+                  setDragSourceLeafId(null);
+                }}
               >
                 <button
                   type="button"
@@ -1109,11 +1175,11 @@ export default function MonitorClient() {
     );
   }
 
-  function addTabToActiveLeaf() {
+  function addTabTypeToActiveLeaf(view: ViewType) {
     const activeLeaf = activeLeafId ? findLeaf(layoutRoot, activeLeafId) : null;
     const targetLeaf = activeLeaf ?? findFirstLeaf(layoutRoot);
     setActiveLeafId(targetLeaf.id);
-    addTab(targetLeaf.id, sidebarNewTabType);
+    addTab(targetLeaf.id, view);
   }
 
   return (
@@ -1170,23 +1236,30 @@ export default function MonitorClient() {
               ? t('panes.activeGroup', { id: activeLeafId })
               : t('panes.noActiveGroup')}
           </p>
-          <label className={styles.sidebarField}>
-            <span>{t('panes.newTabType')}</span>
-            <select
-              className={styles.tabTypeSelect}
-              value={sidebarNewTabType}
-              onChange={(event) => setSidebarNewTabType(event.currentTarget.value as ViewType)}
-            >
-              {VIEWS.map((view) => (
-                <option key={view} value={view}>
-                  {t(`panes.${view}`)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className={styles.addTabBtnWide} onClick={addTabToActiveLeaf}>
-            {t('panes.createTab')}
-          </button>
+          <p className={styles.sidebarHint}>{t('panes.tabFactoryHint')}</p>
+          <div className={styles.templateButtons}>
+            {VIEWS.map((view) => (
+              <button
+                key={view}
+                type="button"
+                draggable
+                className={styles.templateBtn}
+                onClick={() => addTabTypeToActiveLeaf(view)}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(TAB_TEMPLATE_MIME, view);
+                  event.dataTransfer.effectAllowed = 'copyMove';
+                  setDragSourceLeafId(null);
+                }}
+                onDragEnd={() => {
+                  setDragPreview(null);
+                  setDragSourceLeafId(null);
+                }}
+                title={t('panes.dragTemplateHint')}
+              >
+                + {t(`panes.${view}`)}
+              </button>
+            ))}
+          </div>
         </aside>
         <div className={styles.workspaceRoot}>
           {renderNode(layoutRoot)}

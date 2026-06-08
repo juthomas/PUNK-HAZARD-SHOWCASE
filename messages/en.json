@@ -464,6 +464,8 @@
       "tabFactoryTitle": "Tab creator",
       "newTabType": "New tab type",
       "createTab": "Create in active group",
+      "tabFactoryHint": "Click to add or drag to split.",
+      "dragTemplateHint": "Drag this tab type into a group",
       "activeGroup": "Active group: {id}",
       "noActiveGroup": "No active group (auto-selecting).",
       "closeTab": "Close tab",
