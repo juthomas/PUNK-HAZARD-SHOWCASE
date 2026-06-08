@@ -186,7 +186,7 @@
 
 .modal {
   position: relative;
-  width: min(820px, 100%);
+  width: min(1200px, 100%);
   max-height: calc(100svh - 40px);
   overflow: auto;
   border: 1px solid var(--border);
@@ -454,6 +454,90 @@
   padding-top: 10px;
 }
 
+.analysisWorkspace {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.analysisPane {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 180px;
+  overflow: hidden;
+  resize: both;
+}
+
+.analysisPaneHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.analysisPaneTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.analysisStats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.seriesSelector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.seriesButton {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.seriesButtonActive {
+  border-color: rgba(121, 217, 207, 0.7);
+  background: rgba(121, 217, 207, 0.16);
+}
+
+.chartWrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.chartSvg {
+  width: 100%;
+  height: 150px;
+}
+
+.chartPath {
+  fill: none;
+  stroke: rgba(121, 217, 207, 0.95);
+  stroke-width: 2;
+}
+
 .liveLogsHeader {
   display: flex;
   align-items: center;
@@ -505,6 +589,11 @@
   line-height: 1.45;
   max-height: 150px;
   overflow: auto;
+}
+
+.analysisPane .logPre {
+  max-height: 220px;
+  min-height: 140px;
 }
 
 .logPre .logLine {

@@ -227,6 +227,11 @@
       "includesData": "Already includes the project data partition",
       "openFlasher": "Open flasher"
     },
+    "monitorCard": {
+      "title": "Dedicated serial monitor",
+      "description": "Open a full UART monitoring page with hexdump, JSON parsing, numeric graph, and logic view.",
+      "open": "Open monitor"
+    },
     "states": {
       "loading": "Loading softwares...",
       "loadingConfig": "Loading configuration...",
@@ -269,6 +274,22 @@
       "liveLogsTitle": "Live log",
       "serialMonitorTitle": "Serial monitor",
       "liveLogsEmpty": "No events yet.",
+      "analysis": {
+        "terminalTitle": "Terminal stream",
+        "hexdumpTitle": "Hexdump",
+        "jsonTitle": "JSON decode",
+        "graphTitle": "Numeric history",
+        "logicTitle": "UART logic view",
+        "noHexData": "No binary data yet.",
+        "jsonDetected": "JSON frames: {count}",
+        "jsonErrors": "JSON parse errors: {count}",
+        "noJsonData": "No JSON message detected yet.",
+        "noSeries": "No numeric JSON field detected.",
+        "notEnoughPoints": "Need at least 2 points for the chart.",
+        "seriesPoints": "{key}: {count} points",
+        "logicBaud": "Decoded at {baud} baud",
+        "noLogicFrames": "No UART frame decoded yet."
+      },
       "configTabs": {
         "general": "General",
         "network": "Network",
@@ -414,6 +435,49 @@
       "invalidJsonField": "Field \"{field}\" does not contain valid JSON.",
       "invalidNumberField": "Field \"{field}\" does not contain a valid number.",
       "unexpected": "An unexpected error occurred."
+    }
+  },
+  "softwaresMonitor": {
+    "title": "Advanced serial monitor",
+    "subtitle": "UART monitor with parallel analyses: terminal, hexdump, JSON, numeric history, and logic view.",
+    "baudRate": "Baudrate",
+    "start": "Start capture",
+    "simulate": "Simulation mode",
+    "connecting": "Connecting...",
+    "stop": "Stop",
+    "clear": "Clear analyses",
+    "empty": "No data yet.",
+    "panes": {
+      "terminal": "Terminal",
+      "hexdump": "Hexdump",
+      "json": "JSON",
+      "graph": "Value graph",
+      "logic": "UART logic view",
+      "noHex": "No binary frame yet.",
+      "jsonDetected": "Detected JSON: {count}",
+      "jsonErrors": "JSON errors: {count}",
+      "noJson": "No JSON detected yet.",
+      "noSeries": "No numeric field detected.",
+      "historyWindow": "History",
+      "showAll": "Show all",
+      "hideAll": "Hide all",
+      "noSeriesSelected": "No active series selected.",
+      "notEnoughPoints": "Not enough points to draw a graph.",
+      "valueRange": "Visible range: min {min} / max {max}",
+      "logicDesc": "Reconstructed frames at {baud} baud (Logic2-like).",
+      "noLogic": "No logic frame yet."
+    },
+    "logs": {
+      "started": "Monitor started at {baud} baud.",
+      "simulationStarted": "Simulation started (JSON + binary stream).",
+      "stopped": "Monitor stopped.",
+      "error": "Monitor error: {error}",
+      "unknownError": "Unknown error",
+      "chromeRequired": "Chrome with Web Serial is required.",
+      "notSecureContext": "Serial monitoring is available only on HTTPS (or localhost).",
+      "invalidBaud": "Invalid baudrate.",
+      "noPort": "Unable to open serial port.",
+      "noReadable": "Serial port has no readable stream."
     }
   },
   "about": {

@@ -227,6 +227,11 @@
       "includesData": "Inclut deja la partition data du projet",
       "openFlasher": "Ouvrir le flasheur"
     },
+    "monitorCard": {
+      "title": "Moniteur serie dedie",
+      "description": "Ouvrez une page complete de monitoring UART avec hexdump, parsing JSON, graphe et vue logique.",
+      "open": "Ouvrir le moniteur"
+    },
     "states": {
       "loading": "Chargement des logiciels...",
       "loadingConfig": "Chargement de la configuration...",
@@ -269,6 +274,22 @@
       "liveLogsTitle": "Journal live",
       "serialMonitorTitle": "Moniteur serie",
       "liveLogsEmpty": "Aucun evenement pour le moment.",
+      "analysis": {
+        "terminalTitle": "Flux terminal",
+        "hexdumpTitle": "Hexdump",
+        "jsonTitle": "Decodage JSON",
+        "graphTitle": "Historique numerique",
+        "logicTitle": "Vue logique UART",
+        "noHexData": "Pas encore de donnees binaires.",
+        "jsonDetected": "Trames JSON: {count}",
+        "jsonErrors": "Erreurs de parsing JSON: {count}",
+        "noJsonData": "Aucun message JSON detecte pour l'instant.",
+        "noSeries": "Aucun champ JSON numerique detecte.",
+        "notEnoughPoints": "Il faut au moins 2 points pour tracer le graphe.",
+        "seriesPoints": "{key}: {count} points",
+        "logicBaud": "Decode a {baud} bauds",
+        "noLogicFrames": "Aucune trame UART decodee pour l'instant."
+      },
       "configTabs": {
         "general": "General",
         "network": "Reseau",
@@ -414,6 +435,49 @@
       "invalidJsonField": "Le champ \"{field}\" ne contient pas un JSON valide.",
       "invalidNumberField": "Le champ \"{field}\" ne contient pas un nombre valide.",
       "unexpected": "Une erreur inattendue est survenue."
+    }
+  },
+  "softwaresMonitor": {
+    "title": "Moniteur serie avance",
+    "subtitle": "Moniteur UART avec analyses paralleles: terminal, hexdump, JSON, historique numerique et vue logique.",
+    "baudRate": "Baudrate",
+    "start": "Demarrer la capture",
+    "simulate": "Mode simulation",
+    "connecting": "Connexion...",
+    "stop": "Arreter",
+    "clear": "Effacer les analyses",
+    "empty": "Aucune donnee pour le moment.",
+    "panes": {
+      "terminal": "Terminal",
+      "hexdump": "Hexdump",
+      "json": "JSON",
+      "graph": "Graphe des valeurs",
+      "logic": "Vue logique UART",
+      "noHex": "Aucune trame binaire pour l'instant.",
+      "jsonDetected": "JSON detectes: {count}",
+      "jsonErrors": "Erreurs JSON: {count}",
+      "noJson": "Aucun JSON detecte pour l'instant.",
+      "noSeries": "Aucun champ numerique detecte.",
+      "historyWindow": "Historique",
+      "showAll": "Tout afficher",
+      "hideAll": "Tout masquer",
+      "noSeriesSelected": "Aucune serie active a afficher.",
+      "notEnoughPoints": "Pas assez de points pour tracer une courbe.",
+      "valueRange": "Plage visible: min {min} / max {max}",
+      "logicDesc": "Trames reconstruites a {baud} bauds (style Logic2).",
+      "noLogic": "Aucune trame logique pour l'instant."
+    },
+    "logs": {
+      "started": "Moniteur lance a {baud} bauds.",
+      "simulationStarted": "Simulation lancee (flux JSON + binaire).",
+      "stopped": "Moniteur arrete.",
+      "error": "Erreur moniteur: {error}",
+      "unknownError": "Erreur inconnue",
+      "chromeRequired": "Chrome avec Web Serial est requis.",
+      "notSecureContext": "Le monitor serie est disponible seulement en HTTPS (ou localhost).",
+      "invalidBaud": "Baudrate invalide.",
+      "noPort": "Impossible d'ouvrir le port serie.",
+      "noReadable": "Le port serie ne fournit pas de flux lisible."
     }
   },
   "about": {

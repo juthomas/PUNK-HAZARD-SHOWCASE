@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { softwaresCatalog } from '@/lib/softwares';
 import type { FirmwareSoftware, LocalizedText, PublicSoftware } from '@/lib/softwares';
@@ -1893,6 +1894,18 @@ export default function SoftwaresClient() {
 
   return (
     <>
+      <section className={styles.section}>
+        <article className={styles.card}>
+          <div>
+            <h3 className={styles.cardTitle}>{t('monitorCard.title')}</h3>
+            <p className={styles.cardDescription}>{t('monitorCard.description')}</p>
+          </div>
+          <Link className={styles.primaryButton} href={`/${locale}/softwares/monitor`}>
+            {t('monitorCard.open')}
+          </Link>
+        </article>
+      </section>
+
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{t('sections.firmwares')}</h2>
         {firmwareSoftwares.length === 0 && <p className={styles.infoText}>{t('states.noFirmware')}</p>}

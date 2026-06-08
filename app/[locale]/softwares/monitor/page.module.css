@@ -1,0 +1,301 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.main {
+  flex: 1;
+  padding: 96px 0;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.header {
+  margin-bottom: 18px;
+}
+
+.title {
+  margin: 0 0 10px 0;
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0;
+  opacity: 0.8;
+}
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.controls {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 12px;
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.field span {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--foreground);
+  padding: 8px 10px;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+
+.secondaryButton {
+  background: transparent;
+  color: var(--foreground);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+.pane {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  min-height: 230px;
+  resize: both;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paneTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.meta {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.logPre {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px;
+  line-height: 1.42;
+  overflow: auto;
+  min-height: 150px;
+  max-height: 300px;
+}
+
+.line {
+  display: block;
+}
+
+.seriesRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.graphToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.historyField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.historySelect {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--foreground);
+  font-size: 12px;
+  padding: 4px 6px;
+}
+
+.graphToolbarButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.seriesButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seriesButtonActive {
+  border-color: rgba(121, 217, 207, 0.7);
+  background: rgba(121, 217, 207, 0.16);
+}
+
+.seriesDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.chartWrap {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 205px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.18);
+  padding: 10px 46px 10px 10px;
+  overflow: visible;
+}
+
+.chartSvg {
+  width: 100%;
+  height: 190px;
+  overflow: visible;
+}
+
+.chartPath {
+  fill: none;
+  stroke: rgba(121, 217, 207, 0.95);
+  stroke-width: 2.3;
+}
+
+.chartGridLine {
+  stroke: rgba(255, 255, 255, 0.42);
+  stroke-width: 1.35;
+  stroke-dasharray: 5 4;
+}
+
+.chartGridLabel {
+  fill: rgba(255, 255, 255, 0.92);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.chartCrosshair {
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.chartTooltip {
+  position: absolute;
+  top: 8px;
+  min-width: 160px;
+  max-width: 260px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(7, 9, 16, 0.92);
+  padding: 10px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.chartTooltipTitle {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.chartTooltipRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 64px 0;
+  }
+
+  .container {
+    padding: 0 16px;
+  }
+
+  .title {
+    font-size: 30px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
