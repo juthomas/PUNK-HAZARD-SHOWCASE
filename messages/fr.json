@@ -477,7 +477,22 @@
       "notEnoughPoints": "Pas assez de points pour tracer une courbe.",
       "valueRange": "Plage visible: min {min} / max {max}",
       "logicDesc": "Trames reconstruites a {baud} bauds (style Logic2).",
-      "noLogic": "Aucune trame logique pour l'instant."
+      "noLogic": "Aucune trame logique pour l'instant.",
+      "uartDataBits": "Bits de donnees",
+      "uartParity": "Parite",
+      "uartParityNone": "Aucune",
+      "uartParityEven": "Paire",
+      "uartParityOdd": "Impaire",
+      "uartStopBits": "Bits de stop",
+      "uartIdle": "Niveau idle",
+      "logicLevelHigh": "Haut (1)",
+      "logicLevelLow": "Bas (0)",
+      "follow": "Suivre",
+      "logicWindow": "Fenetre: {start} / span {span}",
+      "logicFramesCount": "Trames decodees: {count}",
+      "placeCursorA": "Placer curseur A",
+      "placeCursorB": "Placer curseur B",
+      "clearCursors": "Effacer curseurs"
     },
     "logs": {
       "started": "Moniteur lance a {baud} bauds.",

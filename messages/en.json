@@ -477,7 +477,22 @@
       "notEnoughPoints": "Not enough points to draw a graph.",
       "valueRange": "Visible range: min {min} / max {max}",
       "logicDesc": "Reconstructed frames at {baud} baud (Logic2-like).",
-      "noLogic": "No logic frame yet."
+      "noLogic": "No logic frame yet.",
+      "uartDataBits": "Data bits",
+      "uartParity": "Parity",
+      "uartParityNone": "None",
+      "uartParityEven": "Even",
+      "uartParityOdd": "Odd",
+      "uartStopBits": "Stop bits",
+      "uartIdle": "Idle level",
+      "logicLevelHigh": "High (1)",
+      "logicLevelLow": "Low (0)",
+      "follow": "Follow",
+      "logicWindow": "Window: {start} / span {span}",
+      "logicFramesCount": "Decoded frames: {count}",
+      "placeCursorA": "Place cursor A",
+      "placeCursorB": "Place cursor B",
+      "clearCursors": "Clear cursors"
     },
     "logs": {
       "started": "Monitor started at {baud} baud.",

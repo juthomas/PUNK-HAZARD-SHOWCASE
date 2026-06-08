@@ -579,6 +579,105 @@
   gap: 6px;
 }
 
+.logicToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.logicField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.logicMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.logicChartWrap {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 230px;
+  background: rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.logicChartWrap:active {
+  cursor: grabbing;
+}
+
+.logicChartSvg {
+  width: 100%;
+  height: 230px;
+  display: block;
+}
+
+.logicLevelLine {
+  stroke: rgba(142, 195, 255, 0.26);
+  stroke-width: 1;
+}
+
+.logicGridLine {
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.logicGridLabel {
+  fill: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+}
+
+.logicSignalPath {
+  fill: none;
+  stroke: rgba(120, 226, 202, 0.96);
+  stroke-width: 2.3;
+  stroke-linecap: square;
+}
+
+.logicLaneLabel {
+  fill: rgba(186, 228, 255, 0.95);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.logicFrameLabel {
+  fill: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+}
+
+.logicCursorA,
+.logicCursorB {
+  stroke-width: 1.6;
+  cursor: ew-resize;
+}
+
+.logicCursorA {
+  stroke: rgba(255, 207, 106, 0.95);
+}
+
+.logicCursorB {
+  stroke: rgba(159, 198, 255, 0.95);
+}
+
+.logicCursorLabel {
+  fill: rgba(255, 255, 255, 0.94);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 @media (max-width: 768px) {
   .main {
     padding: 64px 0;
