@@ -461,6 +461,16 @@
       "historyWindow": "History",
       "showAll": "Show all",
       "hideAll": "Hide all",
+      "tabFactoryTitle": "Tab creator",
+      "newTabType": "New tab type",
+      "createTab": "Create in active group",
+      "activeGroup": "Active group: {id}",
+      "noActiveGroup": "No active group (auto-selecting).",
+      "closeTab": "Close tab",
+      "splitRight": "Split right",
+      "splitDown": "Split down",
+      "closeGroup": "Close group",
+      "emptyDropZone": "No tab here. Add one with + or drag and drop a tab.",
       "noSeriesSelected": "No active series selected.",
       "notEnoughPoints": "Not enough points to draw a graph.",
       "valueRange": "Visible range: min {min} / max {max}",
@@ -477,7 +487,8 @@
       "notSecureContext": "Serial monitoring is available only on HTTPS (or localhost).",
       "invalidBaud": "Invalid baudrate.",
       "noPort": "Unable to open serial port.",
-      "noReadable": "Serial port has no readable stream."
+      "noReadable": "Serial port has no readable stream.",
+      "cannotCloseLastGroup": "Cannot close the last group."
     }
   },
   "about": {

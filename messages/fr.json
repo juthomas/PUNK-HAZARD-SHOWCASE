@@ -461,6 +461,16 @@
       "historyWindow": "Historique",
       "showAll": "Tout afficher",
       "hideAll": "Tout masquer",
+      "tabFactoryTitle": "Creation d'onglet",
+      "newTabType": "Type de nouvel onglet",
+      "createTab": "Creer dans le groupe actif",
+      "activeGroup": "Groupe actif: {id}",
+      "noActiveGroup": "Aucun groupe actif (selection automatique).",
+      "closeTab": "Fermer l'onglet",
+      "splitRight": "Split droite",
+      "splitDown": "Split bas",
+      "closeGroup": "Fermer groupe",
+      "emptyDropZone": "Aucun onglet ici. Ajoutez-en avec + ou glissez-deposez un onglet.",
       "noSeriesSelected": "Aucune serie active a afficher.",
       "notEnoughPoints": "Pas assez de points pour tracer une courbe.",
       "valueRange": "Plage visible: min {min} / max {max}",
@@ -477,7 +487,8 @@
       "notSecureContext": "Le monitor serie est disponible seulement en HTTPS (ou localhost).",
       "invalidBaud": "Baudrate invalide.",
       "noPort": "Impossible d'ouvrir le port serie.",
-      "noReadable": "Le port serie ne fournit pas de flux lisible."
+      "noReadable": "Le port serie ne fournit pas de flux lisible.",
+      "cannotCloseLastGroup": "Impossible de fermer le dernier groupe."
     }
   },
   "about": {
