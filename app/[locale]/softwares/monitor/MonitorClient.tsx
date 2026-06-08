@@ -43,6 +43,16 @@ type UartDecodedFrame = {
   endUs: number;
   bits: Array<{ label: string; level: 0 | 1; t0Us: number; t1Us: number }>;
 };
+type LogicFrameMark = {
+  id: string;
+  startUs: number;
+  endUs: number;
+  x0: number;
+  x1: number;
+  hex: string;
+  ascii: string;
+  dec: string;
+};
 
 type DockTab = { id: string; view: ViewType };
 type LeafNode = {
@@ -76,7 +86,7 @@ const CHART_HEIGHT = 190;
 const VIEWS: ViewType[] = ['terminal', 'hexdump', 'json', 'graph', 'logic'];
 const TAB_TEMPLATE_MIME = 'text/x-monitor-tab-template-view';
 const LOGIC_CHART_WIDTH = 1180;
-const LOGIC_CHART_HEIGHT = 230;
+const LOGIC_CHART_HEIGHT = 272;
 
 function asSerialPort(port: unknown): SerialPortLike | null {
   return port && typeof port === 'object' ? (port as SerialPortLike) : null;
@@ -332,6 +342,11 @@ export default function MonitorClient() {
   const [logicSpanUs, setLogicSpanUs] = useState(2500);
   const [logicViewStartUs, setLogicViewStartUs] = useState(0);
   const [logicAutoFollow, setLogicAutoFollow] = useState(true);
+  const [logicPlaybackPaused, setLogicPlaybackPaused] = useState(false);
+  const [showHexDecode, setShowHexDecode] = useState(true);
+  const [showAsciiDecode, setShowAsciiDecode] = useState(true);
+  const [showDecimalDecode, setShowDecimalDecode] = useState(false);
+  const [selectedLogicFrameId, setSelectedLogicFrameId] = useState<string | null>(null);
   const [cursorAUs, setCursorAUs] = useState<number | null>(null);
   const [cursorBUs, setCursorBUs] = useState<number | null>(null);
   const [draggingCursor, setDraggingCursor] = useState<null | 'A' | 'B'>(null);
@@ -346,12 +361,14 @@ export default function MonitorClient() {
   const hasAutoSelectedSeriesRef = useRef(false);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
   const logicTimelineUsRef = useRef(0);
+  const logicPlaybackPausedRef = useRef(false);
   const logicViewportRef = useRef<HTMLDivElement | null>(null);
   const logicPanRef = useRef<{ active: boolean; startClientX: number; startViewUs: number }>({
     active: false,
     startClientX: 0,
     startViewUs: 0,
   });
+  const logicRowsRef = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const makeId = (prefix: string) => {
     const id = `${prefix}-${idCounterRef.current}`;
@@ -417,10 +434,14 @@ export default function MonitorClient() {
   }, [activeLeafId, layoutRoot]);
 
   useEffect(() => {
-    if (!logicAutoFollow || logicSegments.length === 0) return;
+    if (!logicAutoFollow || logicPlaybackPaused || logicSegments.length === 0) return;
     const endUs = logicSegments[logicSegments.length - 1]?.t1Us ?? 0;
     setLogicViewStartUs(Math.max(0, endUs - logicSpanUs));
-  }, [logicAutoFollow, logicSegments, logicSpanUs]);
+  }, [logicAutoFollow, logicPlaybackPaused, logicSegments, logicSpanUs]);
+
+  useEffect(() => {
+    logicPlaybackPausedRef.current = logicPlaybackPaused;
+  }, [logicPlaybackPaused]);
 
   useEffect(() => {
     if (logicByteHistory.length === 0) return;
@@ -459,6 +480,8 @@ export default function MonitorClient() {
     setLogicViewStartUs(0);
     setLogicSpanUs(2500);
     setLogicAutoFollow(true);
+    setLogicPlaybackPaused(false);
+    setSelectedLogicFrameId(null);
     setCursorAUs(null);
     setCursorBUs(null);
     setDraggingCursor(null);
@@ -483,6 +506,7 @@ export default function MonitorClient() {
   }
 
   function appendLogicFramesFromChunk(bytes: Uint8Array) {
+    if (logicPlaybackPausedRef.current) return;
     const timestamp = formatTime(locale);
     const frames: LogicFrame[] = Array.from(bytes).map((byte) => ({
       timestamp,
@@ -494,6 +518,7 @@ export default function MonitorClient() {
   }
 
   function appendUartWaveformFromChunk(bytes: Uint8Array) {
+    if (logicPlaybackPausedRef.current) return;
     const parsedBaud = Number(baudRate);
     const safeBaud = Number.isFinite(parsedBaud) && parsedBaud > 0 ? parsedBaud : 115200;
     const build = buildUartWaveformFromBytes(bytes, {
@@ -539,8 +564,10 @@ export default function MonitorClient() {
 
   function processIncomingChunk(bytes: Uint8Array) {
     appendHexRowsFromChunk(bytes);
-    appendLogicFramesFromChunk(bytes);
-    appendUartWaveformFromChunk(bytes);
+    if (!logicPlaybackPausedRef.current) {
+      appendLogicFramesFromChunk(bytes);
+      appendUartWaveformFromChunk(bytes);
+    }
     bufferRef.current += decoderRef.current.decode(bytes, { stream: true });
     const lines = bufferRef.current.split(/\r?\n/);
     bufferRef.current = lines.pop() ?? '';
@@ -747,13 +774,19 @@ export default function MonitorClient() {
       : t('panes.notEnoughPoints');
   const logicTimelineEndUs = logicSegments[logicSegments.length - 1]?.t1Us ?? 0;
   const logicViewEndUs = logicViewStartUs + logicSpanUs;
+  const parsedBaudForLogic = Number(baudRate);
+  const logicBaud = Number.isFinite(parsedBaudForLogic) && parsedBaudForLogic > 0 ? parsedBaudForLogic : 115200;
+  const logicBitDurationUs = 1_000_000 / logicBaud;
+  const logicRenderWidth = clamp((logicSpanUs / logicBitDurationUs) * 11, LOGIC_CHART_WIDTH, 16000);
+  const logicPxPerBit = (logicRenderWidth / logicSpanUs) * logicBitDurationUs;
+  const showLogicFrameLabels = logicPxPerBit >= 7.5;
 
   const logicRenderData = useMemo(() => {
     if (logicSegments.length === 0 || logicTimelineEndUs <= logicViewStartUs) {
       return {
         grid: [] as Array<{ tUs: number; x: number }>,
         segments: [] as Array<{ x0: number; x1: number; y: number; label?: string }>,
-        frameLabels: [] as Array<{ x: number; text: string }>,
+        frameMarks: [] as LogicFrameMark[],
         pathD: '',
       };
     }
@@ -768,7 +801,7 @@ export default function MonitorClient() {
       }))
       .filter((segment) => segment.t1Us > segment.t0Us);
 
-    const toX = (timeUs: number) => ((timeUs - logicViewStartUs) / logicSpanUs) * LOGIC_CHART_WIDTH;
+    const toX = (timeUs: number) => ((timeUs - logicViewStartUs) / logicSpanUs) * logicRenderWidth;
     const yFor = (level: 0 | 1) => (level === 1 ? 56 : 174);
     const segmentsForRender = visibleSegments.map((segment) => ({
       x0: toX(segment.t0Us),
@@ -793,20 +826,39 @@ export default function MonitorClient() {
       grid.push({ tUs: tick, x: toX(tick) });
     }
 
-    const frameLabels = logicDecodedFrames
+    const frameMarks = logicDecodedFrames
       .filter((frame) => frame.endUs >= logicViewStartUs && frame.startUs <= logicViewEndUs)
       .map((frame) => ({
-        x: toX(frame.startUs),
-        text: `0x${frame.byte.toString(16).padStart(2, '0').toUpperCase()}`,
+        id: frame.id,
+        startUs: frame.startUs,
+        endUs: frame.endUs,
+        x0: toX(frame.startUs),
+        x1: toX(frame.endUs),
+        hex: `0x${frame.byte.toString(16).padStart(2, '0').toUpperCase()}`,
+        ascii: toPrintableAscii(frame.byte),
+        dec: String(frame.byte),
       }));
 
-    return { grid, segments: segmentsForRender, frameLabels, pathD: pathD.trim() };
-  }, [logicDecodedFrames, logicSegments, logicSpanUs, logicTimelineEndUs, logicViewEndUs, logicViewStartUs]);
+    return { grid, segments: segmentsForRender, frameMarks, pathD: pathD.trim() };
+  }, [logicDecodedFrames, logicRenderWidth, logicSegments, logicSpanUs, logicTimelineEndUs, logicViewEndUs, logicViewStartUs, showLogicFrameLabels]);
 
   const logicDeltaUs =
     cursorAUs !== null && cursorBUs !== null ? Math.abs(cursorBUs - cursorAUs) : null;
   const logicEstimatedBaud =
     logicDeltaUs && logicDeltaUs > 0 ? 1_000_000 / logicDeltaUs : null;
+
+  useEffect(() => {
+    setLogicViewStartUs((previous) => {
+      if (!Number.isFinite(previous)) return Math.max(0, logicTimelineEndUs - logicSpanUs);
+      const next = clampLogicStart(previous, logicSpanUs);
+      return Math.abs(next - previous) > 0.0001 ? next : previous;
+    });
+  }, [logicSpanUs, logicTimelineEndUs]);
+
+  useEffect(() => {
+    if (!selectedLogicFrameId) return;
+    logicRowsRef.current[selectedLogicFrameId]?.scrollIntoView({ block: 'nearest' });
+  }, [selectedLogicFrameId]);
 
   function addTab(leafId: string, view: ViewType) {
     setLayoutRoot((previous) => {
@@ -1052,25 +1104,38 @@ export default function MonitorClient() {
     return clamp(startUs, 0, maxStart);
   }
 
+  function focusLogicFrame(frame: { id: string; startUs: number; endUs: number }) {
+    setSelectedLogicFrameId(frame.id);
+    setLogicAutoFollow(false);
+    const centerUs = (frame.startUs + frame.endUs) / 2;
+    setLogicViewStartUs(clampLogicStart(centerUs - logicSpanUs * 0.5, logicSpanUs));
+  }
+
   function logicTimeFromClientX(clientX: number): number | null {
-    const viewport = logicViewportRef.current;
-    if (!viewport) return null;
-    const rect = viewport.getBoundingClientRect();
+    const scroller = logicViewportRef.current;
+    if (!scroller) return null;
+    const rect = scroller.getBoundingClientRect();
     if (rect.width <= 0) return null;
-    const ratio = clamp((clientX - rect.left) / rect.width, 0, 1);
+    const localX = clamp(clientX - rect.left + scroller.scrollLeft, 0, logicRenderWidth);
+    const ratio = localX / logicRenderWidth;
     return logicViewStartUs + ratio * logicSpanUs;
   }
 
   function handleLogicWheel(event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
+    event.stopPropagation();
+    const nativeEvent = event.nativeEvent as WheelEvent & { stopImmediatePropagation?: () => void };
+    nativeEvent.stopImmediatePropagation?.();
     if (logicTimelineEndUs <= 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) return;
-    const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+    const localX = clamp(event.clientX - rect.left + event.currentTarget.scrollLeft, 0, logicRenderWidth);
+    const ratio = localX / logicRenderWidth;
     const anchorUs = logicViewStartUs + ratio * logicSpanUs;
     const zoomFactor = event.deltaY < 0 ? 0.82 : 1.2;
     const nextSpan = clamp(logicSpanUs * zoomFactor, 120, Math.max(600, logicTimelineEndUs * 1.02));
     const nextStart = clampLogicStart(anchorUs - ratio * nextSpan, nextSpan);
+    if (!Number.isFinite(nextStart) || !Number.isFinite(nextSpan)) return;
     setLogicAutoFollow(false);
     setLogicSpanUs(nextSpan);
     setLogicViewStartUs(nextStart);
@@ -1088,8 +1153,8 @@ export default function MonitorClient() {
   }
 
   function handleLogicPanMove(event: React.PointerEvent<HTMLDivElement>) {
-    const viewport = logicViewportRef.current;
-    if (!viewport) return;
+    const scroller = logicViewportRef.current;
+    if (!scroller) return;
 
     if (draggingCursor !== null) {
       const timeUs = logicTimeFromClientX(event.clientX);
@@ -1100,7 +1165,7 @@ export default function MonitorClient() {
     }
 
     if (!logicPanRef.current.active) return;
-    const rect = viewport.getBoundingClientRect();
+    const rect = scroller.getBoundingClientRect();
     if (rect.width <= 0) return;
     const deltaRatio = (event.clientX - logicPanRef.current.startClientX) / rect.width;
     const nextStart = clampLogicStart(logicPanRef.current.startViewUs - deltaRatio * logicSpanUs, logicSpanUs);
@@ -1332,9 +1397,38 @@ export default function MonitorClient() {
           <button
             type="button"
             className={styles.secondaryButton}
+            onClick={() => setLogicPlaybackPaused((previous) => !previous)}
+          >
+            {logicPlaybackPaused ? t('panes.logicPlay') : t('panes.logicPause')}
+          </button>
+          <button
+            type="button"
+            className={showHexDecode ? `${styles.secondaryButton} ${styles.logicToggleActive}` : styles.secondaryButton}
+            onClick={() => setShowHexDecode((previous) => !previous)}
+          >
+            HEX
+          </button>
+          <button
+            type="button"
+            className={showAsciiDecode ? `${styles.secondaryButton} ${styles.logicToggleActive}` : styles.secondaryButton}
+            onClick={() => setShowAsciiDecode((previous) => !previous)}
+          >
+            ASCII
+          </button>
+          <button
+            type="button"
+            className={showDecimalDecode ? `${styles.secondaryButton} ${styles.logicToggleActive}` : styles.secondaryButton}
+            onClick={() => setShowDecimalDecode((previous) => !previous)}
+          >
+            DEC
+          </button>
+          <button
+            type="button"
+            className={styles.secondaryButton}
             onClick={() => {
               if (logicTimelineEndUs <= 0) return;
               setLogicAutoFollow(true);
+              setLogicPlaybackPaused(false);
               setLogicViewStartUs(Math.max(0, logicTimelineEndUs - logicSpanUs));
             }}
           >
@@ -1350,16 +1444,21 @@ export default function MonitorClient() {
         <div
           ref={logicViewportRef}
           className={styles.logicChartWrap}
+          onWheelCapture={handleLogicWheel}
           onWheel={handleLogicWheel}
           onPointerDown={handleLogicPanStart}
           onPointerMove={handleLogicPanMove}
           onPointerUp={handleLogicPanEnd}
           onPointerCancel={handleLogicPanEnd}
         >
-          {logicRenderData.pathD ? (
-            <svg viewBox={`0 0 ${LOGIC_CHART_WIDTH} ${LOGIC_CHART_HEIGHT}`} className={styles.logicChartSvg}>
-              <line x1={0} x2={LOGIC_CHART_WIDTH} y1={56} y2={56} className={styles.logicLevelLine} />
-              <line x1={0} x2={LOGIC_CHART_WIDTH} y1={174} y2={174} className={styles.logicLevelLine} />
+          {logicSegments.length > 0 ? (
+            <svg
+              viewBox={`0 0 ${logicRenderWidth} ${LOGIC_CHART_HEIGHT}`}
+              className={styles.logicChartSvg}
+              style={{ width: `${logicRenderWidth}px` }}
+            >
+              <line x1={0} x2={logicRenderWidth} y1={56} y2={56} className={styles.logicLevelLine} />
+              <line x1={0} x2={logicRenderWidth} y1={174} y2={174} className={styles.logicLevelLine} />
               {logicRenderData.grid.map((tick) => (
                 <g key={`tick-${tick.tUs}`}>
                   <line x1={tick.x} x2={tick.x} y1={16} y2={208} className={styles.logicGridLine} />
@@ -1369,10 +1468,35 @@ export default function MonitorClient() {
                 </g>
               ))}
               <path d={logicRenderData.pathD} className={styles.logicSignalPath} />
-              {logicRenderData.frameLabels.map((frame) => (
-                <text key={`${frame.x}-${frame.text}`} x={frame.x + 3} y={222} className={styles.logicFrameLabel}>
-                  {frame.text}
-                </text>
+              {logicRenderData.frameMarks.map((frame) => (
+                <g key={frame.id}>
+                  <rect
+                    x={frame.x0}
+                    y={195}
+                    width={Math.max(1.8, frame.x1 - frame.x0)}
+                    height={72}
+                    className={selectedLogicFrameId === frame.id ? styles.logicFrameBandActive : styles.logicFrameBand}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      focusLogicFrame(frame);
+                    }}
+                  />
+                  {showLogicFrameLabels && showHexDecode && (
+                    <text x={frame.x0 + 3} y={220} className={styles.logicFrameLabel}>
+                      {frame.hex}
+                    </text>
+                  )}
+                  {showLogicFrameLabels && showAsciiDecode && (
+                    <text x={frame.x0 + 3} y={236} className={styles.logicFrameLabel}>
+                      {frame.ascii}
+                    </text>
+                  )}
+                  {showLogicFrameLabels && showDecimalDecode && (
+                    <text x={frame.x0 + 3} y={252} className={styles.logicFrameLabel}>
+                      {frame.dec}
+                    </text>
+                  )}
+                </g>
               ))}
               <text x={8} y={48} className={styles.logicLaneLabel}>
                 {t('panes.logicLevelHigh')}
@@ -1387,12 +1511,15 @@ export default function MonitorClient() {
                     x2={cursorAX}
                     y1={0}
                     y2={LOGIC_CHART_HEIGHT}
-                    className={styles.logicCursorA}
+                    className={styles.logicCursorGrab}
                     onPointerDown={(event) => {
                       event.stopPropagation();
+                      logicPanRef.current.active = false;
+                      logicViewportRef.current?.setPointerCapture(event.pointerId);
                       setDraggingCursor('A');
                     }}
                   />
+                  <line x1={cursorAX} x2={cursorAX} y1={0} y2={LOGIC_CHART_HEIGHT} className={styles.logicCursorA} />
                   <text x={cursorAX + 4} y={28} className={styles.logicCursorLabel}>
                     A
                   </text>
@@ -1405,12 +1532,15 @@ export default function MonitorClient() {
                     x2={cursorBX}
                     y1={0}
                     y2={LOGIC_CHART_HEIGHT}
-                    className={styles.logicCursorB}
+                    className={styles.logicCursorGrab}
                     onPointerDown={(event) => {
                       event.stopPropagation();
+                      logicPanRef.current.active = false;
+                      logicViewportRef.current?.setPointerCapture(event.pointerId);
                       setDraggingCursor('B');
                     }}
                   />
+                  <line x1={cursorBX} x2={cursorBX} y1={0} y2={LOGIC_CHART_HEIGHT} className={styles.logicCursorB} />
                   <text x={cursorBX + 4} y={44} className={styles.logicCursorLabel}>
                     B
                   </text>
@@ -1453,16 +1583,28 @@ export default function MonitorClient() {
           <span>{logicEstimatedBaud ? `~${logicEstimatedBaud.toFixed(1)} baud` : ''}</span>
         </div>
 
-        <pre className={styles.logPre}>
-          {logicFrames.length > 0
-            ? logicFrames.slice(-100).map((frame, index) => (
-                <span key={`${frame.timestamp}-${frame.hex}-${index}`} className={styles.line}>
-                  [{frame.timestamp}] {frame.hex} '{frame.char}' S|{frame.bitsLsbFirst}|T
-                  {'\n'}
-                </span>
-              ))
-            : t('panes.noLogic')}
-        </pre>
+        <div className={styles.logicRows}>
+          {logicDecodedFrames.length > 0 ? (
+            logicDecodedFrames.slice(-180).map((frame) => (
+              <button
+                key={`row-${frame.id}`}
+                type="button"
+                ref={(element) => {
+                  logicRowsRef.current[frame.id] = element;
+                }}
+                className={selectedLogicFrameId === frame.id ? `${styles.logicRow} ${styles.logicRowActive}` : styles.logicRow}
+                onClick={() => focusLogicFrame(frame)}
+              >
+                <span>{formatTimeUs(frame.startUs)}</span>
+                <span>{`0x${frame.byte.toString(16).padStart(2, '0').toUpperCase()}`}</span>
+                <span>{toPrintableAscii(frame.byte)}</span>
+                <span>{frame.byte}</span>
+              </button>
+            ))
+          ) : (
+            <p className={styles.meta}>{t('panes.noLogic')}</p>
+          )}
+        </div>
       </>
     );
   }

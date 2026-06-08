@@ -607,9 +607,11 @@
   position: relative;
   border: 1px solid var(--border);
   border-radius: 8px;
-  min-height: 230px;
+  min-height: 272px;
   background: rgba(0, 0, 0, 0.3);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
   touch-action: none;
   cursor: grab;
 }
@@ -619,9 +621,9 @@
 }
 
 .logicChartSvg {
-  width: 100%;
-  height: 230px;
+  height: 272px;
   display: block;
+  min-width: 100%;
 }
 
 .logicLevelLine {
@@ -658,10 +660,21 @@
   font-size: 11px;
 }
 
+.logicFrameBand {
+  fill: rgba(85, 132, 206, 0.08);
+  stroke: rgba(112, 178, 255, 0.2);
+  stroke-width: 1;
+}
+
+.logicFrameBandActive {
+  fill: rgba(112, 178, 255, 0.18);
+  stroke: rgba(145, 207, 255, 0.9);
+  stroke-width: 1.2;
+}
+
 .logicCursorA,
 .logicCursorB {
   stroke-width: 1.6;
-  cursor: ew-resize;
 }
 
 .logicCursorA {
@@ -676,6 +689,50 @@
   fill: rgba(255, 255, 255, 0.94);
   font-size: 11px;
   font-weight: 700;
+}
+
+.logicCursorGrab {
+  stroke: transparent;
+  stroke-width: 12;
+  cursor: ew-resize;
+}
+
+.logicToggleActive {
+  border-color: rgba(132, 195, 255, 0.95);
+  background: rgba(132, 195, 255, 0.2);
+}
+
+.logicRows {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  max-height: 180px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.logicRow {
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  font-size: 12px;
+  padding: 7px 10px;
+  display: grid;
+  grid-template-columns: 120px 90px 80px 80px;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.logicRow:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.logicRowActive {
+  background: rgba(120, 190, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(120, 190, 255, 0.6);
 }
 
 @media (max-width: 768px) {

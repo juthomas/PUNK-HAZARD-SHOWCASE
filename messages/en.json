@@ -487,6 +487,8 @@
       "uartIdle": "Idle level",
       "logicLevelHigh": "High (1)",
       "logicLevelLow": "Low (0)",
+      "logicPlay": "Play",
+      "logicPause": "Pause",
       "follow": "Follow",
       "logicWindow": "Window: {start} / span {span}",
       "logicFramesCount": "Decoded frames: {count}",
