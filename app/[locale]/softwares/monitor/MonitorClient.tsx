@@ -310,6 +310,299 @@ function collectTabs(node: LayoutNode): DockTab[] {
   return [...collectTabs(node.first), ...collectTabs(node.second)];
 }
 
+function collectAllLayoutIds(node: LayoutNode): string[] {
+  if (node.kind === 'leaf') return [node.id, ...node.tabs.map((tab) => tab.id)];
+  return [node.id, ...collectAllLayoutIds(node.first), ...collectAllLayoutIds(node.second)];
+}
+
+function maxNumericIdSuffix(ids: string[]): number {
+  let max = 0;
+  for (const id of ids) {
+    const match = id.match(/-(\d+)$/);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return max;
+}
+
+const logicPausedSnapshotsByTabId: Record<string, number[]> = {};
+
+function setLogicPausedSnapshot(tabId: string, snapshot: number[]) {
+  logicPausedSnapshotsByTabId[tabId] = snapshot;
+}
+
+function clearLogicPausedSnapshot(tabId: string) {
+  delete logicPausedSnapshotsByTabId[tabId];
+}
+
+function clearAllLogicPausedSnapshots() {
+  for (const tabId of Object.keys(logicPausedSnapshotsByTabId)) {
+    delete logicPausedSnapshotsByTabId[tabId];
+  }
+}
+
+type GraphTabConfig = {
+  visibleSeriesKeys: string[];
+  historyWindowSec: number;
+};
+
+type LogicTabConfig = {
+  uartSettings: UartSettings;
+  logicSpanUs: number;
+  logicViewStartUs: number;
+  logicViewportWidth: number;
+  logicAutoFollow: boolean;
+  logicPlaybackPaused: boolean;
+  logicByteSkip: number;
+  logicFrozenByteEnd: number | null;
+  showHexDecode: boolean;
+  showAsciiDecode: boolean;
+  showDecimalDecode: boolean;
+  selectedLogicFrameId: string | null;
+  cursorAUs: number | null;
+  cursorBUs: number | null;
+};
+
+function getLogicByteHistoryForTab(
+  logic: LogicTabConfig,
+  logicByteHistory: number[],
+  streamStartByteIndex: number
+): number[] {
+  const streamEndByteIndex = streamStartByteIndex + logicByteHistory.length;
+  const tabStart = logic.logicByteSkip;
+  const tabEnd = logic.logicFrozenByteEnd ?? streamEndByteIndex;
+  const arrayStart = Math.max(0, tabStart - streamStartByteIndex);
+  const arrayEnd = Math.min(logicByteHistory.length, tabEnd - streamStartByteIndex);
+  if (arrayStart >= arrayEnd) return [];
+  return logicByteHistory.slice(arrayStart, arrayEnd);
+}
+
+function getLogicBytesForWaveform(
+  tabId: string,
+  logic: LogicTabConfig,
+  logicByteHistory: number[],
+  streamStartByteIndex: number,
+  pausedSnapshots: Record<string, number[]>
+): number[] {
+  if (logic.logicPlaybackPaused) {
+    return pausedSnapshots[tabId] ?? [];
+  }
+  return getLogicByteHistoryForTab(logic, logicByteHistory, streamStartByteIndex);
+}
+
+type TabInstanceConfig = {
+  graph?: GraphTabConfig;
+  logic?: LogicTabConfig;
+};
+
+type GraphData = {
+  minValue: number;
+  maxValue: number;
+  minTs: number;
+  maxTs: number;
+  gridLines: Array<{ y: number; value: number }>;
+  paths: Array<{ key: string; color: string; d: string; points: GraphPoint[] }>;
+};
+
+function createDefaultUartSettings(): UartSettings {
+  return { dataBits: 8, parity: 'none', stopBits: 1, idleLevel: 1 };
+}
+
+function createDefaultLogicConfig(): LogicTabConfig {
+  return {
+    uartSettings: createDefaultUartSettings(),
+    logicSpanUs: 2500,
+    logicViewStartUs: 0,
+    logicViewportWidth: LOGIC_CHART_WIDTH,
+    logicAutoFollow: true,
+    logicPlaybackPaused: false,
+    logicByteSkip: 0,
+    logicFrozenByteEnd: null,
+    showHexDecode: true,
+    showAsciiDecode: true,
+    showDecimalDecode: false,
+    selectedLogicFrameId: null,
+    cursorAUs: null,
+    cursorBUs: null,
+  };
+}
+
+function createDefaultGraphConfig(numericKeys: string[], isFirstGraphTab: boolean): GraphTabConfig {
+  return {
+    visibleSeriesKeys: isFirstGraphTab ? numericKeys.slice(0, Math.min(4, numericKeys.length)) : [...numericKeys],
+    historyWindowSec: 60,
+  };
+}
+
+function buildGraphData(options: {
+  visibleSeriesKeys: string[];
+  historyWindowSec: number;
+  numericSeriesByKey: Record<string, NumericSample[]>;
+}): GraphData {
+  const { visibleSeriesKeys, historyWindowSec, numericSeriesByKey } = options;
+  const minTimestamp = Date.now() - historyWindowSec * 1000;
+  const activeKeys = visibleSeriesKeys.filter((key) => numericSeriesByKey[key]?.length);
+  const byKey: Record<string, NumericSample[]> = {};
+  activeKeys.forEach((key) => {
+    byKey[key] = (numericSeriesByKey[key] ?? []).filter((point) => point.timestamp >= minTimestamp);
+  });
+  const allPoints = activeKeys.flatMap((key) => byKey[key] ?? []);
+  if (allPoints.length < 2) {
+    return { minValue: 0, maxValue: 0, minTs: 0, maxTs: 0, gridLines: [], paths: [] };
+  }
+
+  const rawMin = Math.min(...allPoints.map((point) => point.value));
+  const rawMax = Math.max(...allPoints.map((point) => point.value));
+  const step = computeNiceStep(Math.max(0.000001, rawMax - rawMin) / 4);
+  const minValue = Math.floor(rawMin / step) * step;
+  const maxValue = Math.ceil(rawMax / step) * step;
+  const valueSpan = Math.max(step, maxValue - minValue);
+  const minTs = Math.min(...allPoints.map((point) => point.timestamp));
+  const maxTs = Math.max(...allPoints.map((point) => point.timestamp));
+  const tsSpan = Math.max(1, maxTs - minTs);
+
+  const gridLines = Array.from({ length: Math.max(2, Math.round(valueSpan / step) + 1) }, (_, index) => {
+    const value = maxValue - index * step;
+    return { value, y: CHART_HEIGHT - ((value - minValue) / valueSpan) * CHART_HEIGHT };
+  });
+  const paths = activeKeys
+    .map((key, index) => {
+      const points = (byKey[key] ?? []).map((point) => ({
+        timestamp: point.timestamp,
+        value: point.value,
+        x: ((point.timestamp - minTs) / tsSpan) * CHART_WIDTH,
+        y: CHART_HEIGHT - ((point.value - minValue) / valueSpan) * CHART_HEIGHT,
+      }));
+      if (points.length < 2) return null;
+      const d = points
+        .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+        .join(' ');
+      return { key, color: GRAPH_COLORS[index % GRAPH_COLORS.length], d, points };
+    })
+    .filter((item): item is { key: string; color: string; d: string; points: GraphPoint[] } => item !== null);
+
+  return { minValue, maxValue, minTs, maxTs, gridLines, paths };
+}
+
+function buildHoverData(graphData: GraphData, hoverX: number | null, locale: string) {
+  if (hoverX === null || graphData.paths.length === 0 || graphData.maxTs <= graphData.minTs) return null;
+  const targetTs =
+    graphData.minTs + (Math.max(0, Math.min(CHART_WIDTH, hoverX)) / CHART_WIDTH) * (graphData.maxTs - graphData.minTs);
+  let anchor: { point: GraphPoint; diff: number } | null = null;
+  for (const series of graphData.paths) {
+    for (const point of series.points) {
+      const diff = Math.abs(point.timestamp - targetTs);
+      if (!anchor || diff < anchor.diff) anchor = { point, diff };
+    }
+  }
+  if (!anchor) return null;
+  const lockedTs = anchor.point.timestamp;
+  const x = ((lockedTs - graphData.minTs) / (graphData.maxTs - graphData.minTs)) * CHART_WIDTH;
+  const rows: Array<{ key: string; color: string; value: number; y: number }> = [];
+  for (const series of graphData.paths) {
+    let nearest: GraphPoint | null = null;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    for (const point of series.points) {
+      const diff = Math.abs(point.timestamp - lockedTs);
+      if (diff < bestDiff) {
+        nearest = point;
+        bestDiff = diff;
+      }
+    }
+    if (nearest) rows.push({ key: series.key, color: series.color, value: nearest.value, y: nearest.y });
+  }
+  return {
+    x,
+    timeLabel: new Date(lockedTs).toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }),
+    rows,
+  };
+}
+
+function clampLogicStartForTimeline(startUs: number, spanUs: number, timelineEndUs: number): number {
+  const maxStart = Math.max(0, timelineEndUs - spanUs);
+  return clamp(startUs, 0, maxStart);
+}
+
+function buildLogicRenderData(options: {
+  segments: LogicLevelSegment[];
+  decodedFrames: UartDecodedFrame[];
+  logicViewStartUs: number;
+  logicSpanUs: number;
+  logicRenderWidth: number;
+  showLogicFrameLabels: boolean;
+}): {
+  grid: Array<{ tUs: number; x: number }>;
+  segments: Array<{ x0: number; x1: number; y: number; label?: string }>;
+  frameMarks: LogicFrameMark[];
+  pathD: string;
+} {
+  const { segments, decodedFrames, logicViewStartUs, logicSpanUs, logicRenderWidth, showLogicFrameLabels } = options;
+  const logicViewEndUs = logicViewStartUs + logicSpanUs;
+  const timeToRenderX = (timeUs: number) =>
+    ((timeUs - logicViewStartUs) / Math.max(1, logicSpanUs)) * logicRenderWidth;
+
+  if (segments.length === 0) {
+    return { grid: [], segments: [], frameMarks: [], pathD: '' };
+  }
+
+  const cullMarginUs = logicSpanUs * 0.12;
+  const cullStartUs = Math.max(0, logicViewStartUs - cullMarginUs);
+  const cullEndUs = logicViewEndUs + cullMarginUs;
+  const visibleSegments = segments.filter(
+    (segment) => segment.t1Us >= cullStartUs && segment.t0Us <= cullEndUs && segment.t1Us > segment.t0Us
+  );
+  if (visibleSegments.length === 0) {
+    return { grid: [], segments: [], frameMarks: [], pathD: '' };
+  }
+
+  const yFor = (level: 0 | 1) => (level === 1 ? 56 : 174);
+  const segmentsForRender = visibleSegments.map((segment) => ({
+    x0: timeToRenderX(segment.t0Us),
+    x1: timeToRenderX(segment.t1Us),
+    y: yFor(segment.level),
+    label: segment.label,
+  }));
+
+  let pathD = '';
+  segmentsForRender.forEach((segment, index) => {
+    if (index === 0) {
+      pathD += `M${segment.x0.toFixed(2)},${segment.y.toFixed(2)} L${segment.x1.toFixed(2)},${segment.y.toFixed(2)} `;
+      return;
+    }
+    pathD += `L${segment.x0.toFixed(2)},${segment.y.toFixed(2)} L${segment.x1.toFixed(2)},${segment.y.toFixed(2)} `;
+  });
+
+  const stepUs = computeGridStepUs(logicSpanUs);
+  const firstTick = Math.ceil(logicViewStartUs / stepUs) * stepUs;
+  const grid: Array<{ tUs: number; x: number }> = [];
+  for (let tick = firstTick; tick <= logicViewEndUs; tick += stepUs) {
+    grid.push({ tUs: tick, x: timeToRenderX(tick) });
+  }
+
+  const frameMarks = decodedFrames
+    .filter((frame) => frame.endUs >= logicViewStartUs && frame.startUs <= logicViewEndUs)
+    .map((frame) => ({
+      id: frame.id,
+      startUs: frame.startUs,
+      endUs: frame.endUs,
+      x0: timeToRenderX(Math.max(logicViewStartUs, frame.startUs)),
+      x1: timeToRenderX(Math.min(logicViewEndUs, frame.endUs)),
+      width: Math.max(
+        1.8,
+        timeToRenderX(Math.min(logicViewEndUs, frame.endUs)) - timeToRenderX(Math.max(logicViewStartUs, frame.startUs))
+      ),
+      hex: `0x${frame.byte.toString(16).padStart(2, '0').toUpperCase()}`,
+      ascii: toPrintableAscii(frame.byte),
+      dec: String(frame.byte),
+    }));
+
+  void showLogicFrameLabels;
+  return { grid, segments: segmentsForRender, frameMarks, pathD: pathD.trim() };
+}
+
 export default function MonitorClient() {
   const t = useTranslations('softwaresMonitor');
   const locale = useLocale() === 'en' ? 'en' : 'fr';
@@ -329,29 +622,9 @@ export default function MonitorClient() {
   const [logicFrames, setLogicFrames] = useState<LogicFrame[]>([]);
   const [logicByteHistory, setLogicByteHistory] = useState<number[]>([]);
   const [numericSeriesByKey, setNumericSeriesByKey] = useState<Record<string, NumericSample[]>>({});
-  const [visibleSeriesKeys, setVisibleSeriesKeys] = useState<string[]>([]);
-  const [historyWindowSec, setHistoryWindowSec] = useState(60);
+  const [tabConfigById, setTabConfigById] = useState<Record<string, TabInstanceConfig>>({});
   const [hoverX, setHoverX] = useState<number | null>(null);
   const [hoverGraphKey, setHoverGraphKey] = useState<string | null>(null);
-  const [uartSettings, setUartSettings] = useState<UartSettings>({
-    dataBits: 8,
-    parity: 'none',
-    stopBits: 1,
-    idleLevel: 1,
-  });
-  const [logicSegments, setLogicSegments] = useState<LogicLevelSegment[]>([]);
-  const [logicDecodedFrames, setLogicDecodedFrames] = useState<UartDecodedFrame[]>([]);
-  const [logicSpanUs, setLogicSpanUs] = useState(2500);
-  const [logicViewStartUs, setLogicViewStartUs] = useState(0);
-  const [logicViewportWidth, setLogicViewportWidth] = useState(LOGIC_CHART_WIDTH);
-  const [logicAutoFollow, setLogicAutoFollow] = useState(true);
-  const [logicPlaybackPaused, setLogicPlaybackPaused] = useState(false);
-  const [showHexDecode, setShowHexDecode] = useState(true);
-  const [showAsciiDecode, setShowAsciiDecode] = useState(true);
-  const [showDecimalDecode, setShowDecimalDecode] = useState(false);
-  const [selectedLogicFrameId, setSelectedLogicFrameId] = useState<string | null>(null);
-  const [cursorAUs, setCursorAUs] = useState<number | null>(null);
-  const [cursorBUs, setCursorBUs] = useState<number | null>(null);
   const [draggingCursor, setDraggingCursor] = useState<null | 'A' | 'B'>(null);
 
   const idCounterRef = useRef(1);
@@ -361,18 +634,20 @@ export default function MonitorClient() {
   const stopRequestedRef = useRef(false);
   const bufferRef = useRef('');
   const byteOffsetRef = useRef(0);
-  const hasAutoSelectedSeriesRef = useRef(false);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
-  const logicTimelineUsRef = useRef(0);
-  const logicPlaybackPausedRef = useRef(false);
-  const logicViewportRef = useRef<HTMLDivElement | null>(null);
-  const logicResizeObserverRef = useRef<ResizeObserver | null>(null);
-  const logicPanRef = useRef<{ active: boolean; startClientX: number; startViewUs: number }>({
-    active: false,
-    startClientX: 0,
-    startViewUs: 0,
-  });
+  const logicViewportRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const logicViewportCallbackRefs = useRef<Record<string, (element: HTMLDivElement | null) => void>>({});
+  const logicResizeObserversRef = useRef<Record<string, ResizeObserver>>({});
+  const logicPanRefByTab = useRef<
+    Record<string, { active: boolean; startClientX: number; startViewUs: number; spanUs: number }>
+  >({});
+  const logicActiveTabIdRef = useRef<string | null>(null);
   const logicRowsRef = useRef<Record<string, HTMLButtonElement | null>>({});
+  const logicStreamStartRef = useRef(0);
+  const logicStreamEndRef = useRef(0);
+  const logicByteHistoryRef = useRef(logicByteHistory);
+  const tabConfigByIdRef = useRef(tabConfigById);
+  const numericSeriesKeysRef = useRef<string[]>([]);
 
   const makeId = (prefix: string) => {
     const id = `${prefix}-${idCounterRef.current}`;
@@ -381,6 +656,81 @@ export default function MonitorClient() {
   };
 
   const createTab = (view: ViewType): DockTab => ({ id: makeId(`tab-${view}`), view });
+
+  function updateGraphTabConfig(tabId: string, patch: Partial<GraphTabConfig>) {
+    setTabConfigById((previous) => {
+      const current = previous[tabId];
+      if (!current?.graph) return previous;
+      return { ...previous, [tabId]: { ...current, graph: { ...current.graph, ...patch } } };
+    });
+  }
+
+  function updateLogicTabConfig(tabId: string, patch: Partial<LogicTabConfig>) {
+    setTabConfigById((previous) => {
+      const current = previous[tabId];
+      if (!current?.logic) return previous;
+      const patchKeys = Object.keys(patch) as Array<keyof LogicTabConfig>;
+      const hasChange = patchKeys.some((key) => {
+        const nextValue = patch[key];
+        const currentValue = current.logic![key];
+        if (typeof nextValue === 'object' && nextValue !== null) {
+          return JSON.stringify(nextValue) !== JSON.stringify(currentValue);
+        }
+        return nextValue !== currentValue;
+      });
+      if (!hasChange) return previous;
+      return { ...previous, [tabId]: { ...current, logic: { ...current.logic, ...patch } } };
+    });
+  }
+
+  function initTabConfig(tab: DockTab) {
+    setTabConfigById((previous) => {
+      if (previous[tab.id]) return previous;
+      const next = { ...previous };
+      const numericKeys = Object.keys(numericSeriesByKey).sort((a, b) => a.localeCompare(b));
+      if (tab.view === 'graph') {
+        const graphTabCount = Object.values(previous).filter((config) => config.graph).length;
+        next[tab.id] = { graph: createDefaultGraphConfig(numericKeys, graphTabCount === 0) };
+      } else if (tab.view === 'logic') {
+        next[tab.id] = { logic: createDefaultLogicConfig() };
+      }
+      return next;
+    });
+  }
+
+  function reinitTabConfigsForTabs(tabs: DockTab[]) {
+    let graphTabCount = 0;
+    const next: Record<string, TabInstanceConfig> = {};
+    const numericKeys = Object.keys(numericSeriesByKey).sort((a, b) => a.localeCompare(b));
+    tabs.forEach((tab) => {
+      if (tab.view === 'graph') {
+        next[tab.id] = { graph: createDefaultGraphConfig(numericKeys, graphTabCount === 0) };
+        graphTabCount += 1;
+      } else if (tab.view === 'logic') {
+        next[tab.id] = { logic: createDefaultLogicConfig() };
+      }
+    });
+    setTabConfigById(next);
+  }
+
+  function removeTabConfig(tabId: string) {
+    setTabConfigById((previous) => {
+      if (!previous[tabId]) return previous;
+      const next = { ...previous };
+      delete next[tabId];
+      return next;
+    });
+    logicResizeObserversRef.current[tabId]?.disconnect();
+    delete logicResizeObserversRef.current[tabId];
+    delete logicViewportRefs.current[tabId];
+    delete logicViewportCallbackRefs.current[tabId];
+    delete logicPanRefByTab.current[tabId];
+    clearLogicPausedSnapshot(tabId);
+    if (logicActiveTabIdRef.current === tabId) logicActiveTabIdRef.current = null;
+    Object.keys(logicRowsRef.current).forEach((key) => {
+      if (key.startsWith(`${tabId}:`)) delete logicRowsRef.current[key];
+    });
+  }
   const createLeaf = (initialView: ViewType | null): LeafNode => {
     const tab = initialView ? createTab(initialView) : null;
     return {
@@ -410,19 +760,52 @@ export default function MonitorClient() {
   }, []);
 
   useEffect(() => {
+    idCounterRef.current = maxNumericIdSuffix(collectAllLayoutIds(layoutRoot)) + 1;
+  }, []);
+
+  useEffect(() => {
+    logicByteHistoryRef.current = logicByteHistory;
+  }, [logicByteHistory]);
+
+  useEffect(() => {
+    tabConfigByIdRef.current = tabConfigById;
+  }, [tabConfigById]);
+
+  useEffect(() => {
+    numericSeriesKeysRef.current = Object.keys(numericSeriesByKey).sort((a, b) => a.localeCompare(b));
+  }, [numericSeriesByKey]);
+
+  useEffect(() => {
     const keys = Object.keys(numericSeriesByKey).sort((a, b) => a.localeCompare(b));
-    setVisibleSeriesKeys((previous) => {
-      if (keys.length === 0) {
-        hasAutoSelectedSeriesRef.current = false;
-        return [];
+    if (keys.length === 0) return;
+    setTabConfigById((previous) => {
+      const graphTabIds = Object.entries(previous)
+        .filter(([, config]) => config.graph)
+        .map(([tabId]) => tabId);
+      if (graphTabIds.length === 0) return previous;
+      const firstGraphTabId = graphTabIds[0];
+      let changed = false;
+      const next = { ...previous };
+      for (const tabId of graphTabIds) {
+        const graph = previous[tabId]?.graph;
+        if (!graph) continue;
+        const retained = graph.visibleSeriesKeys.filter((key) => keys.includes(key));
+        if (retained.length > 0) {
+          if (retained.length !== graph.visibleSeriesKeys.length) {
+            next[tabId] = { ...previous[tabId], graph: { ...graph, visibleSeriesKeys: retained } };
+            changed = true;
+          }
+          continue;
+        }
+        if (tabId === firstGraphTabId) {
+          next[tabId] = {
+            ...previous[tabId],
+            graph: { ...graph, visibleSeriesKeys: keys.slice(0, Math.min(4, keys.length)) },
+          };
+          changed = true;
+        }
       }
-      const retained = previous.filter((k) => keys.includes(k));
-      if (retained.length > 0) return retained;
-      if (!hasAutoSelectedSeriesRef.current) {
-        hasAutoSelectedSeriesRef.current = true;
-        return keys.slice(0, Math.min(4, keys.length));
-      }
-      return [];
+      return changed ? next : previous;
     });
   }, [numericSeriesByKey]);
 
@@ -438,43 +821,62 @@ export default function MonitorClient() {
   }, [activeLeafId, layoutRoot]);
 
   useEffect(() => {
-    if (!logicAutoFollow || logicPlaybackPaused || logicSegments.length === 0) return;
-    const endUs = logicSegments[logicSegments.length - 1]?.t1Us ?? 0;
-    setLogicViewStartUs(Math.max(0, endUs - logicSpanUs));
-  }, [logicAutoFollow, logicPlaybackPaused, logicSegments, logicSpanUs]);
+    const openTabs = collectTabs(layoutRoot);
+    const openTabIds = new Set(openTabs.map((tab) => tab.id));
 
-  const attachLogicViewport = useCallback((element: HTMLDivElement | null) => {
-    logicResizeObserverRef.current?.disconnect();
-    logicResizeObserverRef.current = null;
-    logicViewportRef.current = element;
-    if (!element) return;
-    const updateWidth = () => {
-      setLogicViewportWidth(Math.max(280, element.clientWidth || LOGIC_CHART_WIDTH));
-    };
-    updateWidth();
-    const observer = new ResizeObserver(updateWidth);
-    observer.observe(element);
-    logicResizeObserverRef.current = observer;
-  }, []);
+    setTabConfigById((previous) => {
+      let changed = false;
+      const next: Record<string, TabInstanceConfig> = { ...previous };
 
-  useEffect(() => {
-    logicPlaybackPausedRef.current = logicPlaybackPaused;
-  }, [logicPlaybackPaused]);
+      for (const tabId of Object.keys(previous)) {
+        if (!openTabIds.has(tabId)) {
+          delete next[tabId];
+          logicResizeObserversRef.current[tabId]?.disconnect();
+          delete logicResizeObserversRef.current[tabId];
+          delete logicViewportRefs.current[tabId];
+          delete logicViewportCallbackRefs.current[tabId];
+          delete logicPanRefByTab.current[tabId];
+          clearLogicPausedSnapshot(tabId);
+          changed = true;
+        }
+      }
 
-  useEffect(() => {
-    if (logicByteHistory.length === 0) return;
-    const parsedBaud = Number(baudRate);
-    const safeBaud = Number.isFinite(parsedBaud) && parsedBaud > 0 ? parsedBaud : 115200;
-    const rebuilt = buildUartWaveformFromBytes(logicByteHistory, {
-      baud: safeBaud,
-      settings: uartSettings,
-      startUs: 0,
-      idPrefix: 'rebuild',
+      const numericKeys = numericSeriesKeysRef.current;
+      let graphTabCount = Object.values(next).filter((config) => config.graph).length;
+      for (const tab of openTabs) {
+        if (tab.view === 'graph' && !next[tab.id]?.graph) {
+          next[tab.id] = { ...next[tab.id], graph: createDefaultGraphConfig(numericKeys, graphTabCount === 0) };
+          graphTabCount += 1;
+          changed = true;
+        } else if (tab.view === 'logic' && !next[tab.id]?.logic) {
+          next[tab.id] = { ...next[tab.id], logic: createDefaultLogicConfig() };
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
     });
-    logicTimelineUsRef.current = rebuilt.endUs;
-    setLogicSegments(rebuilt.segments.slice(-MAX_LOGIC_SEGMENTS));
-    setLogicDecodedFrames(rebuilt.frames.slice(-MAX_UART_DECODED_FRAMES));
-  }, [baudRate, logicByteHistory, uartSettings]);
+  }, [layoutRoot]);
+
+  const getLogicViewportRef = useCallback((tabId: string) => {
+    if (!logicViewportCallbackRefs.current[tabId]) {
+      logicViewportCallbackRefs.current[tabId] = (element: HTMLDivElement | null) => {
+        logicResizeObserversRef.current[tabId]?.disconnect();
+        delete logicResizeObserversRef.current[tabId];
+        logicViewportRefs.current[tabId] = element;
+        if (!element) return;
+        const updateWidth = () => {
+          const nextWidth = Math.max(280, element.clientWidth || LOGIC_CHART_WIDTH);
+          updateLogicTabConfig(tabId, { logicViewportWidth: nextWidth });
+        };
+        updateWidth();
+        const observer = new ResizeObserver(updateWidth);
+        observer.observe(element);
+        logicResizeObserversRef.current[tabId] = observer;
+      };
+    }
+    return logicViewportCallbackRefs.current[tabId];
+  }, []);
 
   function appendLog(message: string) {
     setLogs((previous) => [...previous, { text: `[${formatTime(locale)}] ${message}` }].slice(-MAX_LOGS));
@@ -490,22 +892,15 @@ export default function MonitorClient() {
     setLogicFrames([]);
     setLogicByteHistory([]);
     setNumericSeriesByKey({});
-    setVisibleSeriesKeys([]);
+    logicStreamStartRef.current = 0;
+    logicStreamEndRef.current = 0;
+    clearAllLogicPausedSnapshots();
     setHoverX(null);
     setHoverGraphKey(null);
-    setLogicSegments([]);
-    setLogicDecodedFrames([]);
-    setLogicViewStartUs(0);
-    setLogicSpanUs(2500);
-    setLogicAutoFollow(true);
-    setLogicPlaybackPaused(false);
-    setSelectedLogicFrameId(null);
-    setCursorAUs(null);
-    setCursorBUs(null);
     setDraggingCursor(null);
-    logicTimelineUsRef.current = 0;
-    logicPanRef.current.active = false;
-    hasAutoSelectedSeriesRef.current = false;
+    logicActiveTabIdRef.current = null;
+    logicPanRefByTab.current = {};
+    reinitTabConfigsForTabs(collectTabs(layoutRoot));
   }
 
   function appendHexRowsFromChunk(bytes: Uint8Array) {
@@ -524,7 +919,6 @@ export default function MonitorClient() {
   }
 
   function appendLogicFramesFromChunk(bytes: Uint8Array) {
-    if (logicPlaybackPausedRef.current) return;
     const timestamp = formatTime(locale);
     const frames: LogicFrame[] = Array.from(bytes).map((byte) => ({
       timestamp,
@@ -535,20 +929,15 @@ export default function MonitorClient() {
     setLogicFrames((previous) => [...previous, ...frames].slice(-MAX_LOGIC_FRAMES));
   }
 
-  function appendUartWaveformFromChunk(bytes: Uint8Array) {
-    if (logicPlaybackPausedRef.current) return;
-    const parsedBaud = Number(baudRate);
-    const safeBaud = Number.isFinite(parsedBaud) && parsedBaud > 0 ? parsedBaud : 115200;
-    const build = buildUartWaveformFromBytes(bytes, {
-      baud: safeBaud,
-      settings: uartSettings,
-      startUs: logicTimelineUsRef.current,
-      idPrefix: 'live',
+  function appendLogicByteHistoryFromChunk(bytes: Uint8Array) {
+    logicStreamEndRef.current += bytes.length;
+    setLogicByteHistory((previous) => {
+      const combined = [...previous, ...Array.from(bytes)];
+      if (combined.length <= MAX_LOGIC_BYTES) return combined;
+      const trimmed = combined.slice(-MAX_LOGIC_BYTES);
+      logicStreamStartRef.current += combined.length - trimmed.length;
+      return trimmed;
     });
-    logicTimelineUsRef.current = build.endUs;
-    setLogicSegments((previous) => [...previous, ...build.segments].slice(-MAX_LOGIC_SEGMENTS));
-    setLogicDecodedFrames((previous) => [...previous, ...build.frames].slice(-MAX_UART_DECODED_FRAMES));
-    setLogicByteHistory((previous) => [...previous, ...Array.from(bytes)].slice(-MAX_LOGIC_BYTES));
   }
 
   function appendJsonAnalysisLine(line: string) {
@@ -582,10 +971,8 @@ export default function MonitorClient() {
 
   function processIncomingChunk(bytes: Uint8Array) {
     appendHexRowsFromChunk(bytes);
-    if (!logicPlaybackPausedRef.current) {
-      appendLogicFramesFromChunk(bytes);
-      appendUartWaveformFromChunk(bytes);
-    }
+    appendLogicFramesFromChunk(bytes);
+    appendLogicByteHistoryFromChunk(bytes);
     bufferRef.current += decoderRef.current.decode(bytes, { stream: true });
     const lines = bufferRef.current.split(/\r?\n/);
     bufferRef.current = lines.pop() ?? '';
@@ -696,205 +1083,83 @@ export default function MonitorClient() {
   }
 
   const numericSeriesKeys = Object.keys(numericSeriesByKey).sort((a, b) => a.localeCompare(b));
-  const graphData = useMemo(() => {
-    const minTimestamp = Date.now() - historyWindowSec * 1000;
-    const activeKeys = visibleSeriesKeys.filter((key) => numericSeriesByKey[key]?.length);
-    const byKey: Record<string, NumericSample[]> = {};
-    activeKeys.forEach((key) => {
-      byKey[key] = (numericSeriesByKey[key] ?? []).filter((point) => point.timestamp >= minTimestamp);
-    });
-    const allPoints = activeKeys.flatMap((key) => byKey[key] ?? []);
-    if (allPoints.length < 2) {
-      return {
-        minValue: 0,
-        maxValue: 0,
-        minTs: 0,
-        maxTs: 0,
-        gridLines: [] as Array<{ y: number; value: number }>,
-        paths: [] as Array<{ key: string; color: string; d: string; points: GraphPoint[] }>,
+
+  const logicWaveformByTabId = useMemo(() => {
+    const parsedBaud = Number(baudRate);
+    const safeBaud = Number.isFinite(parsedBaud) && parsedBaud > 0 ? parsedBaud : 115200;
+    const result: Record<
+      string,
+      { segments: LogicLevelSegment[]; frames: UartDecodedFrame[]; endUs: number }
+    > = {};
+    for (const [tabId, config] of Object.entries(tabConfigById)) {
+      if (!config.logic) continue;
+      if (logicByteHistory.length === 0) {
+        result[tabId] = { segments: [], frames: [], endUs: 0 };
+        continue;
+      }
+      const tabByteHistory = getLogicBytesForWaveform(
+        tabId,
+        config.logic,
+        logicByteHistory,
+        logicStreamStartRef.current,
+        logicPausedSnapshotsByTabId
+      );
+      const rebuilt = buildUartWaveformFromBytes(tabByteHistory, {
+        baud: safeBaud,
+        settings: config.logic.uartSettings,
+        startUs: 0,
+        idPrefix: tabId,
+      });
+      result[tabId] = {
+        segments: rebuilt.segments.slice(-MAX_LOGIC_SEGMENTS),
+        frames: rebuilt.frames.slice(-MAX_UART_DECODED_FRAMES),
+        endUs: rebuilt.endUs,
       };
     }
+    return result;
+  }, [tabConfigById, logicByteHistory, baudRate]);
 
-    const rawMin = Math.min(...allPoints.map((point) => point.value));
-    const rawMax = Math.max(...allPoints.map((point) => point.value));
-    const step = computeNiceStep(Math.max(0.000001, rawMax - rawMin) / 4);
-    const minValue = Math.floor(rawMin / step) * step;
-    const maxValue = Math.ceil(rawMax / step) * step;
-    const valueSpan = Math.max(step, maxValue - minValue);
-    const minTs = Math.min(...allPoints.map((point) => point.timestamp));
-    const maxTs = Math.max(...allPoints.map((point) => point.timestamp));
-    const tsSpan = Math.max(1, maxTs - minTs);
-
-    const gridLines = Array.from({ length: Math.max(2, Math.round(valueSpan / step) + 1) }, (_, index) => {
-      const value = maxValue - index * step;
-      return { value, y: CHART_HEIGHT - ((value - minValue) / valueSpan) * CHART_HEIGHT };
-    });
-    const paths = activeKeys
-      .map((key, index) => {
-        const points = (byKey[key] ?? []).map((point) => ({
-          timestamp: point.timestamp,
-          value: point.value,
-          x: ((point.timestamp - minTs) / tsSpan) * CHART_WIDTH,
-          y: CHART_HEIGHT - ((point.value - minValue) / valueSpan) * CHART_HEIGHT,
-        }));
-        if (points.length < 2) return null;
-        const d = points
-          .map((point, pointIndex) => `${pointIndex === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`)
-          .join(' ');
-        return { key, color: GRAPH_COLORS[index % GRAPH_COLORS.length], d, points };
-      })
-      .filter((item): item is { key: string; color: string; d: string; points: GraphPoint[] } => item !== null);
-
-    return { minValue, maxValue, minTs, maxTs, gridLines, paths };
-  }, [historyWindowSec, numericSeriesByKey, visibleSeriesKeys]);
-
-  const hoverData = useMemo(() => {
-    if (hoverX === null || graphData.paths.length === 0 || graphData.maxTs <= graphData.minTs) return null;
-    const targetTs =
-      graphData.minTs + (Math.max(0, Math.min(CHART_WIDTH, hoverX)) / CHART_WIDTH) * (graphData.maxTs - graphData.minTs);
-    let anchor: { point: GraphPoint; diff: number } | null = null;
-    for (const series of graphData.paths) {
-      for (const point of series.points) {
-        const diff = Math.abs(point.timestamp - targetTs);
-        if (!anchor || diff < anchor.diff) anchor = { point, diff };
-      }
-    }
-    if (!anchor) return null;
-    const lockedTs = anchor.point.timestamp;
-    const x = ((lockedTs - graphData.minTs) / (graphData.maxTs - graphData.minTs)) * CHART_WIDTH;
-    const rows: Array<{ key: string; color: string; value: number; y: number }> = [];
-    for (const series of graphData.paths) {
-      let nearest: GraphPoint | null = null;
-      let bestDiff = Number.POSITIVE_INFINITY;
-      for (const point of series.points) {
-        const diff = Math.abs(point.timestamp - lockedTs);
-        if (diff < bestDiff) {
-          nearest = point;
-          bestDiff = diff;
+  useEffect(() => {
+    setTabConfigById((previous) => {
+      let changed = false;
+      const next: Record<string, TabInstanceConfig> = { ...previous };
+      for (const [tabId, config] of Object.entries(previous)) {
+        const logic = config.logic;
+        if (!logic || logic.logicPlaybackPaused) continue;
+        const waveform = logicWaveformByTabId[tabId];
+        const timelineEndUs = waveform?.endUs ?? 0;
+        let logicViewStartUs = logic.logicViewStartUs;
+        if (logic.logicAutoFollow && !logic.logicPlaybackPaused && waveform?.segments.length) {
+          const endUs = waveform.segments[waveform.segments.length - 1]?.t1Us ?? 0;
+          logicViewStartUs = Math.max(0, endUs - logic.logicSpanUs);
+        }
+        const clampedStart = clampLogicStartForTimeline(logicViewStartUs, logic.logicSpanUs, timelineEndUs);
+        if (
+          Math.abs(clampedStart - logic.logicViewStartUs) > 0.0001 ||
+          (logic.logicAutoFollow && !logic.logicPlaybackPaused && Math.abs(clampedStart - logicViewStartUs) > 0.0001)
+        ) {
+          next[tabId] = { ...config, logic: { ...logic, logicViewStartUs: clampedStart } };
+          changed = true;
         }
       }
-      if (nearest) rows.push({ key: series.key, color: series.color, value: nearest.value, y: nearest.y });
-    }
-    return {
-      x,
-      timeLabel: new Date(lockedTs).toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      }),
-      rows,
-    };
-  }, [graphData, hoverX, locale]);
-
-  const chartEmptyMessage =
-    visibleSeriesKeys.length === 0 && numericSeriesKeys.length > 0
-      ? t('panes.noSeriesSelected')
-      : t('panes.notEnoughPoints');
-  const logicTimelineEndUs = logicSegments[logicSegments.length - 1]?.t1Us ?? 0;
-  const logicViewEndUs = logicViewStartUs + logicSpanUs;
-  const logicTimeDomainUs = Math.max(logicTimelineEndUs, 1);
-  const parsedBaudForLogic = Number(baudRate);
-  const logicBaud = Number.isFinite(parsedBaudForLogic) && parsedBaudForLogic > 0 ? parsedBaudForLogic : 115200;
-  const logicBitDurationUs = 1_000_000 / logicBaud;
-  const logicRenderWidth = Math.max(280, logicViewportWidth);
-  const logicPxPerUs = logicRenderWidth / Math.max(1, logicSpanUs);
-  const logicPxPerBit = logicPxPerUs * logicBitDurationUs;
-  const showLogicFrameLabels = logicPxPerBit >= 2.5;
-  const timeToRenderX = useCallback(
-    (timeUs: number) => ((timeUs - logicViewStartUs) / Math.max(1, logicSpanUs)) * logicRenderWidth,
-    [logicRenderWidth, logicSpanUs, logicViewStartUs]
-  );
-  const logicRenderData = useMemo(() => {
-    if (logicSegments.length === 0) {
-      return {
-        grid: [] as Array<{ tUs: number; x: number }>,
-        segments: [] as Array<{ x0: number; x1: number; y: number; label?: string }>,
-        frameMarks: [] as LogicFrameMark[],
-        pathD: '',
-      };
-    }
-
-    const cullMarginUs = logicSpanUs * 0.12;
-    const cullStartUs = Math.max(0, logicViewStartUs - cullMarginUs);
-    const cullEndUs = logicViewEndUs + cullMarginUs;
-    const visibleSegments = logicSegments.filter(
-      (segment) => segment.t1Us >= cullStartUs && segment.t0Us <= cullEndUs && segment.t1Us > segment.t0Us
-    );
-    if (visibleSegments.length === 0) {
-      return {
-        grid: [] as Array<{ tUs: number; x: number }>,
-        segments: [] as Array<{ x0: number; x1: number; y: number; label?: string }>,
-        frameMarks: [] as LogicFrameMark[],
-        pathD: '',
-      };
-    }
-
-    const yFor = (level: 0 | 1) => (level === 1 ? 56 : 174);
-    const segmentsForRender = visibleSegments.map((segment) => ({
-      x0: timeToRenderX(segment.t0Us),
-      x1: timeToRenderX(segment.t1Us),
-      y: yFor(segment.level),
-      label: segment.label,
-    }));
-
-    let pathD = '';
-    segmentsForRender.forEach((segment, index) => {
-      if (index === 0) {
-        pathD += `M${segment.x0.toFixed(2)},${segment.y.toFixed(2)} L${segment.x1.toFixed(2)},${segment.y.toFixed(2)} `;
-        return;
-      }
-      pathD += `L${segment.x0.toFixed(2)},${segment.y.toFixed(2)} L${segment.x1.toFixed(2)},${segment.y.toFixed(2)} `;
+      return changed ? next : previous;
     });
-
-    const stepUs = computeGridStepUs(logicSpanUs);
-    const firstTick = Math.ceil(logicViewStartUs / stepUs) * stepUs;
-    const grid: Array<{ tUs: number; x: number }> = [];
-    for (let tick = firstTick; tick <= logicViewEndUs; tick += stepUs) {
-      grid.push({ tUs: tick, x: timeToRenderX(tick) });
-    }
-
-    const frameMarks = logicDecodedFrames
-      .filter((frame) => frame.endUs >= logicViewStartUs && frame.startUs <= logicViewEndUs)
-      .map((frame) => ({
-        renderStartUs: Math.max(logicViewStartUs, frame.startUs),
-        renderEndUs: Math.min(logicViewEndUs, frame.endUs),
-        id: frame.id,
-        startUs: frame.startUs,
-        endUs: frame.endUs,
-        x0: timeToRenderX(Math.max(logicViewStartUs, frame.startUs)),
-        x1: timeToRenderX(Math.min(logicViewEndUs, frame.endUs)),
-        width: Math.max(1.8, timeToRenderX(Math.min(logicViewEndUs, frame.endUs)) - timeToRenderX(Math.max(logicViewStartUs, frame.startUs))),
-        hex: `0x${frame.byte.toString(16).padStart(2, '0').toUpperCase()}`,
-        ascii: toPrintableAscii(frame.byte),
-        dec: String(frame.byte),
-      }));
-
-    return { grid, segments: segmentsForRender, frameMarks, pathD: pathD.trim() };
-  }, [logicDecodedFrames, logicSegments, logicSpanUs, logicTimelineEndUs, logicViewEndUs, logicViewStartUs, showLogicFrameLabels, timeToRenderX]);
-
-  const logicDeltaUs =
-    cursorAUs !== null && cursorBUs !== null ? Math.abs(cursorBUs - cursorAUs) : null;
-  const logicEstimatedBaud =
-    logicDeltaUs && logicDeltaUs > 0 ? 1_000_000 / logicDeltaUs : null;
+  }, [logicWaveformByTabId]);
 
   useEffect(() => {
-    setLogicViewStartUs((previous) => {
-      if (!Number.isFinite(previous)) return Math.max(0, logicTimelineEndUs - logicSpanUs);
-      const next = clampLogicStart(previous, logicSpanUs);
-      return Math.abs(next - previous) > 0.0001 ? next : previous;
-    });
-  }, [logicSpanUs, logicTimelineEndUs]);
-
-  useEffect(() => {
-    if (!selectedLogicFrameId) return;
-    logicRowsRef.current[selectedLogicFrameId]?.scrollIntoView({ block: 'nearest' });
-  }, [selectedLogicFrameId]);
+    for (const [tabId, config] of Object.entries(tabConfigById)) {
+      const selectedId = config.logic?.selectedLogicFrameId;
+      if (!selectedId) continue;
+      logicRowsRef.current[`${tabId}:${selectedId}`]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [tabConfigById]);
 
   function addTab(leafId: string, view: ViewType) {
+    const tab = createTab(view);
+    initTabConfig(tab);
     setLayoutRoot((previous) => {
       const leaf = findLeaf(previous, leafId);
       if (!leaf) return previous;
-      const tab = createTab(view);
       return mapLeaf(previous, leafId, (current) => ({
         ...current,
         tabs: [...current.tabs, tab],
@@ -914,6 +1179,7 @@ export default function MonitorClient() {
   }
 
   function closeTab(leafId: string, tabId: string) {
+    removeTabConfig(tabId);
     setLayoutRoot((previous) => {
       const leaf = findLeaf(previous, leafId);
       if (!leaf) return previous;
@@ -942,6 +1208,8 @@ export default function MonitorClient() {
   }
 
   function closeGroup(leafId: string) {
+    const leaf = findLeaf(layoutRoot, leafId);
+    if (leaf) leaf.tabs.forEach((tab) => removeTabConfig(tab.id));
     setLayoutRoot((previous) => {
       return removeLeafNode(previous, leafId) ?? createLeaf('terminal');
     });
@@ -952,9 +1220,10 @@ export default function MonitorClient() {
   }
 
   function createTabWithDrop(view: ViewType, targetLeafId: string, dropSide: DropSide) {
+    const createdTab = createTab(view);
+    initTabConfig(createdTab);
     let nextActiveLeaf: string | null = null;
     setLayoutRoot((previous) => {
-      const createdTab = createTab(view);
       if (dropSide === 'center') {
         const resolvedTargetLeaf = findLeaf(previous, targetLeafId) ?? findFirstLeaf(previous);
         nextActiveLeaf = resolvedTargetLeaf.id;
@@ -1129,93 +1398,123 @@ export default function MonitorClient() {
     window.addEventListener('pointerup', onUp);
   }
 
-  function clampLogicStart(startUs: number, spanUs: number): number {
-    const maxStart = Math.max(0, logicTimelineEndUs - spanUs);
-    return clamp(startUs, 0, maxStart);
+  function selectLogicFrame(tabId: string, frame: { id: string }) {
+    updateLogicTabConfig(tabId, { selectedLogicFrameId: frame.id });
   }
 
-  function selectLogicFrame(frame: { id: string }) {
-    setSelectedLogicFrameId(frame.id);
-  }
-
-  function focusLogicFrame(frame: { id: string; startUs: number; endUs: number }) {
-    setSelectedLogicFrameId(frame.id);
-    setLogicAutoFollow(false);
+  function focusLogicFrame(tabId: string, frame: { id: string; startUs: number; endUs: number }) {
+    const logic = tabConfigById[tabId]?.logic;
+    if (!logic) return;
+    const timelineEndUs = logicWaveformByTabId[tabId]?.endUs ?? 0;
     const centerUs = (frame.startUs + frame.endUs) / 2;
-    setLogicViewStartUs(clampLogicStart(centerUs - logicSpanUs * 0.5, logicSpanUs));
+    const nextStart = clampLogicStartForTimeline(centerUs - logic.logicSpanUs * 0.5, logic.logicSpanUs, timelineEndUs);
+    updateLogicTabConfig(tabId, {
+      selectedLogicFrameId: frame.id,
+      logicAutoFollow: false,
+      logicViewStartUs: nextStart,
+    });
   }
 
-  function logicTimeFromClientX(clientX: number): number | null {
-    const scroller = logicViewportRef.current;
-    if (!scroller) return null;
+  function logicTimeFromClientX(tabId: string, clientX: number): number | null {
+    const scroller = logicViewportRefs.current[tabId];
+    const logic = tabConfigById[tabId]?.logic;
+    if (!scroller || !logic) return null;
     const rect = scroller.getBoundingClientRect();
     if (rect.width <= 0) return null;
     const ratio = clamp(clientX - rect.left, 0, rect.width) / rect.width;
-    return logicViewStartUs + ratio * logicSpanUs;
+    return logic.logicViewStartUs + ratio * logic.logicSpanUs;
   }
 
-  function handleLogicWheel(event: React.WheelEvent<HTMLDivElement>) {
+  function handleLogicWheel(tabId: string, event: React.WheelEvent<HTMLDivElement>) {
     event.preventDefault();
     event.stopPropagation();
     const nativeEvent = event.nativeEvent as WheelEvent & { stopImmediatePropagation?: () => void };
     nativeEvent.stopImmediatePropagation?.();
-    if (logicTimelineEndUs <= 0) return;
+    const logic = tabConfigById[tabId]?.logic;
+    const waveform = logicWaveformByTabId[tabId];
+    if (!logic || !waveform || waveform.endUs <= 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) return;
     const localXInViewport = clamp(event.clientX - rect.left, 0, rect.width);
     const ratioInViewport = localXInViewport / rect.width;
-    const anchorUs = logicViewStartUs + ratioInViewport * logicSpanUs;
+    const anchorUs = logic.logicViewStartUs + ratioInViewport * logic.logicSpanUs;
     const zoomFactor = event.deltaY < 0 ? 0.82 : 1.2;
+    const logicTimeDomainUs = Math.max(waveform.endUs, 1);
     const maxZoomOutSpan = Math.max(LOGIC_MIN_SPAN_US, logicTimeDomainUs);
-    const nextSpan = clamp(logicSpanUs * zoomFactor, LOGIC_MIN_SPAN_US, maxZoomOutSpan);
-    const nextStart = clampLogicStart(anchorUs - ratioInViewport * nextSpan, nextSpan);
+    const nextSpan = clamp(logic.logicSpanUs * zoomFactor, LOGIC_MIN_SPAN_US, maxZoomOutSpan);
+    const nextStart = clampLogicStartForTimeline(anchorUs - ratioInViewport * nextSpan, nextSpan, waveform.endUs);
     if (!Number.isFinite(nextStart) || !Number.isFinite(nextSpan)) return;
-    setLogicAutoFollow(false);
-    setLogicSpanUs(nextSpan);
-    setLogicViewStartUs(nextStart);
+    updateLogicTabConfig(tabId, {
+      logicAutoFollow: false,
+      logicSpanUs: nextSpan,
+      logicViewStartUs: nextStart,
+    });
   }
 
-  function handleLogicPanStart(event: React.PointerEvent<HTMLDivElement>) {
+  function handleLogicPanStart(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
-    logicPanRef.current = {
+    const logic = tabConfigById[tabId]?.logic;
+    if (!logic) return;
+    logicActiveTabIdRef.current = tabId;
+    logicPanRefByTab.current[tabId] = {
       active: true,
       startClientX: event.clientX,
-      startViewUs: logicViewStartUs,
+      startViewUs: logic.logicViewStartUs,
+      spanUs: logic.logicSpanUs,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
-    setLogicAutoFollow(false);
+    updateLogicTabConfig(tabId, { logicAutoFollow: false });
   }
 
-  function handleLogicPanMove(event: React.PointerEvent<HTMLDivElement>) {
-    const scroller = logicViewportRef.current;
-    if (!scroller) return;
+  function handleLogicPanMove(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
+    const scroller = logicViewportRefs.current[tabId];
+    const activeTabId = logicActiveTabIdRef.current ?? tabId;
 
-    if (draggingCursor !== null) {
-      const timeUs = logicTimeFromClientX(event.clientX);
+    if (draggingCursor !== null && activeTabId === tabId) {
+      const timeUs = logicTimeFromClientX(tabId, event.clientX);
       if (timeUs === null) return;
-      if (draggingCursor === 'A') setCursorAUs(timeUs);
-      if (draggingCursor === 'B') setCursorBUs(timeUs);
+      if (draggingCursor === 'A') updateLogicTabConfig(tabId, { cursorAUs: timeUs });
+      if (draggingCursor === 'B') updateLogicTabConfig(tabId, { cursorBUs: timeUs });
       return;
     }
 
-    if (!logicPanRef.current.active) return;
+    const pan = logicPanRefByTab.current[tabId];
+    if (!pan?.active || !scroller) return;
+    const logic = tabConfigById[tabId]?.logic;
+    const timelineEndUs = logicWaveformByTabId[tabId]?.endUs ?? 0;
+    if (!logic) return;
     const rect = scroller.getBoundingClientRect();
     if (rect.width <= 0) return;
-    const deltaRatio = (event.clientX - logicPanRef.current.startClientX) / rect.width;
-    const nextStart = clampLogicStart(logicPanRef.current.startViewUs - deltaRatio * logicSpanUs, logicSpanUs);
-    setLogicViewStartUs(nextStart);
+    const deltaRatio = (event.clientX - pan.startClientX) / rect.width;
+    const nextStart = clampLogicStartForTimeline(pan.startViewUs - deltaRatio * pan.spanUs, pan.spanUs, timelineEndUs);
+    updateLogicTabConfig(tabId, { logicViewStartUs: nextStart });
   }
 
-  function handleLogicPanEnd(event: React.PointerEvent<HTMLDivElement>) {
-    if (logicPanRef.current.active && event.currentTarget.hasPointerCapture(event.pointerId)) {
+  function handleLogicPanEnd(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
+    const pan = logicPanRefByTab.current[tabId];
+    if (pan?.active && event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    logicPanRef.current.active = false;
+    if (pan) logicPanRefByTab.current[tabId] = { ...pan, active: false };
+    if (logicActiveTabIdRef.current === tabId) logicActiveTabIdRef.current = null;
     setDraggingCursor(null);
   }
 
-  function renderGraphView(graphKey: string) {
-    const localHoverData = hoverGraphKey === graphKey ? hoverData : null;
+  function renderGraphView(tabId: string) {
+    const graphConfig = tabConfigById[tabId]?.graph ?? createDefaultGraphConfig(numericSeriesKeys, true);
+    const graphData = buildGraphData({
+      visibleSeriesKeys: graphConfig.visibleSeriesKeys,
+      historyWindowSec: graphConfig.historyWindowSec,
+      numericSeriesByKey,
+    });
+    const localHoverData =
+      hoverGraphKey === tabId ? buildHoverData(graphData, hoverX, locale) : null;
+    const chartEmptyMessage =
+      graphConfig.visibleSeriesKeys.length === 0 && numericSeriesKeys.length > 0
+        ? t('panes.noSeriesSelected')
+        : t('panes.notEnoughPoints');
+    const visibleSeriesKeys = graphConfig.visibleSeriesKeys;
+
     return (
       <>
         <div className={styles.graphToolbar}>
@@ -1223,8 +1522,10 @@ export default function MonitorClient() {
             <span>{t('panes.historyWindow')}</span>
             <select
               className={styles.historySelect}
-              value={historyWindowSec}
-              onChange={(event) => setHistoryWindowSec(Number(event.currentTarget.value))}
+              value={graphConfig.historyWindowSec}
+              onChange={(event) =>
+                updateGraphTabConfig(tabId, { historyWindowSec: Number(event.currentTarget.value) })
+              }
             >
               <option value={15}>15s</option>
               <option value={30}>30s</option>
@@ -1236,7 +1537,7 @@ export default function MonitorClient() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => setVisibleSeriesKeys(numericSeriesKeys)}
+              onClick={() => updateGraphTabConfig(tabId, { visibleSeriesKeys: numericSeriesKeys })}
               disabled={numericSeriesKeys.length === 0}
             >
               {t('panes.showAll')}
@@ -1244,7 +1545,7 @@ export default function MonitorClient() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => setVisibleSeriesKeys([])}
+              onClick={() => updateGraphTabConfig(tabId, { visibleSeriesKeys: [] })}
               disabled={visibleSeriesKeys.length === 0}
             >
               {t('panes.hideAll')}
@@ -1257,11 +1558,15 @@ export default function MonitorClient() {
             <button
               key={key}
               type="button"
-              className={visibleSeriesKeys.includes(key) ? `${styles.seriesButton} ${styles.seriesButtonActive}` : styles.seriesButton}
+              className={
+                visibleSeriesKeys.includes(key) ? `${styles.seriesButton} ${styles.seriesButtonActive}` : styles.seriesButton
+              }
               onClick={() =>
-                setVisibleSeriesKeys((previous) =>
-                  previous.includes(key) ? previous.filter((k) => k !== key) : [...previous, key]
-                )
+                updateGraphTabConfig(tabId, {
+                  visibleSeriesKeys: visibleSeriesKeys.includes(key)
+                    ? visibleSeriesKeys.filter((seriesKey) => seriesKey !== key)
+                    : [...visibleSeriesKeys, key],
+                })
               }
             >
               <span
@@ -1280,7 +1585,7 @@ export default function MonitorClient() {
             if (rect.width <= 0) return;
             const x = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH;
             setHoverX(Math.max(0, Math.min(CHART_WIDTH, x)));
-            setHoverGraphKey(graphKey);
+            setHoverGraphKey(tabId);
           }}
           onMouseLeave={() => {
             setHoverX(null);
@@ -1350,9 +1655,76 @@ export default function MonitorClient() {
     );
   }
 
-  function renderLogicAnalyzerView() {
+  function toggleLogicPlayback(tabId: string) {
+    const currentLogic = tabConfigByIdRef.current[tabId]?.logic;
+    if (!currentLogic) return;
+    const streamEnd = logicStreamEndRef.current;
+    if (!currentLogic.logicPlaybackPaused) {
+      const snapshot = getLogicByteHistoryForTab(
+        currentLogic,
+        logicByteHistoryRef.current,
+        logicStreamStartRef.current
+      );
+      setLogicPausedSnapshot(tabId, snapshot);
+      updateLogicTabConfig(tabId, {
+        logicPlaybackPaused: true,
+        logicAutoFollow: false,
+        logicFrozenByteEnd: streamEnd,
+      });
+      return;
+    }
+    clearLogicPausedSnapshot(tabId);
+    updateLogicTabConfig(tabId, {
+      logicPlaybackPaused: false,
+      logicByteSkip: streamEnd,
+      logicFrozenByteEnd: null,
+    });
+  }
+
+  function renderLogicAnalyzerView(tabId: string) {
+    const instanceConfig = tabConfigById[tabId];
+    if (!instanceConfig?.logic) {
+      return <p className={styles.meta}>{t('panes.noLogic')}</p>;
+    }
+    const logic = instanceConfig.logic;
+    const waveform = logicWaveformByTabId[tabId] ?? { segments: [], frames: [], endUs: 0 };
+    const logicSegments = waveform.segments;
+    const logicDecodedFrames = waveform.frames;
+    const logicTimelineEndUs = waveform.endUs;
+    const {
+      uartSettings,
+      logicSpanUs,
+      logicViewStartUs,
+      logicViewportWidth,
+      logicPlaybackPaused,
+      showHexDecode,
+      showAsciiDecode,
+      showDecimalDecode,
+      selectedLogicFrameId,
+      cursorAUs,
+      cursorBUs,
+    } = logic;
+    const parsedBaudForLogic = Number(baudRate);
+    const logicBaud = Number.isFinite(parsedBaudForLogic) && parsedBaudForLogic > 0 ? parsedBaudForLogic : 115200;
+    const logicBitDurationUs = 1_000_000 / logicBaud;
+    const logicRenderWidth = Math.max(280, logicViewportWidth);
+    const logicPxPerUs = logicRenderWidth / Math.max(1, logicSpanUs);
+    const logicPxPerBit = logicPxPerUs * logicBitDurationUs;
+    const showLogicFrameLabels = logicPxPerBit >= 2.5;
+    const timeToRenderX = (timeUs: number) =>
+      ((timeUs - logicViewStartUs) / Math.max(1, logicSpanUs)) * logicRenderWidth;
+    const logicRenderData = buildLogicRenderData({
+      segments: logicSegments,
+      decodedFrames: logicDecodedFrames,
+      logicViewStartUs,
+      logicSpanUs,
+      logicRenderWidth,
+      showLogicFrameLabels,
+    });
     const cursorAX = cursorAUs !== null ? timeToRenderX(cursorAUs) : null;
     const cursorBX = cursorBUs !== null ? timeToRenderX(cursorBUs) : null;
+    const logicDeltaUs = cursorAUs !== null && cursorBUs !== null ? Math.abs(cursorBUs - cursorAUs) : null;
+    const logicEstimatedBaud = logicDeltaUs && logicDeltaUs > 0 ? 1_000_000 / logicDeltaUs : null;
 
     return (
       <>
@@ -1364,7 +1736,7 @@ export default function MonitorClient() {
               value={uartSettings.dataBits}
               onChange={(event) => {
                 const dataBits = Number(event.currentTarget.value) as UartSettings['dataBits'];
-                setUartSettings((previous) => ({ ...previous, dataBits }));
+                updateLogicTabConfig(tabId, { uartSettings: { ...uartSettings, dataBits } });
               }}
             >
               {[5, 6, 7, 8, 9].map((value) => (
@@ -1381,7 +1753,7 @@ export default function MonitorClient() {
               value={uartSettings.parity}
               onChange={(event) => {
                 const parity = event.currentTarget.value as UartParity;
-                setUartSettings((previous) => ({ ...previous, parity }));
+                updateLogicTabConfig(tabId, { uartSettings: { ...uartSettings, parity } });
               }}
             >
               <option value="none">{t('panes.uartParityNone')}</option>
@@ -1396,7 +1768,7 @@ export default function MonitorClient() {
               value={uartSettings.stopBits}
               onChange={(event) => {
                 const stopBits = Number(event.currentTarget.value) as UartStopBits;
-                setUartSettings((previous) => ({ ...previous, stopBits }));
+                updateLogicTabConfig(tabId, { uartSettings: { ...uartSettings, stopBits } });
               }}
             >
               <option value={1}>1</option>
@@ -1411,7 +1783,7 @@ export default function MonitorClient() {
               value={uartSettings.idleLevel}
               onChange={(event) => {
                 const idleLevel = Number(event.currentTarget.value) as UartIdleLevel;
-                setUartSettings((previous) => ({ ...previous, idleLevel }));
+                updateLogicTabConfig(tabId, { uartSettings: { ...uartSettings, idleLevel } });
               }}
             >
               <option value={1}>{t('panes.logicLevelHigh')}</option>
@@ -1421,28 +1793,28 @@ export default function MonitorClient() {
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => setLogicPlaybackPaused((previous) => !previous)}
+            onClick={() => toggleLogicPlayback(tabId)}
           >
             {logicPlaybackPaused ? t('panes.logicPlay') : t('panes.logicPause')}
           </button>
           <button
             type="button"
             className={showHexDecode ? `${styles.secondaryButton} ${styles.logicToggleActive}` : styles.secondaryButton}
-            onClick={() => setShowHexDecode((previous) => !previous)}
+            onClick={() => updateLogicTabConfig(tabId, { showHexDecode: !showHexDecode })}
           >
             HEX
           </button>
           <button
             type="button"
             className={showAsciiDecode ? `${styles.secondaryButton} ${styles.logicToggleActive}` : styles.secondaryButton}
-            onClick={() => setShowAsciiDecode((previous) => !previous)}
+            onClick={() => updateLogicTabConfig(tabId, { showAsciiDecode: !showAsciiDecode })}
           >
             ASCII
           </button>
           <button
             type="button"
             className={showDecimalDecode ? `${styles.secondaryButton} ${styles.logicToggleActive}` : styles.secondaryButton}
-            onClick={() => setShowDecimalDecode((previous) => !previous)}
+            onClick={() => updateLogicTabConfig(tabId, { showDecimalDecode: !showDecimalDecode })}
           >
             DEC
           </button>
@@ -1451,9 +1823,14 @@ export default function MonitorClient() {
             className={styles.secondaryButton}
             onClick={() => {
               if (logicTimelineEndUs <= 0) return;
-              setLogicAutoFollow(true);
-              setLogicPlaybackPaused(false);
-              setLogicViewStartUs(Math.max(0, logicTimelineEndUs - logicSpanUs));
+              clearLogicPausedSnapshot(tabId);
+              updateLogicTabConfig(tabId, {
+                logicAutoFollow: true,
+                logicPlaybackPaused: false,
+                logicByteSkip: logicStreamEndRef.current,
+                logicFrozenByteEnd: null,
+                logicViewStartUs: Math.max(0, logicTimelineEndUs - logicSpanUs),
+              });
             }}
           >
             {t('panes.follow')}
@@ -1466,14 +1843,14 @@ export default function MonitorClient() {
         </div>
 
         <div
-          ref={attachLogicViewport}
+          ref={getLogicViewportRef(tabId)}
           className={styles.logicChartWrap}
-          onWheelCapture={handleLogicWheel}
-          onWheel={handleLogicWheel}
-          onPointerDown={handleLogicPanStart}
-          onPointerMove={handleLogicPanMove}
-          onPointerUp={handleLogicPanEnd}
-          onPointerCancel={handleLogicPanEnd}
+          onWheelCapture={(event) => handleLogicWheel(tabId, event)}
+          onWheel={(event) => handleLogicWheel(tabId, event)}
+          onPointerDown={(event) => handleLogicPanStart(tabId, event)}
+          onPointerMove={(event) => handleLogicPanMove(tabId, event)}
+          onPointerUp={(event) => handleLogicPanEnd(tabId, event)}
+          onPointerCancel={(event) => handleLogicPanEnd(tabId, event)}
         >
           {logicSegments.length > 0 ? (
             <svg
@@ -1502,7 +1879,7 @@ export default function MonitorClient() {
                     className={selectedLogicFrameId === frame.id ? styles.logicFrameBandActive : styles.logicFrameBand}
                     onPointerDown={(event) => {
                       event.stopPropagation();
-                      selectLogicFrame(frame);
+                      selectLogicFrame(tabId, frame);
                     }}
                   />
                   {showLogicFrameLabels && showHexDecode && frame.width >= 28 && (
@@ -1538,8 +1915,11 @@ export default function MonitorClient() {
                     className={styles.logicCursorGrab}
                     onPointerDown={(event) => {
                       event.stopPropagation();
-                      logicPanRef.current.active = false;
-                      logicViewportRef.current?.setPointerCapture(event.pointerId);
+                      logicActiveTabIdRef.current = tabId;
+                      if (logicPanRefByTab.current[tabId]) {
+                        logicPanRefByTab.current[tabId] = { ...logicPanRefByTab.current[tabId], active: false };
+                      }
+                      logicViewportRefs.current[tabId]?.setPointerCapture(event.pointerId);
                       setDraggingCursor('A');
                     }}
                   />
@@ -1559,8 +1939,11 @@ export default function MonitorClient() {
                     className={styles.logicCursorGrab}
                     onPointerDown={(event) => {
                       event.stopPropagation();
-                      logicPanRef.current.active = false;
-                      logicViewportRef.current?.setPointerCapture(event.pointerId);
+                      logicActiveTabIdRef.current = tabId;
+                      if (logicPanRefByTab.current[tabId]) {
+                        logicPanRefByTab.current[tabId] = { ...logicPanRefByTab.current[tabId], active: false };
+                      }
+                      logicViewportRefs.current[tabId]?.setPointerCapture(event.pointerId);
                       setDraggingCursor('B');
                     }}
                   />
@@ -1580,24 +1963,21 @@ export default function MonitorClient() {
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => setCursorAUs(logicViewStartUs + logicSpanUs * 0.3)}
+            onClick={() => updateLogicTabConfig(tabId, { cursorAUs: logicViewStartUs + logicSpanUs * 0.3 })}
           >
             {t('panes.placeCursorA')}
           </button>
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => setCursorBUs(logicViewStartUs + logicSpanUs * 0.7)}
+            onClick={() => updateLogicTabConfig(tabId, { cursorBUs: logicViewStartUs + logicSpanUs * 0.7 })}
           >
             {t('panes.placeCursorB')}
           </button>
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => {
-              setCursorAUs(null);
-              setCursorBUs(null);
-            }}
+            onClick={() => updateLogicTabConfig(tabId, { cursorAUs: null, cursorBUs: null })}
           >
             {t('panes.clearCursors')}
           </button>
@@ -1614,10 +1994,10 @@ export default function MonitorClient() {
                 key={`row-${frame.id}`}
                 type="button"
                 ref={(element) => {
-                  logicRowsRef.current[frame.id] = element;
+                  logicRowsRef.current[`${tabId}:${frame.id}`] = element;
                 }}
                 className={selectedLogicFrameId === frame.id ? `${styles.logicRow} ${styles.logicRowActive}` : styles.logicRow}
-                onClick={() => focusLogicFrame(frame)}
+                onClick={() => focusLogicFrame(tabId, frame)}
               >
                 <span>{formatTimeUs(frame.startUs)}</span>
                 <span>{`0x${frame.byte.toString(16).padStart(2, '0').toUpperCase()}`}</span>
@@ -1685,7 +2065,7 @@ export default function MonitorClient() {
       );
     }
     if (view === 'logic') {
-      return renderLogicAnalyzerView();
+      return renderLogicAnalyzerView(instanceKey);
     }
     return renderGraphView(instanceKey);
   }
@@ -1817,7 +2197,13 @@ export default function MonitorClient() {
           </div>
         </div>
         <div className={styles.zoneBody}>
-          {activeTab ? <div className={styles.viewFrame}>{renderView(activeTab.view, activeTab.id)}</div> : <p className={styles.meta}>{t('panes.emptyDropZone')}</p>}
+          {activeTab ? (
+            <div key={activeTab.id} className={styles.viewFrame}>
+              {renderView(activeTab.view, activeTab.id)}
+            </div>
+          ) : (
+            <p className={styles.meta}>{t('panes.emptyDropZone')}</p>
+          )}
         </div>
       </section>
     );
