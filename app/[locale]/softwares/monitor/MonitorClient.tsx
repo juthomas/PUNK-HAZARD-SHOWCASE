@@ -366,6 +366,7 @@ export default function MonitorClient() {
   const logicTimelineUsRef = useRef(0);
   const logicPlaybackPausedRef = useRef(false);
   const logicViewportRef = useRef<HTMLDivElement | null>(null);
+  const logicResizeObserverRef = useRef<ResizeObserver | null>(null);
   const logicPanRef = useRef<{ active: boolean; startClientX: number; startViewUs: number }>({
     active: false,
     startClientX: 0,
@@ -442,21 +443,19 @@ export default function MonitorClient() {
     setLogicViewStartUs(Math.max(0, endUs - logicSpanUs));
   }, [logicAutoFollow, logicPlaybackPaused, logicSegments, logicSpanUs]);
 
-  useEffect(() => {
-    const viewport = logicViewportRef.current;
-    if (!viewport) return;
+  const attachLogicViewport = useCallback((element: HTMLDivElement | null) => {
+    logicResizeObserverRef.current?.disconnect();
+    logicResizeObserverRef.current = null;
+    logicViewportRef.current = element;
+    if (!element) return;
     const updateWidth = () => {
-      setLogicViewportWidth(Math.max(280, viewport.clientWidth || LOGIC_CHART_WIDTH));
+      setLogicViewportWidth(Math.max(280, element.clientWidth || LOGIC_CHART_WIDTH));
     };
     updateWidth();
     const observer = new ResizeObserver(updateWidth);
-    observer.observe(viewport);
-    window.addEventListener('resize', updateWidth);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateWidth);
-    };
-  }, [activeLeafId]);
+    observer.observe(element);
+    logicResizeObserverRef.current = observer;
+  }, []);
 
   useEffect(() => {
     logicPlaybackPausedRef.current = logicPlaybackPaused;
@@ -800,16 +799,11 @@ export default function MonitorClient() {
   const logicRenderWidth = Math.max(280, logicViewportWidth);
   const logicPxPerUs = logicRenderWidth / Math.max(1, logicSpanUs);
   const logicPxPerBit = logicPxPerUs * logicBitDurationUs;
-  const showLogicFrameLabels = logicPxPerBit >= 7.5;
+  const showLogicFrameLabels = logicPxPerBit >= 2.5;
   const timeToRenderX = useCallback(
     (timeUs: number) => ((timeUs - logicViewStartUs) / Math.max(1, logicSpanUs)) * logicRenderWidth,
     [logicRenderWidth, logicSpanUs, logicViewStartUs]
   );
-  const renderXToTime = useCallback(
-    (x: number) => logicViewStartUs + (clamp(x, 0, logicRenderWidth) / Math.max(1, logicRenderWidth)) * logicSpanUs,
-    [logicRenderWidth, logicSpanUs, logicViewStartUs]
-  );
-
   const logicRenderData = useMemo(() => {
     if (logicSegments.length === 0) {
       return {
@@ -1156,8 +1150,8 @@ export default function MonitorClient() {
     if (!scroller) return null;
     const rect = scroller.getBoundingClientRect();
     if (rect.width <= 0) return null;
-    const renderX = clamp(clientX - rect.left, 0, logicRenderWidth);
-    return renderXToTime(renderX);
+    const ratio = clamp(clientX - rect.left, 0, rect.width) / rect.width;
+    return logicViewStartUs + ratio * logicSpanUs;
   }
 
   function handleLogicWheel(event: React.WheelEvent<HTMLDivElement>) {
@@ -1368,12 +1362,10 @@ export default function MonitorClient() {
             <select
               className={styles.historySelect}
               value={uartSettings.dataBits}
-              onChange={(event) =>
-                setUartSettings((previous) => ({
-                  ...previous,
-                  dataBits: Number(event.currentTarget.value) as UartSettings['dataBits'],
-                }))
-              }
+              onChange={(event) => {
+                const dataBits = Number(event.currentTarget.value) as UartSettings['dataBits'];
+                setUartSettings((previous) => ({ ...previous, dataBits }));
+              }}
             >
               {[5, 6, 7, 8, 9].map((value) => (
                 <option key={value} value={value}>
@@ -1387,12 +1379,10 @@ export default function MonitorClient() {
             <select
               className={styles.historySelect}
               value={uartSettings.parity}
-              onChange={(event) =>
-                setUartSettings((previous) => ({
-                  ...previous,
-                  parity: event.currentTarget.value as UartParity,
-                }))
-              }
+              onChange={(event) => {
+                const parity = event.currentTarget.value as UartParity;
+                setUartSettings((previous) => ({ ...previous, parity }));
+              }}
             >
               <option value="none">{t('panes.uartParityNone')}</option>
               <option value="even">{t('panes.uartParityEven')}</option>
@@ -1404,12 +1394,10 @@ export default function MonitorClient() {
             <select
               className={styles.historySelect}
               value={uartSettings.stopBits}
-              onChange={(event) =>
-                setUartSettings((previous) => ({
-                  ...previous,
-                  stopBits: Number(event.currentTarget.value) as UartStopBits,
-                }))
-              }
+              onChange={(event) => {
+                const stopBits = Number(event.currentTarget.value) as UartStopBits;
+                setUartSettings((previous) => ({ ...previous, stopBits }));
+              }}
             >
               <option value={1}>1</option>
               <option value={1.5}>1.5</option>
@@ -1421,12 +1409,10 @@ export default function MonitorClient() {
             <select
               className={styles.historySelect}
               value={uartSettings.idleLevel}
-              onChange={(event) =>
-                setUartSettings((previous) => ({
-                  ...previous,
-                  idleLevel: Number(event.currentTarget.value) as UartIdleLevel,
-                }))
-              }
+              onChange={(event) => {
+                const idleLevel = Number(event.currentTarget.value) as UartIdleLevel;
+                setUartSettings((previous) => ({ ...previous, idleLevel }));
+              }}
             >
               <option value={1}>{t('panes.logicLevelHigh')}</option>
               <option value={0}>{t('panes.logicLevelLow')}</option>
@@ -1480,7 +1466,7 @@ export default function MonitorClient() {
         </div>
 
         <div
-          ref={logicViewportRef}
+          ref={attachLogicViewport}
           className={styles.logicChartWrap}
           onWheelCapture={handleLogicWheel}
           onWheel={handleLogicWheel}
@@ -1492,14 +1478,14 @@ export default function MonitorClient() {
           {logicSegments.length > 0 ? (
             <svg
               viewBox={`0 0 ${logicRenderWidth} ${LOGIC_CHART_HEIGHT}`}
+              preserveAspectRatio="none"
               className={styles.logicChartSvg}
-              style={{ width: `${logicRenderWidth}px` }}
             >
               <line x1={0} x2={logicRenderWidth} y1={56} y2={56} className={styles.logicLevelLine} />
               <line x1={0} x2={logicRenderWidth} y1={174} y2={174} className={styles.logicLevelLine} />
               {logicRenderData.grid.map((tick) => (
                 <g key={`tick-${tick.tUs}`}>
-                  <line x1={tick.x} x2={tick.x} y1={16} y2={208} className={styles.logicGridLine} />
+                  <line x1={tick.x} x2={tick.x} y1={16} y2={190} className={styles.logicGridLine} />
                   <text x={tick.x + 3} y={14} className={styles.logicGridLabel}>
                     {formatTimeUs(tick.tUs)}
                   </text>
@@ -1519,18 +1505,18 @@ export default function MonitorClient() {
                       selectLogicFrame(frame);
                     }}
                   />
-                  {showLogicFrameLabels && showHexDecode && frame.width >= 30 && frame.x0 >= 10 && (
-                    <text x={frame.x0 + 3} y={220} className={styles.logicFrameLabel}>
+                  {showLogicFrameLabels && showHexDecode && frame.width >= 28 && (
+                    <text x={(frame.x0 + frame.x1) / 2} y={220} textAnchor="middle" className={styles.logicFrameLabel}>
                       {frame.hex}
                     </text>
                   )}
-                  {showLogicFrameLabels && showAsciiDecode && frame.width >= 18 && frame.x0 >= 10 && (
-                    <text x={frame.x0 + 3} y={236} className={styles.logicFrameLabel}>
+                  {showLogicFrameLabels && showAsciiDecode && frame.width >= 12 && (
+                    <text x={(frame.x0 + frame.x1) / 2} y={236} textAnchor="middle" className={styles.logicFrameLabel}>
                       {frame.ascii}
                     </text>
                   )}
-                  {showLogicFrameLabels && showDecimalDecode && frame.width >= 24 && frame.x0 >= 10 && (
-                    <text x={frame.x0 + 3} y={252} className={styles.logicFrameLabel}>
+                  {showLogicFrameLabels && showDecimalDecode && frame.width >= 20 && (
+                    <text x={(frame.x0 + frame.x1) / 2} y={252} textAnchor="middle" className={styles.logicFrameLabel}>
                       {frame.dec}
                     </text>
                   )}
