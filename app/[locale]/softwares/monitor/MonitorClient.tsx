@@ -84,6 +84,10 @@ const MAX_SERIES_POINTS = 260;
 const GRAPH_COLORS = ['#79d9cf', '#9fc6ff', '#ffcf6a', '#ff9ac6', '#b7ff9a', '#caa8ff'];
 const CHART_WIDTH = 560;
 const CHART_HEIGHT = 190;
+const CHART_WRAP_PAD_LEFT = 10;
+const CHART_WRAP_PAD_RIGHT = 46;
+const GRAPH_MIN_SPAN_MS = 2_000;
+const WORKSPACE_STORAGE_KEY = 'punkhazard.monitor.workspace.v1';
 const VIEWS: ViewType[] = ['terminal', 'hexdump', 'json', 'graph', 'logic'];
 const TAB_TEMPLATE_MIME = 'text/x-monitor-tab-template-view';
 const LOGIC_CHART_WIDTH = 1180;
@@ -343,6 +347,13 @@ function clearAllLogicPausedSnapshots() {
 type GraphTabConfig = {
   visibleSeriesKeys: string[];
   historyWindowSec: number;
+  graphViewportWidth: number;
+  seriesAutoInitialized: boolean;
+  graphViewStartMs: number;
+  graphSpanMs: number;
+  graphAutoFollow: boolean;
+  graphPlaybackPaused: boolean;
+  graphFrozenEndMs: number | null;
 };
 
 type LogicTabConfig = {
@@ -394,11 +405,21 @@ type TabInstanceConfig = {
   logic?: LogicTabConfig;
 };
 
+type PersistedWorkspace = {
+  version: 1;
+  baudRate: string;
+  activeLeafId: string | null;
+  layoutRoot: LayoutNode;
+  tabConfigById: Record<string, TabInstanceConfig>;
+};
+
 type GraphData = {
   minValue: number;
   maxValue: number;
-  minTs: number;
-  maxTs: number;
+  viewStartMs: number;
+  spanMs: number;
+  timelineStartMs: number;
+  timelineEndMs: number;
   gridLines: Array<{ y: number; value: number }>;
   paths: Array<{ key: string; color: string; d: string; points: GraphPoint[] }>;
 };
@@ -430,35 +451,189 @@ function createDefaultGraphConfig(numericKeys: string[], isFirstGraphTab: boolea
   return {
     visibleSeriesKeys: isFirstGraphTab ? numericKeys.slice(0, Math.min(4, numericKeys.length)) : [...numericKeys],
     historyWindowSec: 60,
+    graphViewportWidth: CHART_WIDTH,
+    seriesAutoInitialized: numericKeys.length > 0,
+    graphViewStartMs: 0,
+    graphSpanMs: 60_000,
+    graphAutoFollow: true,
+    graphPlaybackPaused: false,
+    graphFrozenEndMs: null,
   };
+}
+
+function clampGraphStartForTimeline(
+  startMs: number,
+  spanMs: number,
+  timelineStartMs: number,
+  timelineEndMs: number
+): number {
+  const maxStart = Math.max(timelineStartMs, timelineEndMs - spanMs);
+  return clamp(startMs, timelineStartMs, maxStart);
+}
+
+function formatGraphSpanMs(spanMs: number): string {
+  if (!Number.isFinite(spanMs) || spanMs <= 0) return '0 s';
+  if (spanMs >= 60_000) return `${(spanMs / 60_000).toFixed(1)} min`;
+  return `${(spanMs / 1000).toFixed(1)} s`;
+}
+
+function formatGraphTimeMs(timestampMs: number, locale: string): string {
+  if (!Number.isFinite(timestampMs) || timestampMs <= 0) return '—';
+  return new Date(timestampMs).toLocaleTimeString(locale === 'en' ? 'en-GB' : 'fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function buildGraphTimeGrid(viewStartMs: number, spanMs: number, width: number): Array<{ tMs: number; x: number }> {
+  if (spanMs <= 0 || width <= 0) return [];
+  const tickCount = 5;
+  return Array.from({ length: tickCount + 1 }, (_, index) => {
+    const ratio = index / tickCount;
+    return { tMs: viewStartMs + ratio * spanMs, x: ratio * width };
+  });
+}
+
+function getGraphPlotLayout(element: HTMLElement, plotWidth: number) {
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+  const padLeft = Number.parseFloat(style.paddingLeft) || CHART_WRAP_PAD_LEFT;
+  const padRight = Number.parseFloat(style.paddingRight) || CHART_WRAP_PAD_RIGHT;
+  const contentWidth = Math.max(1, rect.width - padLeft - padRight);
+  return { rect, padLeft, padRight, contentWidth, plotWidth };
+}
+
+function clientXToPlotX(clientX: number, layout: ReturnType<typeof getGraphPlotLayout>): number {
+  const localX = clamp(clientX - layout.rect.left - layout.padLeft, 0, layout.contentWidth);
+  return (localX / layout.contentWidth) * layout.plotWidth;
+}
+
+function plotXToContainerPercent(plotX: number, layout: ReturnType<typeof getGraphPlotLayout>): number {
+  const pixelLeft = layout.padLeft + (plotX / layout.plotWidth) * layout.contentWidth;
+  return (pixelLeft / layout.rect.width) * 100;
+}
+
+function plotXToTooltipPercent(plotX: number, plotWidth: number, containerWidth: number): number {
+  const contentWidth = Math.max(1, containerWidth - CHART_WRAP_PAD_LEFT - CHART_WRAP_PAD_RIGHT);
+  const pixelLeft = CHART_WRAP_PAD_LEFT + (plotX / plotWidth) * contentWidth;
+  return (pixelLeft / containerWidth) * 100;
+}
+
+function sanitizeRestoredTabConfigs(
+  config: Record<string, TabInstanceConfig>
+): Record<string, TabInstanceConfig> {
+  const next: Record<string, TabInstanceConfig> = {};
+  for (const [tabId, tab] of Object.entries(config ?? {})) {
+    if (!tab || typeof tab !== 'object') continue;
+    const cleaned: TabInstanceConfig = {};
+    if (tab.graph) {
+      const visible = Array.isArray(tab.graph.visibleSeriesKeys) ? tab.graph.visibleSeriesKeys : [];
+      const historyWindowSec = tab.graph.historyWindowSec ?? 60;
+      cleaned.graph = {
+        visibleSeriesKeys: visible,
+        historyWindowSec,
+        graphViewportWidth: tab.graph.graphViewportWidth || CHART_WIDTH,
+        seriesAutoInitialized: tab.graph.seriesAutoInitialized ?? visible.length > 0,
+        graphViewStartMs: tab.graph.graphViewStartMs ?? 0,
+        graphSpanMs: tab.graph.graphSpanMs ?? historyWindowSec * 1000,
+        graphAutoFollow: tab.graph.graphAutoFollow ?? true,
+        graphPlaybackPaused: false,
+        graphFrozenEndMs: null,
+      };
+    }
+    if (tab.logic) {
+      // The byte stream is empty after a reload/language switch, so reset all
+      // stream-relative runtime fields while keeping the user's settings.
+      cleaned.logic = {
+        ...createDefaultLogicConfig(),
+        uartSettings: tab.logic.uartSettings ?? createDefaultUartSettings(),
+        logicSpanUs: tab.logic.logicSpanUs ?? createDefaultLogicConfig().logicSpanUs,
+        logicViewportWidth: tab.logic.logicViewportWidth || LOGIC_CHART_WIDTH,
+        showHexDecode: tab.logic.showHexDecode ?? true,
+        showAsciiDecode: tab.logic.showAsciiDecode ?? true,
+        showDecimalDecode: tab.logic.showDecimalDecode ?? false,
+      };
+    }
+    next[tabId] = cleaned;
+  }
+  return next;
 }
 
 function buildGraphData(options: {
   visibleSeriesKeys: string[];
   historyWindowSec: number;
   numericSeriesByKey: Record<string, NumericSample[]>;
+  width: number;
+  viewStartMs: number;
+  spanMs: number;
+  playbackPaused: boolean;
+  frozenEndMs: number | null;
 }): GraphData {
-  const { visibleSeriesKeys, historyWindowSec, numericSeriesByKey } = options;
-  const minTimestamp = Date.now() - historyWindowSec * 1000;
+  const {
+    visibleSeriesKeys,
+    historyWindowSec,
+    numericSeriesByKey,
+    width,
+    viewStartMs,
+    spanMs,
+    playbackPaused,
+    frozenEndMs,
+  } = options;
+  const bufferMinTs = Date.now() - historyWindowSec * 1000;
+  const viewEndMs = viewStartMs + spanMs;
   const activeKeys = visibleSeriesKeys.filter((key) => numericSeriesByKey[key]?.length);
-  const byKey: Record<string, NumericSample[]> = {};
+  const bufferedByKey: Record<string, NumericSample[]> = {};
   activeKeys.forEach((key) => {
-    byKey[key] = (numericSeriesByKey[key] ?? []).filter((point) => point.timestamp >= minTimestamp);
+    let points = (numericSeriesByKey[key] ?? []).filter((point) => point.timestamp >= bufferMinTs);
+    if (playbackPaused && frozenEndMs !== null) {
+      points = points.filter((point) => point.timestamp <= frozenEndMs);
+    }
+    bufferedByKey[key] = points;
   });
-  const allPoints = activeKeys.flatMap((key) => byKey[key] ?? []);
-  if (allPoints.length < 2) {
-    return { minValue: 0, maxValue: 0, minTs: 0, maxTs: 0, gridLines: [], paths: [] };
+  const bufferedPoints = activeKeys.flatMap((key) => bufferedByKey[key] ?? []);
+  if (bufferedPoints.length < 2) {
+    return {
+      minValue: 0,
+      maxValue: 0,
+      viewStartMs,
+      spanMs,
+      timelineStartMs: bufferMinTs,
+      timelineEndMs: bufferMinTs,
+      gridLines: [],
+      paths: [],
+    };
   }
 
-  const rawMin = Math.min(...allPoints.map((point) => point.value));
-  const rawMax = Math.max(...allPoints.map((point) => point.value));
+  const timelineStartMs = Math.min(...bufferedPoints.map((point) => point.timestamp));
+  const timelineEndMs = Math.max(...bufferedPoints.map((point) => point.timestamp));
+  const viewportByKey: Record<string, NumericSample[]> = {};
+  activeKeys.forEach((key) => {
+    viewportByKey[key] = (bufferedByKey[key] ?? []).filter(
+      (point) => point.timestamp >= viewStartMs && point.timestamp <= viewEndMs
+    );
+  });
+  const viewportPoints = activeKeys.flatMap((key) => viewportByKey[key] ?? []);
+  if (viewportPoints.length < 2) {
+    return {
+      minValue: 0,
+      maxValue: 0,
+      viewStartMs,
+      spanMs,
+      timelineStartMs,
+      timelineEndMs,
+      gridLines: [],
+      paths: [],
+    };
+  }
+
+  const rawMin = Math.min(...viewportPoints.map((point) => point.value));
+  const rawMax = Math.max(...viewportPoints.map((point) => point.value));
   const step = computeNiceStep(Math.max(0.000001, rawMax - rawMin) / 4);
   const minValue = Math.floor(rawMin / step) * step;
   const maxValue = Math.ceil(rawMax / step) * step;
   const valueSpan = Math.max(step, maxValue - minValue);
-  const minTs = Math.min(...allPoints.map((point) => point.timestamp));
-  const maxTs = Math.max(...allPoints.map((point) => point.timestamp));
-  const tsSpan = Math.max(1, maxTs - minTs);
+  const safeSpanMs = Math.max(1, spanMs);
 
   const gridLines = Array.from({ length: Math.max(2, Math.round(valueSpan / step) + 1) }, (_, index) => {
     const value = maxValue - index * step;
@@ -466,10 +641,10 @@ function buildGraphData(options: {
   });
   const paths = activeKeys
     .map((key, index) => {
-      const points = (byKey[key] ?? []).map((point) => ({
+      const points = (viewportByKey[key] ?? []).map((point) => ({
         timestamp: point.timestamp,
         value: point.value,
-        x: ((point.timestamp - minTs) / tsSpan) * CHART_WIDTH,
+        x: ((point.timestamp - viewStartMs) / safeSpanMs) * width,
         y: CHART_HEIGHT - ((point.value - minValue) / valueSpan) * CHART_HEIGHT,
       }));
       if (points.length < 2) return null;
@@ -480,13 +655,13 @@ function buildGraphData(options: {
     })
     .filter((item): item is { key: string; color: string; d: string; points: GraphPoint[] } => item !== null);
 
-  return { minValue, maxValue, minTs, maxTs, gridLines, paths };
+  return { minValue, maxValue, viewStartMs, spanMs, timelineStartMs, timelineEndMs, gridLines, paths };
 }
 
-function buildHoverData(graphData: GraphData, hoverX: number | null, locale: string) {
-  if (hoverX === null || graphData.paths.length === 0 || graphData.maxTs <= graphData.minTs) return null;
+function buildHoverData(graphData: GraphData, hoverX: number | null, locale: string, width: number) {
+  if (hoverX === null || graphData.paths.length === 0 || graphData.spanMs <= 0) return null;
   const targetTs =
-    graphData.minTs + (Math.max(0, Math.min(CHART_WIDTH, hoverX)) / CHART_WIDTH) * (graphData.maxTs - graphData.minTs);
+    graphData.viewStartMs + (Math.max(0, Math.min(width, hoverX)) / width) * graphData.spanMs;
   let anchor: { point: GraphPoint; diff: number } | null = null;
   for (const series of graphData.paths) {
     for (const point of series.points) {
@@ -496,7 +671,7 @@ function buildHoverData(graphData: GraphData, hoverX: number | null, locale: str
   }
   if (!anchor) return null;
   const lockedTs = anchor.point.timestamp;
-  const x = ((lockedTs - graphData.minTs) / (graphData.maxTs - graphData.minTs)) * CHART_WIDTH;
+  const x = ((lockedTs - graphData.viewStartMs) / graphData.spanMs) * width;
   const rows: Array<{ key: string; color: string; value: number; y: number }> = [];
   for (const series of graphData.paths) {
     let nearest: GraphPoint | null = null;
@@ -638,8 +813,14 @@ export default function MonitorClient() {
   const logicViewportRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const logicViewportCallbackRefs = useRef<Record<string, (element: HTMLDivElement | null) => void>>({});
   const logicResizeObserversRef = useRef<Record<string, ResizeObserver>>({});
+  const graphViewportRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const graphViewportCallbackRefs = useRef<Record<string, (element: HTMLDivElement | null) => void>>({});
+  const graphResizeObserversRef = useRef<Record<string, ResizeObserver>>({});
   const logicPanRefByTab = useRef<
     Record<string, { active: boolean; startClientX: number; startViewUs: number; spanUs: number }>
+  >({});
+  const graphPanRefByTab = useRef<
+    Record<string, { active: boolean; startClientX: number; startViewMs: number; spanMs: number }>
   >({});
   const logicActiveTabIdRef = useRef<string | null>(null);
   const logicRowsRef = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -648,6 +829,7 @@ export default function MonitorClient() {
   const logicByteHistoryRef = useRef(logicByteHistory);
   const tabConfigByIdRef = useRef(tabConfigById);
   const numericSeriesKeysRef = useRef<string[]>([]);
+  const hydratedRef = useRef(false);
 
   const makeId = (prefix: string) => {
     const id = `${prefix}-${idCounterRef.current}`;
@@ -724,7 +906,12 @@ export default function MonitorClient() {
     delete logicResizeObserversRef.current[tabId];
     delete logicViewportRefs.current[tabId];
     delete logicViewportCallbackRefs.current[tabId];
+    graphResizeObserversRef.current[tabId]?.disconnect();
+    delete graphResizeObserversRef.current[tabId];
+    delete graphViewportRefs.current[tabId];
+    delete graphViewportCallbackRefs.current[tabId];
     delete logicPanRefByTab.current[tabId];
+    delete graphPanRefByTab.current[tabId];
     clearLogicPausedSnapshot(tabId);
     if (logicActiveTabIdRef.current === tabId) logicActiveTabIdRef.current = null;
     Object.keys(logicRowsRef.current).forEach((key) => {
@@ -760,8 +947,48 @@ export default function MonitorClient() {
   }, []);
 
   useEffect(() => {
-    idCounterRef.current = maxNumericIdSuffix(collectAllLayoutIds(layoutRoot)) + 1;
+    let restored = false;
+    try {
+      const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as PersistedWorkspace;
+        if (parsed && parsed.version === 1 && parsed.layoutRoot) {
+          const restoredConfigs = sanitizeRestoredTabConfigs(parsed.tabConfigById ?? {});
+          setLayoutRoot(parsed.layoutRoot);
+          setTabConfigById(restoredConfigs);
+          if (typeof parsed.baudRate === 'string') setBaudRate(parsed.baudRate);
+          setActiveLeafId(parsed.activeLeafId ?? findFirstLeaf(parsed.layoutRoot).id);
+          idCounterRef.current = maxNumericIdSuffix(collectAllLayoutIds(parsed.layoutRoot)) + 1;
+          restored = true;
+        }
+      }
+    } catch {
+      restored = false;
+    }
+    if (!restored) {
+      idCounterRef.current = maxNumericIdSuffix(collectAllLayoutIds(layoutRoot)) + 1;
+    }
+    hydratedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const timer = window.setTimeout(() => {
+      try {
+        const snapshot: PersistedWorkspace = {
+          version: 1,
+          baudRate,
+          activeLeafId,
+          layoutRoot,
+          tabConfigById,
+        };
+        window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(snapshot));
+      } catch {
+        // ignore quota / serialization errors
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [baudRate, activeLeafId, layoutRoot, tabConfigById]);
 
   useEffect(() => {
     logicByteHistoryRef.current = logicByteHistory;
@@ -789,19 +1016,19 @@ export default function MonitorClient() {
       for (const tabId of graphTabIds) {
         const graph = previous[tabId]?.graph;
         if (!graph) continue;
-        const retained = graph.visibleSeriesKeys.filter((key) => keys.includes(key));
-        if (retained.length > 0) {
-          if (retained.length !== graph.visibleSeriesKeys.length) {
-            next[tabId] = { ...previous[tabId], graph: { ...graph, visibleSeriesKeys: retained } };
-            changed = true;
-          }
-          continue;
-        }
-        if (tabId === firstGraphTabId) {
+        if (!graph.seriesAutoInitialized) {
+          const defaults =
+            tabId === firstGraphTabId ? keys.slice(0, Math.min(4, keys.length)) : [...keys];
           next[tabId] = {
             ...previous[tabId],
-            graph: { ...graph, visibleSeriesKeys: keys.slice(0, Math.min(4, keys.length)) },
+            graph: { ...graph, visibleSeriesKeys: defaults, seriesAutoInitialized: true },
           };
+          changed = true;
+          continue;
+        }
+        const retained = graph.visibleSeriesKeys.filter((key) => keys.includes(key));
+        if (retained.length !== graph.visibleSeriesKeys.length) {
+          next[tabId] = { ...previous[tabId], graph: { ...graph, visibleSeriesKeys: retained } };
           changed = true;
         }
       }
@@ -835,7 +1062,12 @@ export default function MonitorClient() {
           delete logicResizeObserversRef.current[tabId];
           delete logicViewportRefs.current[tabId];
           delete logicViewportCallbackRefs.current[tabId];
+          graphResizeObserversRef.current[tabId]?.disconnect();
+          delete graphResizeObserversRef.current[tabId];
+          delete graphViewportRefs.current[tabId];
+          delete graphViewportCallbackRefs.current[tabId];
           delete logicPanRefByTab.current[tabId];
+          delete graphPanRefByTab.current[tabId];
           clearLogicPausedSnapshot(tabId);
           changed = true;
         }
@@ -878,6 +1110,27 @@ export default function MonitorClient() {
     return logicViewportCallbackRefs.current[tabId];
   }, []);
 
+  const getGraphViewportRef = useCallback((tabId: string) => {
+    if (!graphViewportCallbackRefs.current[tabId]) {
+      graphViewportCallbackRefs.current[tabId] = (element: HTMLDivElement | null) => {
+        graphResizeObserversRef.current[tabId]?.disconnect();
+        delete graphResizeObserversRef.current[tabId];
+        graphViewportRefs.current[tabId] = element;
+        if (!element) return;
+        const updateWidth = () => {
+          const nextWidth = Math.max(160, Math.round(element.clientWidth || CHART_WIDTH));
+          if (tabConfigByIdRef.current[tabId]?.graph?.graphViewportWidth === nextWidth) return;
+          updateGraphTabConfig(tabId, { graphViewportWidth: nextWidth });
+        };
+        updateWidth();
+        const observer = new ResizeObserver(updateWidth);
+        observer.observe(element);
+        graphResizeObserversRef.current[tabId] = observer;
+      };
+    }
+    return graphViewportCallbackRefs.current[tabId];
+  }, []);
+
   function appendLog(message: string) {
     setLogs((previous) => [...previous, { text: `[${formatTime(locale)}] ${message}` }].slice(-MAX_LOGS));
   }
@@ -900,6 +1153,7 @@ export default function MonitorClient() {
     setDraggingCursor(null);
     logicActiveTabIdRef.current = null;
     logicPanRefByTab.current = {};
+    graphPanRefByTab.current = {};
     reinitTabConfigsForTabs(collectTabs(layoutRoot));
   }
 
@@ -1118,6 +1372,54 @@ export default function MonitorClient() {
     }
     return result;
   }, [tabConfigById, logicByteHistory, baudRate]);
+
+  const graphTimelineByTabId = useMemo(() => {
+    const now = Date.now();
+    const result: Record<string, { timelineStartMs: number; timelineEndMs: number }> = {};
+    for (const [tabId, config] of Object.entries(tabConfigById)) {
+      if (!config.graph) continue;
+      const bufferMinTs = now - config.graph.historyWindowSec * 1000;
+      let timelineStartMs = Number.POSITIVE_INFINITY;
+      let timelineEndMs = 0;
+      for (const key of config.graph.visibleSeriesKeys) {
+        for (const point of numericSeriesByKey[key] ?? []) {
+          if (point.timestamp < bufferMinTs) continue;
+          timelineStartMs = Math.min(timelineStartMs, point.timestamp);
+          timelineEndMs = Math.max(timelineEndMs, point.timestamp);
+        }
+      }
+      if (timelineEndMs <= 0) {
+        result[tabId] = { timelineStartMs: bufferMinTs, timelineEndMs: bufferMinTs };
+      } else {
+        result[tabId] = { timelineStartMs, timelineEndMs };
+      }
+    }
+    return result;
+  }, [tabConfigById, numericSeriesByKey]);
+
+  useEffect(() => {
+    setTabConfigById((previous) => {
+      let changed = false;
+      const next: Record<string, TabInstanceConfig> = { ...previous };
+      for (const [tabId, config] of Object.entries(previous)) {
+        const graph = config.graph;
+        if (!graph || !graph.graphAutoFollow || graph.graphPlaybackPaused) continue;
+        const timeline = graphTimelineByTabId[tabId];
+        if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) continue;
+        const nextStart = clampGraphStartForTimeline(
+          timeline.timelineEndMs - graph.graphSpanMs,
+          graph.graphSpanMs,
+          timeline.timelineStartMs,
+          timeline.timelineEndMs
+        );
+        if (Math.abs(nextStart - graph.graphViewStartMs) > 0.5) {
+          next[tabId] = { ...config, graph: { ...graph, graphViewStartMs: nextStart } };
+          changed = true;
+        }
+      }
+      return changed ? next : previous;
+    });
+  }, [graphTimelineByTabId]);
 
   useEffect(() => {
     setTabConfigById((previous) => {
@@ -1500,20 +1802,144 @@ export default function MonitorClient() {
     setDraggingCursor(null);
   }
 
+  function handleGraphWheel(tabId: string, event: React.WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    const nativeEvent = event.nativeEvent as WheelEvent & { stopImmediatePropagation?: () => void };
+    nativeEvent.stopImmediatePropagation?.();
+    const graph = tabConfigById[tabId]?.graph;
+    const timeline = graphTimelineByTabId[tabId];
+    if (!graph || !timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const localXInViewport = clamp(event.clientX - rect.left, 0, rect.width);
+    const ratioInViewport = localXInViewport / rect.width;
+    const anchorMs = graph.graphViewStartMs + ratioInViewport * graph.graphSpanMs;
+    const zoomFactor = event.deltaY < 0 ? 0.82 : 1.2;
+    const maxZoomOutSpan = Math.max(GRAPH_MIN_SPAN_MS, graph.historyWindowSec * 1000);
+    const nextSpan = clamp(graph.graphSpanMs * zoomFactor, GRAPH_MIN_SPAN_MS, maxZoomOutSpan);
+    const nextStart = clampGraphStartForTimeline(
+      anchorMs - ratioInViewport * nextSpan,
+      nextSpan,
+      timeline.timelineStartMs,
+      timeline.timelineEndMs
+    );
+    if (!Number.isFinite(nextStart) || !Number.isFinite(nextSpan)) return;
+    updateGraphTabConfig(tabId, {
+      graphAutoFollow: false,
+      graphSpanMs: nextSpan,
+      graphViewStartMs: nextStart,
+    });
+  }
+
+  function handleGraphPanStart(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    const graph = tabConfigById[tabId]?.graph;
+    if (!graph) return;
+    graphPanRefByTab.current[tabId] = {
+      active: true,
+      startClientX: event.clientX,
+      startViewMs: graph.graphViewStartMs,
+      spanMs: graph.graphSpanMs,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updateGraphTabConfig(tabId, { graphAutoFollow: false });
+  }
+
+  function handleGraphPanMove(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
+    const scroller = graphViewportRefs.current[tabId];
+    const pan = graphPanRefByTab.current[tabId];
+    if (!pan?.active || !scroller) return;
+    const graph = tabConfigById[tabId]?.graph;
+    const timeline = graphTimelineByTabId[tabId];
+    if (!graph || !timeline) return;
+    const rect = scroller.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const deltaRatio = (event.clientX - pan.startClientX) / rect.width;
+    const nextStart = clampGraphStartForTimeline(
+      pan.startViewMs - deltaRatio * pan.spanMs,
+      pan.spanMs,
+      timeline.timelineStartMs,
+      timeline.timelineEndMs
+    );
+    updateGraphTabConfig(tabId, { graphViewStartMs: nextStart });
+  }
+
+  function handleGraphPanEnd(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
+    const pan = graphPanRefByTab.current[tabId];
+    if (pan?.active && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (pan) graphPanRefByTab.current[tabId] = { ...pan, active: false };
+  }
+
+  function toggleGraphPlayback(tabId: string) {
+    const currentGraph = tabConfigByIdRef.current[tabId]?.graph;
+    if (!currentGraph) return;
+    const timeline = graphTimelineByTabId[tabId];
+    if (!currentGraph.graphPlaybackPaused) {
+      if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+      updateGraphTabConfig(tabId, {
+        graphPlaybackPaused: true,
+        graphAutoFollow: false,
+        graphFrozenEndMs: timeline.timelineEndMs,
+      });
+      return;
+    }
+    if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+    const nextStart = clampGraphStartForTimeline(
+      timeline.timelineEndMs - currentGraph.graphSpanMs,
+      currentGraph.graphSpanMs,
+      timeline.timelineStartMs,
+      timeline.timelineEndMs
+    );
+    updateGraphTabConfig(tabId, {
+      graphPlaybackPaused: false,
+      graphFrozenEndMs: null,
+      graphAutoFollow: true,
+      graphViewStartMs: nextStart,
+    });
+  }
+
   function renderGraphView(tabId: string) {
     const graphConfig = tabConfigById[tabId]?.graph ?? createDefaultGraphConfig(numericSeriesKeys, true);
+    const containerWidth = Math.max(160, graphConfig.graphViewportWidth || CHART_WIDTH);
+    const plotWidth = Math.max(
+      80,
+      containerWidth - CHART_WRAP_PAD_LEFT - CHART_WRAP_PAD_RIGHT
+    );
+    const timeline = graphTimelineByTabId[tabId];
     const graphData = buildGraphData({
       visibleSeriesKeys: graphConfig.visibleSeriesKeys,
       historyWindowSec: graphConfig.historyWindowSec,
       numericSeriesByKey,
+      width: plotWidth,
+      viewStartMs: graphConfig.graphViewStartMs,
+      spanMs: graphConfig.graphSpanMs,
+      playbackPaused: graphConfig.graphPlaybackPaused,
+      frozenEndMs: graphConfig.graphFrozenEndMs,
     });
+    const scrollTimelineStart =
+      graphConfig.graphPlaybackPaused && graphConfig.graphFrozenEndMs !== null
+        ? graphData.timelineStartMs
+        : (timeline?.timelineStartMs ?? graphData.timelineStartMs);
+    const scrollTimelineEnd =
+      graphConfig.graphPlaybackPaused && graphConfig.graphFrozenEndMs !== null
+        ? graphConfig.graphFrozenEndMs
+        : (timeline?.timelineEndMs ?? graphData.timelineEndMs);
+    const scrollMax = Math.max(scrollTimelineStart, scrollTimelineEnd - graphConfig.graphSpanMs);
+    const canScroll = scrollTimelineEnd - scrollTimelineStart > graphConfig.graphSpanMs + 1;
+    const scrollStep = Math.max(100, Math.round(graphConfig.graphSpanMs / 100));
     const localHoverData =
-      hoverGraphKey === tabId ? buildHoverData(graphData, hoverX, locale) : null;
+      hoverGraphKey === tabId ? buildHoverData(graphData, hoverX, locale, plotWidth) : null;
+    const timeGrid = buildGraphTimeGrid(graphConfig.graphViewStartMs, graphConfig.graphSpanMs, plotWidth);
     const chartEmptyMessage =
       graphConfig.visibleSeriesKeys.length === 0 && numericSeriesKeys.length > 0
         ? t('panes.noSeriesSelected')
         : t('panes.notEnoughPoints');
     const visibleSeriesKeys = graphConfig.visibleSeriesKeys;
+    const hoverTooltipLeft =
+      hoverX !== null && hoverGraphKey === tabId ? plotXToTooltipPercent(hoverX, plotWidth, containerWidth) : null;
 
     return (
       <>
@@ -1523,9 +1949,13 @@ export default function MonitorClient() {
             <select
               className={styles.historySelect}
               value={graphConfig.historyWindowSec}
-              onChange={(event) =>
-                updateGraphTabConfig(tabId, { historyWindowSec: Number(event.currentTarget.value) })
-              }
+              onChange={(event) => {
+                const historyWindowSec = Number(event.currentTarget.value);
+                updateGraphTabConfig(tabId, {
+                  historyWindowSec,
+                  graphSpanMs: Math.min(graphConfig.graphSpanMs, historyWindowSec * 1000),
+                });
+              }}
             >
               <option value={15}>15s</option>
               <option value={30}>30s</option>
@@ -1550,7 +1980,42 @@ export default function MonitorClient() {
             >
               {t('panes.hideAll')}
             </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => toggleGraphPlayback(tabId)}
+            >
+              {graphConfig.graphPlaybackPaused ? t('panes.logicPlay') : t('panes.logicPause')}
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => {
+                if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+                updateGraphTabConfig(tabId, {
+                  graphPlaybackPaused: false,
+                  graphFrozenEndMs: null,
+                  graphAutoFollow: true,
+                  graphViewStartMs: clampGraphStartForTimeline(
+                    timeline.timelineEndMs - graphConfig.graphSpanMs,
+                    graphConfig.graphSpanMs,
+                    timeline.timelineStartMs,
+                    timeline.timelineEndMs
+                  ),
+                });
+              }}
+            >
+              {t('panes.follow')}
+            </button>
           </div>
+        </div>
+        <div className={styles.logicMetaRow}>
+          <span>
+            {t('panes.graphWindow', {
+              start: formatGraphTimeMs(graphConfig.graphViewStartMs, locale),
+              span: formatGraphSpanMs(graphConfig.graphSpanMs),
+            })}
+          </span>
         </div>
         <div className={styles.seriesRow}>
           {numericSeriesKeys.length === 0 && <span className={styles.meta}>{t('panes.noSeries')}</span>}
@@ -1578,71 +2043,120 @@ export default function MonitorClient() {
             </button>
           ))}
         </div>
-        <div
-          className={styles.chartWrap}
-          onMouseMove={(event) => {
-            const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
-            if (rect.width <= 0) return;
-            const x = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH;
-            setHoverX(Math.max(0, Math.min(CHART_WIDTH, x)));
-            setHoverGraphKey(tabId);
-          }}
-          onMouseLeave={() => {
-            setHoverX(null);
-            setHoverGraphKey(null);
-          }}
-        >
-          {graphData.paths.length > 0 ? (
-            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className={styles.chartSvg} aria-label={t('panes.graph')}>
-              {graphData.gridLines.map((line, index) => (
-                <g key={`grid-${index}`}>
-                  <line x1={0} x2={CHART_WIDTH} y1={line.y} y2={line.y} className={styles.chartGridLine} />
-                  <text
-                    x={CHART_WIDTH + 8}
-                    y={line.y}
-                    textAnchor="start"
-                    dominantBaseline="middle"
-                    className={styles.chartGridLabel}
-                  >
-                    {line.value.toFixed(2)}
-                  </text>
-                </g>
-              ))}
-              {graphData.paths.map((series) => (
-                <path key={series.key} d={series.d} className={styles.chartPath} style={{ stroke: series.color }} />
-              ))}
-              {localHoverData && (
-                <>
-                  <line x1={localHoverData.x} x2={localHoverData.x} y1={0} y2={CHART_HEIGHT} className={styles.chartCrosshair} />
-                  {localHoverData.rows.map((row) => (
-                    <circle key={row.key} cx={localHoverData.x} cy={row.y} r={3} fill={row.color} stroke="rgba(0,0,0,0.55)" strokeWidth={1} />
-                  ))}
-                </>
-              )}
-            </svg>
-          ) : (
-            <p className={styles.meta}>{chartEmptyMessage}</p>
-          )}
-          {localHoverData && (
-            <div
-              className={styles.chartTooltip}
-              style={{
-                left: `${Math.max(2, Math.min(98, (localHoverData.x / CHART_WIDTH) * 100))}%`,
-                transform:
-                  Math.max(2, Math.min(98, (localHoverData.x / CHART_WIDTH) * 100)) > 72
-                    ? 'translateX(calc(-100% - 10px))'
-                    : 'translateX(10px)',
-              }}
-            >
-              <div className={styles.chartTooltipTitle}>{localHoverData.timeLabel}</div>
-              {localHoverData.rows.map((row) => (
-                <div key={row.key} className={styles.chartTooltipRow}>
-                  <span className={styles.seriesDot} style={{ backgroundColor: row.color }} aria-hidden="true" />
-                  <span>{row.key}</span>
-                  <span>{row.value.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
+        <div className={styles.chartViewportStack}>
+          <div
+            ref={getGraphViewportRef(tabId)}
+            className={styles.chartWrap}
+            onWheelCapture={(event) => handleGraphWheel(tabId, event)}
+            onWheel={(event) => handleGraphWheel(tabId, event)}
+            onPointerDown={(event) => handleGraphPanStart(tabId, event)}
+            onPointerMove={(event) => {
+              handleGraphPanMove(tabId, event);
+              if (graphPanRefByTab.current[tabId]?.active) return;
+              const layout = getGraphPlotLayout(event.currentTarget, plotWidth);
+              setHoverX(clientXToPlotX(event.clientX, layout));
+              setHoverGraphKey(tabId);
+            }}
+            onPointerUp={(event) => handleGraphPanEnd(tabId, event)}
+            onPointerCancel={(event) => handleGraphPanEnd(tabId, event)}
+            onPointerLeave={() => {
+              setHoverX(null);
+              setHoverGraphKey(null);
+            }}
+          >
+            {graphData.paths.length > 0 ? (
+              <svg
+                viewBox={`0 0 ${plotWidth} ${CHART_HEIGHT}`}
+                preserveAspectRatio="none"
+                className={styles.chartSvg}
+                aria-label={t('panes.graph')}
+              >
+                {timeGrid.map((tick, index) => {
+                  const isLast = index === timeGrid.length - 1;
+                  const nearValueAxis = tick.x >= plotWidth - 48;
+                  return (
+                    <g key={`time-${tick.tMs}`}>
+                      <line x1={tick.x} x2={tick.x} y1={18} y2={CHART_HEIGHT} className={styles.chartTimeGridLine} />
+                      {!nearValueAxis && (
+                        <text
+                          x={isLast ? tick.x - 3 : tick.x + 3}
+                          y={12}
+                          textAnchor={isLast ? 'end' : 'start'}
+                          className={styles.chartTimeGridLabel}
+                        >
+                          {formatGraphTimeMs(tick.tMs, locale)}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+                {graphData.gridLines.map((line, index) => (
+                  <g key={`grid-${index}`}>
+                    <line x1={0} x2={plotWidth} y1={line.y} y2={line.y} className={styles.chartGridLine} />
+                    <text
+                      x={plotWidth - 4}
+                      y={line.y}
+                      textAnchor="end"
+                      dominantBaseline="middle"
+                      className={styles.chartGridLabel}
+                    >
+                      {line.value.toFixed(2)}
+                    </text>
+                  </g>
+                ))}
+                {graphData.paths.map((series) => (
+                  <path key={series.key} d={series.d} className={styles.chartPath} style={{ stroke: series.color }} />
+                ))}
+                {localHoverData && hoverX !== null && (
+                  <>
+                    <line x1={hoverX} x2={hoverX} y1={0} y2={CHART_HEIGHT} className={styles.chartCrosshair} />
+                    {localHoverData.rows.map((row) => (
+                      <circle key={row.key} cx={localHoverData.x} cy={row.y} r={3} fill={row.color} stroke="rgba(0,0,0,0.55)" strokeWidth={1} />
+                    ))}
+                  </>
+                )}
+              </svg>
+            ) : (
+              <p className={styles.meta}>{chartEmptyMessage}</p>
+            )}
+            {localHoverData && hoverTooltipLeft !== null && (
+              <div
+                className={styles.chartTooltip}
+                style={{
+                  left: `${Math.max(2, Math.min(98, hoverTooltipLeft))}%`,
+                  transform:
+                    Math.max(2, Math.min(98, hoverTooltipLeft)) > 72
+                      ? 'translateX(calc(-100% - 10px))'
+                      : 'translateX(10px)',
+                }}
+              >
+                <div className={styles.chartTooltipTitle}>{localHoverData.timeLabel}</div>
+                {localHoverData.rows.map((row) => (
+                  <div key={row.key} className={styles.chartTooltipRow}>
+                    <span className={styles.seriesDot} style={{ backgroundColor: row.color }} aria-hidden="true" />
+                    <span>{row.key}</span>
+                    <span>{row.value.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {canScroll && (
+            <input
+              type="range"
+              className={styles.chartScrollBar}
+              min={scrollTimelineStart}
+              max={scrollMax}
+              step={scrollStep}
+              value={clamp(graphConfig.graphViewStartMs, scrollTimelineStart, scrollMax)}
+              onChange={(event) =>
+                updateGraphTabConfig(tabId, {
+                  graphViewStartMs: Number(event.currentTarget.value),
+                  graphAutoFollow: false,
+                })
+              }
+              aria-label={t('panes.graphScroll')}
+            />
           )}
         </div>
         <p className={styles.meta}>

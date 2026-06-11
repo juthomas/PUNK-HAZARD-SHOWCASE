@@ -490,6 +490,8 @@
       "logicPlay": "Play",
       "logicPause": "Pause",
       "follow": "Follow",
+      "graphWindow": "Window: {start} / span {span}",
+      "graphScroll": "Scroll graph time window",
       "logicWindow": "Window: {start} / span {span}",
       "logicFramesCount": "Decoded frames: {count}",
       "placeCursorA": "Place cursor A",

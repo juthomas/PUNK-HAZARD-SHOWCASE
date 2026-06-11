@@ -490,6 +490,8 @@
       "logicPlay": "Lecture",
       "logicPause": "Pause",
       "follow": "Suivre",
+      "graphWindow": "Fenetre: {start} / span {span}",
+      "graphScroll": "Defiler la fenetre temporelle du graphe",
       "logicWindow": "Fenetre: {start} / span {span}",
       "logicFramesCount": "Trames decodees: {count}",
       "placeCursorA": "Placer curseur A",
