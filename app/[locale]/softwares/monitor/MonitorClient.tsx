@@ -344,6 +344,48 @@ function clearAllLogicPausedSnapshots() {
   }
 }
 
+const graphPausedSnapshotsByTabId: Record<string, Record<string, NumericSample[]>> = {};
+
+function setGraphPausedSnapshot(tabId: string, snapshot: Record<string, NumericSample[]>) {
+  graphPausedSnapshotsByTabId[tabId] = snapshot;
+}
+
+function clearGraphPausedSnapshot(tabId: string) {
+  delete graphPausedSnapshotsByTabId[tabId];
+}
+
+function clearAllGraphPausedSnapshots() {
+  for (const tabId of Object.keys(graphPausedSnapshotsByTabId)) {
+    delete graphPausedSnapshotsByTabId[tabId];
+  }
+}
+
+function buildGraphPausedSnapshot(
+  numericSeriesByKey: Record<string, NumericSample[]>,
+  frozenStartMs: number,
+  frozenEndMs: number
+): Record<string, NumericSample[]> {
+  const snapshot: Record<string, NumericSample[]> = {};
+  for (const [key, points] of Object.entries(numericSeriesByKey)) {
+    const filtered = points.filter(
+      (point) => point.timestamp >= frozenStartMs && point.timestamp <= frozenEndMs
+    );
+    if (filtered.length > 0) snapshot[key] = filtered;
+  }
+  return snapshot;
+}
+
+function getNumericSeriesForGraphTab(
+  tabId: string,
+  graph: GraphTabConfig,
+  numericSeriesByKey: Record<string, NumericSample[]>
+): Record<string, NumericSample[]> {
+  if (graph.graphPlaybackPaused && graphPausedSnapshotsByTabId[tabId]) {
+    return graphPausedSnapshotsByTabId[tabId];
+  }
+  return numericSeriesByKey;
+}
+
 type GraphTabConfig = {
   visibleSeriesKeys: string[];
   historyWindowSec: number;
@@ -353,6 +395,7 @@ type GraphTabConfig = {
   graphSpanMs: number;
   graphAutoFollow: boolean;
   graphPlaybackPaused: boolean;
+  graphFrozenStartMs: number | null;
   graphFrozenEndMs: number | null;
 };
 
@@ -457,6 +500,7 @@ function createDefaultGraphConfig(numericKeys: string[], isFirstGraphTab: boolea
     graphSpanMs: 60_000,
     graphAutoFollow: true,
     graphPlaybackPaused: false,
+    graphFrozenStartMs: null,
     graphFrozenEndMs: null,
   };
 }
@@ -539,6 +583,7 @@ function sanitizeRestoredTabConfigs(
         graphSpanMs: tab.graph.graphSpanMs ?? historyWindowSec * 1000,
         graphAutoFollow: tab.graph.graphAutoFollow ?? true,
         graphPlaybackPaused: false,
+        graphFrozenStartMs: null,
         graphFrozenEndMs: null,
       };
     }
@@ -568,6 +613,7 @@ function buildGraphData(options: {
   viewStartMs: number;
   spanMs: number;
   playbackPaused: boolean;
+  frozenStartMs: number | null;
   frozenEndMs: number | null;
 }): GraphData {
   const {
@@ -578,16 +624,22 @@ function buildGraphData(options: {
     viewStartMs,
     spanMs,
     playbackPaused,
+    frozenStartMs,
     frozenEndMs,
   } = options;
   const bufferMinTs = Date.now() - historyWindowSec * 1000;
+  const frozenBoundsActive = playbackPaused && frozenStartMs !== null && frozenEndMs !== null;
   const viewEndMs = viewStartMs + spanMs;
   const activeKeys = visibleSeriesKeys.filter((key) => numericSeriesByKey[key]?.length);
   const bufferedByKey: Record<string, NumericSample[]> = {};
   activeKeys.forEach((key) => {
-    let points = (numericSeriesByKey[key] ?? []).filter((point) => point.timestamp >= bufferMinTs);
-    if (playbackPaused && frozenEndMs !== null) {
-      points = points.filter((point) => point.timestamp <= frozenEndMs);
+    let points = numericSeriesByKey[key] ?? [];
+    if (frozenBoundsActive) {
+      points = points.filter(
+        (point) => point.timestamp >= frozenStartMs && point.timestamp <= frozenEndMs
+      );
+    } else {
+      points = points.filter((point) => point.timestamp >= bufferMinTs);
     }
     bufferedByKey[key] = points;
   });
@@ -598,8 +650,8 @@ function buildGraphData(options: {
       maxValue: 0,
       viewStartMs,
       spanMs,
-      timelineStartMs: bufferMinTs,
-      timelineEndMs: bufferMinTs,
+      timelineStartMs: frozenBoundsActive ? frozenStartMs : bufferMinTs,
+      timelineEndMs: frozenBoundsActive ? frozenEndMs : bufferMinTs,
       gridLines: [],
       paths: [],
     };
@@ -822,6 +874,19 @@ export default function MonitorClient() {
   const graphPanRefByTab = useRef<
     Record<string, { active: boolean; startClientX: number; startViewMs: number; spanMs: number }>
   >({});
+  const graphScrollRefByTab = useRef<
+    Record<
+      string,
+      {
+        active: boolean;
+        startClientX: number;
+        startViewMs: number;
+        spanMs: number;
+        scrollTimelineStart: number;
+        scrollTimelineEnd: number;
+      }
+    >
+  >({});
   const logicActiveTabIdRef = useRef<string | null>(null);
   const logicRowsRef = useRef<Record<string, HTMLButtonElement | null>>({});
   const logicStreamStartRef = useRef(0);
@@ -912,7 +977,9 @@ export default function MonitorClient() {
     delete graphViewportCallbackRefs.current[tabId];
     delete logicPanRefByTab.current[tabId];
     delete graphPanRefByTab.current[tabId];
+    delete graphScrollRefByTab.current[tabId];
     clearLogicPausedSnapshot(tabId);
+    clearGraphPausedSnapshot(tabId);
     if (logicActiveTabIdRef.current === tabId) logicActiveTabIdRef.current = null;
     Object.keys(logicRowsRef.current).forEach((key) => {
       if (key.startsWith(`${tabId}:`)) delete logicRowsRef.current[key];
@@ -1068,7 +1135,9 @@ export default function MonitorClient() {
           delete graphViewportCallbackRefs.current[tabId];
           delete logicPanRefByTab.current[tabId];
           delete graphPanRefByTab.current[tabId];
+          delete graphScrollRefByTab.current[tabId];
           clearLogicPausedSnapshot(tabId);
+          clearGraphPausedSnapshot(tabId);
           changed = true;
         }
       }
@@ -1148,12 +1217,14 @@ export default function MonitorClient() {
     logicStreamStartRef.current = 0;
     logicStreamEndRef.current = 0;
     clearAllLogicPausedSnapshots();
+    clearAllGraphPausedSnapshots();
     setHoverX(null);
     setHoverGraphKey(null);
     setDraggingCursor(null);
     logicActiveTabIdRef.current = null;
     logicPanRefByTab.current = {};
     graphPanRefByTab.current = {};
+    graphScrollRefByTab.current = {};
     reinitTabConfigsForTabs(collectTabs(layoutRoot));
   }
 
@@ -1879,14 +1950,22 @@ export default function MonitorClient() {
     const timeline = graphTimelineByTabId[tabId];
     if (!currentGraph.graphPlaybackPaused) {
       if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+      const frozenEndMs = timeline.timelineEndMs;
+      const frozenStartMs = frozenEndMs - currentGraph.historyWindowSec * 1000;
+      setGraphPausedSnapshot(
+        tabId,
+        buildGraphPausedSnapshot(numericSeriesByKey, frozenStartMs, frozenEndMs)
+      );
       updateGraphTabConfig(tabId, {
         graphPlaybackPaused: true,
         graphAutoFollow: false,
-        graphFrozenEndMs: timeline.timelineEndMs,
+        graphFrozenStartMs: frozenStartMs,
+        graphFrozenEndMs: frozenEndMs,
       });
       return;
     }
     if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+    clearGraphPausedSnapshot(tabId);
     const nextStart = clampGraphStartForTimeline(
       timeline.timelineEndMs - currentGraph.graphSpanMs,
       currentGraph.graphSpanMs,
@@ -1895,10 +1974,105 @@ export default function MonitorClient() {
     );
     updateGraphTabConfig(tabId, {
       graphPlaybackPaused: false,
+      graphFrozenStartMs: null,
       graphFrozenEndMs: null,
       graphAutoFollow: true,
       graphViewStartMs: nextStart,
     });
+  }
+
+  function toggleGraphFollow(tabId: string) {
+    const currentGraph = tabConfigByIdRef.current[tabId]?.graph;
+    if (!currentGraph) return;
+    if (currentGraph.graphAutoFollow && !currentGraph.graphPlaybackPaused) {
+      updateGraphTabConfig(tabId, { graphAutoFollow: false });
+      return;
+    }
+    const timeline = graphTimelineByTabId[tabId];
+    if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+    clearGraphPausedSnapshot(tabId);
+    const nextStart = clampGraphStartForTimeline(
+      timeline.timelineEndMs - currentGraph.graphSpanMs,
+      currentGraph.graphSpanMs,
+      timeline.timelineStartMs,
+      timeline.timelineEndMs
+    );
+    updateGraphTabConfig(tabId, {
+      graphPlaybackPaused: false,
+      graphFrozenStartMs: null,
+      graphFrozenEndMs: null,
+      graphAutoFollow: true,
+      graphViewStartMs: nextStart,
+    });
+  }
+
+  function handleGraphScrollThumbStart(
+    tabId: string,
+    event: React.PointerEvent<HTMLDivElement>,
+    scrollTimelineStart: number,
+    scrollTimelineEnd: number,
+    spanMs: number
+  ) {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    const graph = tabConfigByIdRef.current[tabId]?.graph;
+    if (!graph) return;
+    graphScrollRefByTab.current[tabId] = {
+      active: true,
+      startClientX: event.clientX,
+      startViewMs: graph.graphViewStartMs,
+      spanMs,
+      scrollTimelineStart,
+      scrollTimelineEnd,
+    };
+    event.currentTarget.parentElement?.setPointerCapture(event.pointerId);
+  }
+
+  function handleGraphScrollMove(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
+    const scroll = graphScrollRefByTab.current[tabId];
+    if (!scroll?.active) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const scrollableMs = scroll.scrollTimelineEnd - scroll.scrollTimelineStart - scroll.spanMs;
+    const deltaRatio = (event.clientX - scroll.startClientX) / rect.width;
+    const nextStart = clampGraphStartForTimeline(
+      scroll.startViewMs + deltaRatio * scrollableMs,
+      scroll.spanMs,
+      scroll.scrollTimelineStart,
+      scroll.scrollTimelineEnd
+    );
+    updateGraphTabConfig(tabId, { graphViewStartMs: nextStart, graphAutoFollow: false });
+  }
+
+  function handleGraphScrollEnd(tabId: string, event: React.PointerEvent<HTMLDivElement>) {
+    const scroll = graphScrollRefByTab.current[tabId];
+    if (scroll?.active && event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (scroll) graphScrollRefByTab.current[tabId] = { ...scroll, active: false };
+  }
+
+  function handleGraphScrollTrackClick(
+    tabId: string,
+    event: React.PointerEvent<HTMLDivElement>,
+    scrollTimelineStart: number,
+    scrollTimelineEnd: number,
+    spanMs: number
+  ) {
+    if (event.button !== 0) return;
+    if (graphScrollRefByTab.current[tabId]?.active) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+    const totalMs = scrollTimelineEnd - scrollTimelineStart;
+    const scrollableMs = Math.max(0, totalMs - spanMs);
+    const nextStart = clampGraphStartForTimeline(
+      scrollTimelineStart + ratio * scrollableMs,
+      spanMs,
+      scrollTimelineStart,
+      scrollTimelineEnd
+    );
+    updateGraphTabConfig(tabId, { graphViewStartMs: nextStart, graphAutoFollow: false });
   }
 
   function renderGraphView(tabId: string) {
@@ -1909,27 +2083,39 @@ export default function MonitorClient() {
       containerWidth - CHART_WRAP_PAD_LEFT - CHART_WRAP_PAD_RIGHT
     );
     const timeline = graphTimelineByTabId[tabId];
+    const seriesSource = getNumericSeriesForGraphTab(tabId, graphConfig, numericSeriesByKey);
     const graphData = buildGraphData({
       visibleSeriesKeys: graphConfig.visibleSeriesKeys,
       historyWindowSec: graphConfig.historyWindowSec,
-      numericSeriesByKey,
+      numericSeriesByKey: seriesSource,
       width: plotWidth,
       viewStartMs: graphConfig.graphViewStartMs,
       spanMs: graphConfig.graphSpanMs,
       playbackPaused: graphConfig.graphPlaybackPaused,
+      frozenStartMs: graphConfig.graphFrozenStartMs,
       frozenEndMs: graphConfig.graphFrozenEndMs,
     });
     const scrollTimelineStart =
-      graphConfig.graphPlaybackPaused && graphConfig.graphFrozenEndMs !== null
-        ? graphData.timelineStartMs
+      graphConfig.graphPlaybackPaused &&
+      graphConfig.graphFrozenStartMs !== null &&
+      graphConfig.graphFrozenEndMs !== null
+        ? graphConfig.graphFrozenStartMs
         : (timeline?.timelineStartMs ?? graphData.timelineStartMs);
     const scrollTimelineEnd =
       graphConfig.graphPlaybackPaused && graphConfig.graphFrozenEndMs !== null
         ? graphConfig.graphFrozenEndMs
         : (timeline?.timelineEndMs ?? graphData.timelineEndMs);
-    const scrollMax = Math.max(scrollTimelineStart, scrollTimelineEnd - graphConfig.graphSpanMs);
     const canScroll = scrollTimelineEnd - scrollTimelineStart > graphConfig.graphSpanMs + 1;
-    const scrollStep = Math.max(100, Math.round(graphConfig.graphSpanMs / 100));
+    const scrollTotalMs = Math.max(1, scrollTimelineEnd - scrollTimelineStart);
+    const thumbWidthPercent = Math.min(100, (graphConfig.graphSpanMs / scrollTotalMs) * 100);
+    const scrollableMs = Math.max(0, scrollTotalMs - graphConfig.graphSpanMs);
+    const thumbLeftPercent =
+      scrollableMs > 0
+        ? ((clamp(graphConfig.graphViewStartMs, scrollTimelineStart, scrollTimelineEnd - graphConfig.graphSpanMs) -
+            scrollTimelineStart) /
+            scrollableMs) *
+          (100 - thumbWidthPercent)
+        : 0;
     const localHoverData =
       hoverGraphKey === tabId ? buildHoverData(graphData, hoverX, locale, plotWidth) : null;
     const timeGrid = buildGraphTimeGrid(graphConfig.graphViewStartMs, graphConfig.graphSpanMs, plotWidth);
@@ -1940,6 +2126,7 @@ export default function MonitorClient() {
     const visibleSeriesKeys = graphConfig.visibleSeriesKeys;
     const hoverTooltipLeft =
       hoverX !== null && hoverGraphKey === tabId ? plotXToTooltipPercent(hoverX, plotWidth, containerWidth) : null;
+    const graphFollowActive = graphConfig.graphAutoFollow && !graphConfig.graphPlaybackPaused;
 
     return (
       <>
@@ -1966,46 +2153,38 @@ export default function MonitorClient() {
           <div className={styles.graphToolbarButtons}>
             <button
               type="button"
-              className={styles.secondaryButton}
-              onClick={() => updateGraphTabConfig(tabId, { visibleSeriesKeys: numericSeriesKeys })}
-              disabled={numericSeriesKeys.length === 0}
-            >
-              {t('panes.showAll')}
-            </button>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => updateGraphTabConfig(tabId, { visibleSeriesKeys: [] })}
-              disabled={visibleSeriesKeys.length === 0}
-            >
-              {t('panes.hideAll')}
-            </button>
-            <button
-              type="button"
-              className={styles.secondaryButton}
+              className={`${styles.secondaryButton} ${styles.graphToolbarIconBtn}`}
               onClick={() => toggleGraphPlayback(tabId)}
+              aria-label={graphConfig.graphPlaybackPaused ? t('panes.logicPlay') : t('panes.logicPause')}
+              title={graphConfig.graphPlaybackPaused ? t('panes.logicPlay') : t('panes.logicPause')}
             >
-              {graphConfig.graphPlaybackPaused ? t('panes.logicPlay') : t('panes.logicPause')}
+              {graphConfig.graphPlaybackPaused ? (
+                <svg viewBox="0 0 16 16" className={styles.graphToolbarIcon} aria-hidden="true">
+                  <path d="M5.5 3.8v8.4L12.2 8z" fill="currentColor" stroke="none" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 16 16" className={styles.graphToolbarIcon} aria-hidden="true">
+                  <path d="M5 3.5v9" />
+                  <path d="M11 3.5v9" />
+                </svg>
+              )}
             </button>
             <button
               type="button"
-              className={styles.secondaryButton}
-              onClick={() => {
-                if (!timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
-                updateGraphTabConfig(tabId, {
-                  graphPlaybackPaused: false,
-                  graphFrozenEndMs: null,
-                  graphAutoFollow: true,
-                  graphViewStartMs: clampGraphStartForTimeline(
-                    timeline.timelineEndMs - graphConfig.graphSpanMs,
-                    graphConfig.graphSpanMs,
-                    timeline.timelineStartMs,
-                    timeline.timelineEndMs
-                  ),
-                });
-              }}
+              className={
+                graphFollowActive
+                  ? `${styles.secondaryButton} ${styles.graphToolbarIconBtn} ${styles.logicToggleActive}`
+                  : `${styles.secondaryButton} ${styles.graphToolbarIconBtn}`
+              }
+              onClick={() => toggleGraphFollow(tabId)}
+              aria-label={t('panes.follow')}
+              title={t('panes.follow')}
             >
-              {t('panes.follow')}
+              <svg viewBox="0 0 16 16" className={styles.graphToolbarIcon} aria-hidden="true">
+                <path d="M3 8h7" />
+                <path d="M8.5 5.5L12 8l-3.5 2.5" />
+                <path d="M12.5 4.5v7" />
+              </svg>
             </button>
           </div>
         </div>
@@ -2142,21 +2321,45 @@ export default function MonitorClient() {
             )}
           </div>
           {canScroll && (
-            <input
-              type="range"
-              className={styles.chartScrollBar}
-              min={scrollTimelineStart}
-              max={scrollMax}
-              step={scrollStep}
-              value={clamp(graphConfig.graphViewStartMs, scrollTimelineStart, scrollMax)}
-              onChange={(event) =>
-                updateGraphTabConfig(tabId, {
-                  graphViewStartMs: Number(event.currentTarget.value),
-                  graphAutoFollow: false,
-                })
-              }
+            <div
+              className={styles.chartScrollTrack}
+              role="scrollbar"
               aria-label={t('panes.graphScroll')}
-            />
+              aria-orientation="horizontal"
+              aria-valuemin={scrollTimelineStart}
+              aria-valuemax={scrollTimelineEnd - graphConfig.graphSpanMs}
+              aria-valuenow={clamp(
+                graphConfig.graphViewStartMs,
+                scrollTimelineStart,
+                scrollTimelineEnd - graphConfig.graphSpanMs
+              )}
+              onPointerDown={(event) =>
+                handleGraphScrollTrackClick(
+                  tabId,
+                  event,
+                  scrollTimelineStart,
+                  scrollTimelineEnd,
+                  graphConfig.graphSpanMs
+                )
+              }
+              onPointerMove={(event) => handleGraphScrollMove(tabId, event)}
+              onPointerUp={(event) => handleGraphScrollEnd(tabId, event)}
+              onPointerCancel={(event) => handleGraphScrollEnd(tabId, event)}
+            >
+              <div
+                className={styles.chartScrollThumb}
+                style={{ left: `${thumbLeftPercent}%`, width: `${thumbWidthPercent}%` }}
+                onPointerDown={(event) =>
+                  handleGraphScrollThumbStart(
+                    tabId,
+                    event,
+                    scrollTimelineStart,
+                    scrollTimelineEnd,
+                    graphConfig.graphSpanMs
+                  )
+                }
+              />
+            </div>
           )}
         </div>
         <p className={styles.meta}>
