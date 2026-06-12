@@ -515,6 +515,24 @@ function clampGraphStartForTimeline(
   return clamp(startMs, timelineStartMs, maxStart);
 }
 
+function getGraphInteractionTimeline(
+  graph: GraphTabConfig,
+  liveTimeline: { timelineStartMs: number; timelineEndMs: number } | undefined
+): { timelineStartMs: number; timelineEndMs: number } | null {
+  if (
+    graph.graphPlaybackPaused &&
+    graph.graphFrozenStartMs !== null &&
+    graph.graphFrozenEndMs !== null
+  ) {
+    return {
+      timelineStartMs: graph.graphFrozenStartMs,
+      timelineEndMs: graph.graphFrozenEndMs,
+    };
+  }
+  if (!liveTimeline || liveTimeline.timelineEndMs <= liveTimeline.timelineStartMs) return null;
+  return liveTimeline;
+}
+
 function formatGraphSpanMs(spanMs: number): string {
   if (!Number.isFinite(spanMs) || spanMs <= 0) return '0 s';
   if (spanMs >= 60_000) return `${(spanMs / 60_000).toFixed(1)} min`;
@@ -1879,8 +1897,8 @@ export default function MonitorClient() {
     const nativeEvent = event.nativeEvent as WheelEvent & { stopImmediatePropagation?: () => void };
     nativeEvent.stopImmediatePropagation?.();
     const graph = tabConfigById[tabId]?.graph;
-    const timeline = graphTimelineByTabId[tabId];
-    if (!graph || !timeline || timeline.timelineEndMs <= timeline.timelineStartMs) return;
+    const timeline = graph ? getGraphInteractionTimeline(graph, graphTimelineByTabId[tabId]) : null;
+    if (!graph || !timeline) return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (rect.width <= 0) return;
     const localXInViewport = clamp(event.clientX - rect.left, 0, rect.width);
@@ -1922,7 +1940,7 @@ export default function MonitorClient() {
     const pan = graphPanRefByTab.current[tabId];
     if (!pan?.active || !scroller) return;
     const graph = tabConfigById[tabId]?.graph;
-    const timeline = graphTimelineByTabId[tabId];
+    const timeline = graph ? getGraphInteractionTimeline(graph, graphTimelineByTabId[tabId]) : null;
     if (!graph || !timeline) return;
     const rect = scroller.getBoundingClientRect();
     if (rect.width <= 0) return;
