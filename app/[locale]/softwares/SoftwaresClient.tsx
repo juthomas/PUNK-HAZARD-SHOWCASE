@@ -91,7 +91,24 @@ const SERIAL_USB_FILTERS = [{ usbVendorId: 0x10c4 }]; // Silicon Labs CP210x
 
 const CONFIG_TAB_ORDER = ['general', 'network', 'buttons', 'pcf'] as const;
 const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> = {
-  general: ['note', 'volume', 'loop_file', 'auto_play', 'allow_play_over_playing' ],
+  general: [
+    'note',
+    'volume',
+    'loop_file',
+    'auto_play',
+    'allow_play_over_playing',
+    'fractal_state_pos_x',
+    'fractal_state_pos_y',
+    'glyph_pos_x',
+    'glyph_pos_y',
+    'gyro_norm_min',
+    'gyro_norm_max',
+    'accel_norm_min',
+    'accel_norm_max',
+    'mag_norm_min',
+    'mag_norm_max',
+    'signals',
+  ],
   network: [
     'device_mode',
     'udp_port',
@@ -101,6 +118,16 @@ const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> 
     'ap_password',
     'ap_ip_config',
     'esp_now_channel',
+    'upd_target_ip',
+    'upd_target_port',
+    'upd_input_port',
+    'osc_target_ip',
+    'osc_target_port',
+    'sta_ssid',
+    'sta_pswd',
+    'ap_ssid',
+    'ap_pswd',
+    'tripode_id',
   ],
   buttons: [
     'button_gpio13_track',

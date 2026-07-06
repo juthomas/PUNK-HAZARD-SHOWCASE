@@ -1,0 +1,32 @@
+{
+  "name": "AS-SIMT",
+  "version": "2026-07-06-as-simt-b606cfa",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "/firmwares/as-simt/bootloader.bin",
+          "offset": 4096
+        },
+        {
+          "path": "/firmwares/as-simt/partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "/firmwares/as-simt/boot_app0.bin",
+          "offset": 57344
+        },
+        {
+          "path": "/firmwares/as-simt/firmware.bin",
+          "offset": 65536
+        },
+        {
+          "path": "/firmwares/as-simt/spiffs.bin",
+          "offset": 3211264
+        }
+      ]
+    }
+  ]
+}

@@ -174,6 +174,52 @@ export const softwaresCatalog: PublicSoftware[] = [
     ],
   },
   {
+    id: 'as-simt',
+    kind: 'firmware',
+    name: {
+      fr: 'AS-SIMT',
+      en: 'AS-SIMT',
+    },
+    description: {
+      fr: 'Firmware du capteur de mouvement AS-SIMT (tripode) flashable et configurable en ligne.',
+      en: 'Online flashable and configurable firmware for the AS-SIMT motion sensor (tripode).',
+    },
+    board: 'AS-SIMT',
+    chipFamily: 'ESP32',
+    manifestPath: '/firmwares/as-simt/manifest.json',
+    configTemplatePath: '/firmwares/as-simt/data-template.json',
+    serialConfigPrefix: 'WEBCFG:',
+    serialConfigBaudRate: 115200,
+    includesFilesystemData: true,
+    parts: [
+      {
+        id: 'bootloader',
+        label: { fr: 'Bootloader', en: 'Bootloader' },
+        offset: 0x1000,
+      },
+      {
+        id: 'partitions',
+        label: { fr: 'Table de partitions', en: 'Partition table' },
+        offset: 0x8000,
+      },
+      {
+        id: 'boot_app0',
+        label: { fr: 'Boot app', en: 'Boot app' },
+        offset: 0xe000,
+      },
+      {
+        id: 'firmware',
+        label: { fr: 'Application firmware', en: 'Application firmware' },
+        offset: 0x10000,
+      },
+      {
+        id: 'spiffs',
+        label: { fr: 'SPIFFS (data incluses)', en: 'SPIFFS (embedded data)' },
+        offset: 0x310000,
+      },
+    ],
+  },
+  {
     id: 'as-simt-desktop',
     kind: 'desktop',
     name: {
