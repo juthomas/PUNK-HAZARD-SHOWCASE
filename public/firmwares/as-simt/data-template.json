@@ -22,27 +22,33 @@
   "signals": [
     {
       "value": "write:;#0D300I255P1;12;12",
-      "type": "udp"
+      "type": "udp",
+      "enabled": true
     },
     {
       "value": "select:0;0",
-      "type": "udp"
+      "type": "udp",
+      "enabled": true
     },
     {
       "value": "write:1V{G:X}2V{G:Y}3V{G:Z};0;0",
-      "type": "udp"
+      "type": "udp",
+      "enabled": true
     },
     {
       "value": "/gyroscope_x:{G:X}",
-      "type": "osc"
+      "type": "osc",
+      "enabled": true
     },
     {
       "value": "/gyroscope_y:{G:Y}",
-      "type": "osc"
+      "type": "osc",
+      "enabled": true
     },
     {
       "value": "/gyroscope_z:{G:Z}",
-      "type": "osc"
+      "type": "osc",
+      "enabled": true
     }
   ]
 }

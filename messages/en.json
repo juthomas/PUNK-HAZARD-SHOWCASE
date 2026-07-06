@@ -324,6 +324,9 @@
         "mag_norm_max": "Mag norm max",
         "signals": "Signals (JSON)"
       },
+      "configFieldHints": {
+        "signals": "Each array item has value (UDP or OSC message), type (udp or osc), and enabled (optional, defaults to true). Signals with enabled: false are skipped by the firmware. After flashing, you can also toggle them from the on-device UI at http://4.3.2.1/config."
+      },
       "configOptions": {
         "device_mode_0": "Broadcast",
         "device_mode_1": "Broadcast + mesh",

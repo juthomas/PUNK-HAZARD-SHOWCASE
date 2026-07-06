@@ -2121,30 +2121,37 @@ export default function SoftwaresClient() {
                                   ))}
                                 </select>
                               ) : fieldType === 'json' ? (
-                                <textarea
-                                  className={styles.textarea}
-                                  value={
-                                    typeof fieldValue === 'string'
-                                      ? fieldValue
-                                      : ''
-                                  }
-                                  onChange={(event) => {
-                                    const nextValue =
-                                      event.currentTarget.value;
-                                    setConfigDraftValues((previous) => {
-                                      const next = {
-                                        ...previous,
-                                        [fieldKey]: nextValue,
-                                      };
-                                      if (selectedFirmware?.id)
-                                        persistConfigDraft(
-                                          selectedFirmware.id,
-                                          next
-                                        );
-                                      return next;
-                                    });
-                                  }}
-                                />
+                                <>
+                                  <textarea
+                                    className={styles.textarea}
+                                    value={
+                                      typeof fieldValue === 'string'
+                                        ? fieldValue
+                                        : ''
+                                    }
+                                    onChange={(event) => {
+                                      const nextValue =
+                                        event.currentTarget.value;
+                                      setConfigDraftValues((previous) => {
+                                        const next = {
+                                          ...previous,
+                                          [fieldKey]: nextValue,
+                                        };
+                                        if (selectedFirmware?.id)
+                                          persistConfigDraft(
+                                            selectedFirmware.id,
+                                            next
+                                          );
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                  {fieldKey === 'signals' ? (
+                                    <p className={styles.cardMeta}>
+                                      {t('modal.configFieldHints.signals')}
+                                    </p>
+                                  ) : null}
+                                </>
                               ) : (
                                 <input
                                   type={

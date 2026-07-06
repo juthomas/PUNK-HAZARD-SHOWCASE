@@ -324,6 +324,9 @@
         "mag_norm_max": "Mag norm max",
         "signals": "Signaux (JSON)"
       },
+      "configFieldHints": {
+        "signals": "Chaque entrée du tableau contient value (message UDP ou OSC), type (udp ou osc) et enabled (optionnel, true par défaut). Les signaux avec enabled: false sont ignorés par le firmware. Après le flash, vous pouvez aussi les activer ou désactiver depuis l'interface embarquée http://4.3.2.1/config."
+      },
       "configOptions": {
         "device_mode_0": "Broadcast",
         "device_mode_1": "Broadcast + mesh",
