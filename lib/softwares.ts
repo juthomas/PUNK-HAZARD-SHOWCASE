@@ -14,6 +14,11 @@ export type FirmwarePart = {
   offset: number;
 };
 
+export type SerialUsbFilter = {
+  usbVendorId?: number;
+  usbProductId?: number;
+};
+
 export type FirmwareSoftware = SoftwareBase & {
   kind: 'firmware';
   board: string;
@@ -22,6 +27,8 @@ export type FirmwareSoftware = SoftwareBase & {
   configTemplatePath?: string;
   serialConfigPrefix?: string;
   serialConfigBaudRate?: number;
+  /** Web Serial USB filters; defaults to CP210x when omitted. */
+  serialUsbFilters?: SerialUsbFilter[];
   includesFilesystemData: boolean;
   parts: FirmwarePart[];
 };
@@ -190,6 +197,10 @@ export const softwaresCatalog: PublicSoftware[] = [
     configTemplatePath: '/firmwares/as-simt/data-template.json',
     serialConfigPrefix: 'WEBCFG:',
     serialConfigBaudRate: 115200,
+    serialUsbFilters: [
+      { usbVendorId: 0x1a86 }, // WCH CH340/CH9102/CH343 (TTGO T-Display)
+      { usbVendorId: 0x10c4 }, // Silicon Labs CP210x (alternate TTGO batch)
+    ],
     includesFilesystemData: true,
     parts: [
       {

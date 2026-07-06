@@ -86,8 +86,12 @@ type ConfigFieldType = 'boolean' | 'number' | 'string' | 'json';
 
 const CONFIG_UI_HIDDEN_KEYS = new Set<string>(['track_assignation', 'ap_enabled']);
 
-/** USB serial filter: CP2102 (Silicon Labs) so the port picker shows only USB serial, not Bluetooth (e.g. on Android). */
-const SERIAL_USB_FILTERS = [{ usbVendorId: 0x10c4 }]; // Silicon Labs CP210x
+/** Default USB serial filter: CP210x (Silicon Labs), used by Pigeons / Ways To Silence boards. */
+const DEFAULT_SERIAL_USB_FILTERS = [{ usbVendorId: 0x10c4 }];
+
+function getSerialUsbFilters(firmware: FirmwareSoftware | null | undefined) {
+  return firmware?.serialUsbFilters ?? DEFAULT_SERIAL_USB_FILTERS;
+}
 
 const CONFIG_TAB_ORDER = ['general', 'network', 'buttons', 'pcf'] as const;
 const CONFIG_FIELDS_BY_TAB: Record<(typeof CONFIG_TAB_ORDER)[number], string[]> = {
@@ -1310,7 +1314,9 @@ export default function SoftwaresClient() {
         throw new Error(t('modal.logs.chromeRequired'));
       }
 
-      const pickedPort = await serialApi.requestPort({ filters: SERIAL_USB_FILTERS });
+      const pickedPort = await serialApi.requestPort({
+        filters: getSerialUsbFilters(selectedFirmware),
+      });
       appendFlashLog(t('modal.logs.checkingPort'));
       await probePortAvailability(pickedPort);
       setSelectedSerialPort(pickedPort);
@@ -1786,7 +1792,9 @@ export default function SoftwaresClient() {
         if (!serialApi) {
           throw new Error(t('modal.logs.chromeRequired'));
         }
-        monitorPort = await serialApi.requestPort({ filters: SERIAL_USB_FILTERS });
+        monitorPort = await serialApi.requestPort({
+          filters: getSerialUsbFilters(selectedFirmware),
+        });
         setSelectedSerialPort(monitorPort);
         flashSession.setPort(monitorPort);
         appendSerialMonitorLog(t('modal.logs.portSelected'));
